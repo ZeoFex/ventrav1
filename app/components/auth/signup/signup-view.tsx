@@ -34,6 +34,14 @@ function SignupViewContent() {
   const [otp, setOtp] = useState<string[]>(() => Array(6).fill(""));
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [resendSeconds, setResendSeconds] = useState(0);
+  
+  const isPaid = searchParams.get("paid") === "true";
+  const selectedPlan = searchParams.get("plan") || "starter";
+
+  useEffect(() => {
+    const emailParam = searchParams.get("email");
+    if (emailParam) setEmail(emailParam);
+  }, [searchParams]);
 
   // API states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -177,7 +185,8 @@ function SignupViewContent() {
         storeName: businessName.trim(),
         legalName: fullName.trim(),
         plan: searchParams.get("plan") || "starter",
-        cycle: searchParams.get("cycle") || "annually"
+        cycle: searchParams.get("cycle") || "annually",
+        paid: isPaid,
       });
       router.push("/onboarding");
     } catch {
@@ -251,6 +260,8 @@ function SignupViewContent() {
             isSubmitting={isSubmitting}
             apiError={apiError}
             onSubmit={handleSignupSubmit}
+            isPaid={isPaid}
+            selectedPlan={selectedPlan}
           />
         </section>
 

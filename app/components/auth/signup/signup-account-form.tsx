@@ -9,6 +9,7 @@ import {
   IconUser,
 } from "@/app/components/auth/auth-icons";
 import { inputBase, inputPassword } from "@/app/components/auth/auth-input-classes";
+import { CheckCircle2 } from "lucide-react";
 
 export type PasswordChecks = {
   minLen: boolean;
@@ -42,6 +43,8 @@ type SignupAccountFormProps = {
   isSubmitting: boolean;
   apiError: string | null;
   onSubmit: (e: React.FormEvent) => void;
+  isPaid?: boolean;
+  selectedPlan?: string;
 };
 
 const ruleRows: { key: keyof PasswordChecks; label: string }[] = [
@@ -76,6 +79,8 @@ export function SignupAccountForm({
   isSubmitting,
   apiError,
   onSubmit,
+  isPaid,
+  selectedPlan,
 }: SignupAccountFormProps) {
   return (
     <div className="flex flex-1 flex-col justify-center bg-background px-6 pb-12 pt-8 sm:px-10 lg:justify-start lg:px-16 lg:pb-16 lg:pt-14 xl:px-24">
@@ -97,6 +102,20 @@ export function SignupAccountForm({
         <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
           Create your account
         </h2>
+
+        {isPaid && (
+          <div className="mt-6 flex items-center gap-3 rounded-2xl bg-[#006c49]/5 p-4 border border-[#006c49]/20 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe] dark:border-[#6ffbbe]/20 animate-in fade-in slide-in-from-top-1">
+            <CheckCircle2 className="size-5 shrink-0" />
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wider">
+                {selectedPlan} Plan Paid
+              </p>
+              <p className="text-[12px] opacity-80 mt-0.5">
+                Plan will be activated automatically after verification.
+              </p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4 sm:mt-9" noValidate>
           <div className="relative">

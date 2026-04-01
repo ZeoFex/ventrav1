@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Smartphone, ShieldCheck, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Smartphone, ShieldCheck, AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 
 export interface PaymentFlowProps {
   plan: "starter" | "growth" | "pro" | string;
   cycle: "monthly" | "annually";
   amountGHS: number;
   onSuccess: () => void;
+  preSignupEmail?: string;
 }
 
-export function PaymentFlow({ plan, cycle, amountGHS, onSuccess }: PaymentFlowProps) {
+export function PaymentFlow({ plan, cycle, amountGHS, onSuccess, preSignupEmail }: PaymentFlowProps) {
   const [step, setStep] = useState<"phone" | "otp" | "poll" | "activating" | "success">("phone");
   const [phone, setPhone] = useState("");
   const [provider, setProvider] = useState<"mtn" | "vod" | "tigo">("mtn");
@@ -46,7 +47,13 @@ export function PaymentFlow({ plan, cycle, amountGHS, onSuccess }: PaymentFlowPr
       const res = await fetch("/api/billing/charge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, cycle, phone, provider }),
+        body: JSON.stringify({ 
+          plan, 
+          cycle, 
+          phone, 
+          provider,
+          preSignupEmail 
+        }),
       });
       const data = await res.json();
 
@@ -280,6 +287,33 @@ export function PaymentFlow({ plan, cycle, amountGHS, onSuccess }: PaymentFlowPr
           >
             Cancel or change number
           </button>
+
+          <div className="mt-8 pt-6 border-t border-border/40">
+            <details className="group">
+              <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center justify-center gap-1">
+                Didn&apos;t get the prompt? View manual steps
+                <ChevronDown className="size-3 group-open:rotate-180 transition-transform" />
+              </summary>
+              <div className="mt-4 text-left bg-secondary/5 rounded-xl p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <p className="text-[13px] font-bold text-foreground">For MTN Users:</p>
+                  <ol className="text-[12px] text-muted-foreground space-y-1 list-decimal ml-4 leading-relaxed">
+                    <li>Dial <strong className="text-foreground">*170#</strong></li>
+                    <li>Select Option <strong className="text-foreground">6</strong> (Wallet)</li>
+                    <li>Select Option <strong className="text-foreground">3</strong> (My Approvals)</li>
+                    <li>Enter your MoMo PIN</li>
+                    <li>Select the transaction and approve</li>
+                  </ol>
+                </div>
+                <div className="space-y-2 border-t border-border/20 pt-3">
+                  <p className="text-[13px] font-bold text-foreground">For Telecel (Vodafone):</p>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed">
+                    Dial <strong className="text-foreground">*110#</strong>, select <strong className="text-foreground">Option 4</strong> (Make Payment) and check <strong className="text-foreground">Pending Actions</strong> if available.
+                  </p>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
       )}
     </div>

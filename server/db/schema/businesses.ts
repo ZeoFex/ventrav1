@@ -55,7 +55,7 @@ export const businesses = pgTable("businesses", {
     onboardingCompleted: boolean("onboarding_completed").default(false),
     status: businessStatusEnum("status").default("active").notNull(),
     plan: businessPlanEnum("plan").default("starter").notNull(),
-    subscriptionStatus: subscriptionStatusEnum("subscription_status").default("active").notNull(),
+    subscriptionStatus: subscriptionStatusEnum("subscription_status").default("past_due").notNull(),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
         .defaultNow()

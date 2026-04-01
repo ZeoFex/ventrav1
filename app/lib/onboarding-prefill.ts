@@ -9,6 +9,7 @@ export type OnboardingPrefillPayload = {
   legalName?: string;
   plan?: string;
   cycle?: string;
+  paid?: boolean;
 };
 
 export function writeOnboardingPrefill(payload: OnboardingPrefillPayload): void {

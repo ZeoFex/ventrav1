@@ -4,7 +4,9 @@ import { verifyAccessToken } from "@/server/auth/token-service";
 import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
+import { pendingSubscriptions } from "@/server/db/schema/pending-subscriptions";
 import { eq } from "drizzle-orm";
+import { sendSubscriptionEmail } from "@/server/auth/email-service";
 
 /**
  * GET /api/billing/status?reference=xxx
@@ -16,9 +18,15 @@ import { eq } from "drizzle-orm";
 export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const payload = await verifyAccessToken(token);
+    let payload: any = null;
+    
+    if (token) {
+        try {
+            payload = await verifyAccessToken(token);
+        } catch {
+            // ignore invalid token for status check (could be guest)
+        }
+    }
 
     const reference = req.nextUrl.searchParams.get("reference");
     if (!reference) {
@@ -28,34 +36,77 @@ export async function GET(req: NextRequest) {
     const paystackResult = await checkPendingCharge(reference);
 
     // On success, update the business plan in the DB immediately
-    if (paystackResult.status && paystackResult.data.status === "success" && payload.bid) {
+    if (paystackResult.status && paystackResult.data.status === "success") {
       const parsedRef = extractDetailsFromReference(reference);
+      
       if (parsedRef) {
-        console.log(`[Status API] Upgrading business ${payload.bid} → ${parsedRef.plan} (${parsedRef.cycle})`);
-        
-        // Fetch the business's current billing cycle
-        const [biz] = await db
-          .select({ currentPeriodEnd: businesses.currentPeriodEnd })
-          .from(businesses)
-          .where(eq(businesses.id, payload.bid));
+        if (payload?.bid) {
+            console.log(`[Status API] Upgrading business ${payload.bid} → ${parsedRef.plan} (${parsedRef.cycle})`);
+            
+            // Fetch the business's current billing cycle
+            const [biz] = await db
+              .select({ currentPeriodEnd: businesses.currentPeriodEnd })
+              .from(businesses)
+              .where(eq(businesses.id, payload.bid));
 
-        const now = Date.now();
-        const currentEnd = biz?.currentPeriodEnd ? biz.currentPeriodEnd.getTime() : now;
-        
-        // If they still have time left, add to it. Otherwise, start from now.
-        const baseDateDate = currentEnd > now ? currentEnd : now;
-        
-        // Calculate new expiration date
-        const daysToAdd = parsedRef.cycle === "annually" ? 365 : 30;
-        const newExpiry = new Date(baseDateDate + daysToAdd * 24 * 60 * 60 * 1000);
+            const now = Date.now();
+            const currentEnd = biz?.currentPeriodEnd ? biz.currentPeriodEnd.getTime() : now;
+            
+            // If they still have time left, add to it. Otherwise, start from now.
+            const baseDateDate = currentEnd > now ? currentEnd : now;
+            
+            // Calculate new expiration date
+            const daysToAdd = parsedRef.cycle === "annually" ? 365 : 30;
+            const newExpiry = new Date(baseDateDate + daysToAdd * 24 * 60 * 60 * 1000);
 
-        await db.update(businesses)
-          .set({ 
-             plan: parsedRef.plan,
-             subscriptionStatus: "active",
-             currentPeriodEnd: newExpiry,
-          })
-          .where(eq(businesses.id, payload.bid));
+            await db.update(businesses)
+              .set({ 
+                 plan: parsedRef.plan,
+                 subscriptionStatus: "active",
+                 currentPeriodEnd: newExpiry,
+              })
+              .where(eq(businesses.id, payload.bid));
+
+            // Send confirmation email
+            await sendSubscriptionEmail({
+                to: payload.email,
+                firstName: payload.firstName,
+                planName: parsedRef.plan.charAt(0).toUpperCase() + parsedRef.plan.slice(1),
+                amount: (paystackResult.data.amount ? paystackResult.data.amount / 100 : 0).toString(),
+                cycle: parsedRef.cycle,
+            }).catch(err => console.error("[Status API] Failed to send subscription email:", err));
+        } else if (reference.includes("_guest_")) {
+            // Record in pending_subscriptions for pre-signup flow
+            const email = paystackResult.data.customer?.email;
+            if (!email) {
+                console.warn(`[Status API] Success for guest reference ${reference} but no email found in Paystack response`);
+                return NextResponse.json(paystackResult);
+            }
+
+            console.log(`[Status API] Recording pending subscription for ${email} → ${parsedRef.plan}`);
+            
+            await db.insert(pendingSubscriptions)
+              .values({
+                email,
+                plan: parsedRef.plan,
+                cycle: parsedRef.cycle,
+                reference,
+                status: "success",
+                amount: paystackResult.data.amount?.toString() || "0",
+              })
+              .onConflictDoUpdate({
+                target: pendingSubscriptions.reference,
+                set: { status: "success" }
+              });
+
+            // Send confirmation email for guest
+            await sendSubscriptionEmail({
+                to: email,
+                planName: parsedRef.plan.charAt(0).toUpperCase() + parsedRef.plan.slice(1),
+                amount: (paystackResult.data.amount ? paystackResult.data.amount / 100 : 0).toString(),
+                cycle: parsedRef.cycle,
+            }).catch(err => console.error("[Status API] Failed to send guest subscription email:", err));
+        }
       }
     }
 

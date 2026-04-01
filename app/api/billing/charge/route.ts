@@ -13,15 +13,21 @@ const chargeSchema = z.object({
   cycle: z.enum(["monthly", "annually"]).default("monthly"),
   phone: z.string().min(9),
   provider: z.enum(["mtn", "vod", "tigo"]),
+  preSignupEmail: z.string().email().optional(),
 });
 
 export async function POST(req: NextRequest) {
   try {
     const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    let payload: any = null;
     
-    const payload = await verifyAccessToken(token);
-    if (!payload.bid) return NextResponse.json({ error: "No business context found" }, { status: 400 });
+    if (token) {
+        try {
+            payload = await verifyAccessToken(token);
+        } catch {
+            // ignore invalid token for guest checkout
+        }
+    }
 
     const body = await req.json();
     const parsed = chargeSchema.safeParse(body);
@@ -30,7 +36,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid payment details" }, { status: 400 });
     }
 
-    const { plan, cycle, phone, provider } = parsed.data;
+    const { plan, cycle, phone, provider, preSignupEmail } = parsed.data;
+
+    // Must have either a session email or a pre-signup email
+    const email = payload?.email || preSignupEmail;
+    if (!email) {
+        return NextResponse.json({ error: "Email is required for payment" }, { status: 400 });
+    }
     
     // Find the correct selected plan
     const planDetails = PLANS.find((p) => p.id === plan);
@@ -43,11 +55,8 @@ export async function POST(req: NextRequest) {
     const amount = amountGHS * 100;
     // Create a unique reference for tracking including plan and cycle
     const cycleCode = cycle === "annually" ? "ann" : "mon";
-    const reference = `vpn_${payload.bid}_${Date.now()}_${plan.substring(0, 3)}_${cycleCode}`;
-
-    // Get the user's email to pass to Paystack
-    const email = payload.email || "billing@ventrapos.com"; 
-
+    const bidLabel = payload?.bid || "guest";
+    const reference = `vpn_${bidLabel}_${Date.now()}_${plan.substring(0, 3)}_${cycleCode}`;
     // Send the charge to Paystack
     const paystackResult = await chargeMomo(email, amount, { phone, provider }, reference);
 

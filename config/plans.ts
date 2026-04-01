@@ -17,8 +17,8 @@ export const PLANS: Plan[] = [
     name: "Starter",
     description: "Help a business move from manual processes into a clean digital operating flow.",
     bestFor: "Single-location SMEs, mini marts, small pharmacies, boutiques.",
-    priceMonthly: 149,
-    priceAnnually: 1490,
+    priceMonthly: 1,
+    priceAnnually: 10,
     highlighted: false,
     features: [
       "1 branch & store setup",

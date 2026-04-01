@@ -50,6 +50,7 @@ export function OnboardingView() {
         legalName?: string;
         plan?: string;
         cycle?: string;
+        paid?: boolean;
       };
       if (p.businessId) setBusinessId(p.businessId);
       if (p.userId) setUserId(p.userId);
@@ -63,7 +64,10 @@ export function OnboardingView() {
           ? { legalName: p.legalName }
           : {}),
         ...(typeof p.plan === "string" && p.plan
-          ? { plan: p.plan as OnboardingData["plan"], billingComplete: p.plan === "starter" } // Auto-complete for free starter plan
+          ? { 
+              plan: p.plan as OnboardingData["plan"], 
+              billingComplete: !!p.paid 
+            }
           : {}),
         ...(typeof p.cycle === "string" && p.cycle
           ? { cycle: p.cycle as OnboardingData["cycle"] }

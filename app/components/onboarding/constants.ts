@@ -73,9 +73,10 @@ export function buildOnboardingSteps(structure: StoreStructure, plan: string): s
   if (structure === "multi") {
     tail.push(...BRANCH_STEP_IDS);
   }
-  if (plan !== "starter") {
-    tail.push("billing");
-  }
+  
+  // All plans are now paid plans (including Starter)
+  tail.push("billing");
+  
   tail.push("checklist", "guided", "complete");
   return [...prefix, ...tail];
 }

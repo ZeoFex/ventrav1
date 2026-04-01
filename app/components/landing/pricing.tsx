@@ -1,10 +1,12 @@
 "use client";
 
-import { Check, ChevronDown, Building2, ArrowRight } from "lucide-react";
-import React, { useState } from "react";
+import { Check, ChevronDown, Building2, ArrowRight, X } from "lucide-react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { motion, Variants } from "motion/react";
+import { useRouter } from "next/navigation";
+import { motion, Variants, AnimatePresence } from "motion/react";
 import { PLANS, PlanId } from "@/config/plans";
+import { PaymentFlow } from "@/app/components/billing/payment-flow";
 
 type BillingCycle = "monthly" | "annually";
 
@@ -78,8 +80,50 @@ export function LandingPricing({
     currentPlan?: PlanId;
     isPastDue?: boolean;
 } = {}) {
+    const router = useRouter();
     const [billingCycle, setBillingCycle] = useState<BillingCycle>("annually");
     const [showCompare, setShowCompare] = useState(defaultShowCompare);
+
+    // Pre-signup billing states
+    const [billingStep, setBillingStep] = useState<"email" | "payment" | null>(null);
+    const [preSignupEmail, setPreSignupEmail] = useState("");
+    const [selectedPlanDetails, setSelectedPlanDetails] = useState<{ id: PlanId; cycle: BillingCycle; name: string; price: number } | null>(null);
+
+    const handlePlanClick = (plan: typeof plans[0], cycle: BillingCycle) => {
+        if (onSelectPlan) {
+            onSelectPlan(plan.id as PlanId, cycle);
+            return;
+        }
+
+        // For paid plans, trigger pre-signup billing
+        setSelectedPlanDetails({
+            id: plan.id as PlanId,
+            cycle,
+            name: plan.name,
+            price: cycle === "monthly" ? plan.priceMonthly : plan.priceAnnually
+        });
+        setBillingStep("email");
+    };
+
+    const handleEmailSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (preSignupEmail.trim() && preSignupEmail.includes("@")) {
+            setBillingStep("payment");
+        }
+    };
+
+    const handleBillingSuccess = () => {
+        if (!selectedPlanDetails) return;
+        
+        // Redirect to signup with email pre-filled and a flag indicating they've paid
+        const params = new URLSearchParams({
+            email: preSignupEmail,
+            plan: selectedPlanDetails.id,
+            cycle: selectedPlanDetails.cycle,
+            paid: "true"
+        });
+        router.push(`/signup?${params.toString()}`);
+    };
 
     return (
         <section className="relative overflow-hidden bg-background py-16 lg:py-24 text-foreground">
@@ -201,30 +245,22 @@ export function LandingPricing({
                                     ))}
                                 </ul>
 
-                                {onSelectPlan ? (
-                                    <button
-                                        onClick={() => onSelectPlan(plan.id as PlanId, billingCycle)}
-                                        disabled={currentPlan === plan.id && !isPastDue}
-                                        className={`mt-auto flex h-12 w-full items-center justify-center rounded-xl text-[15px] font-semibold transition-all ${(currentPlan === plan.id && !isPastDue)
-                                            ? "bg-surface-elevated text-muted-foreground border border-border cursor-not-allowed opacity-60"
-                                            : plan.highlighted
-                                                ? "bg-[#6ffbbe] text-[#002118] hover:brightness-110 shadow-[0_0_20px_rgba(111,251,190,0.3)]"
-                                                : "bg-[#006c49] text-white hover:bg-[#005a3c]"
-                                            }`}
-                                    >
-                                        {currentPlan === plan.id ? (isPastDue ? "Renew Plan" : "Active Plan") : `Upgrade to ${plan.name}`}
-                                    </button>
-                                ) : (
-                                    <Link
-                                        href={`/signup?plan=${plan.name.toLowerCase()}&cycle=${billingCycle}`}
-                                        className={`mt-auto flex h-12 w-full items-center justify-center rounded-xl text-[15px] font-semibold transition-all ${plan.highlighted
+                                <button
+                                    onClick={() => handlePlanClick(plan, billingCycle)}
+                                    disabled={currentPlan === plan.id && !isPastDue}
+                                    className={`mt-auto flex h-12 w-full items-center justify-center rounded-xl text-[15px] font-semibold transition-all ${(currentPlan === plan.id && !isPastDue)
+                                        ? "bg-surface-elevated text-muted-foreground border border-border cursor-not-allowed opacity-60"
+                                        : plan.highlighted
                                             ? "bg-[#6ffbbe] text-[#002118] hover:brightness-110 shadow-[0_0_20px_rgba(111,251,190,0.3)]"
-                                            : "bg-surface-container-lowest border border-border/40 hover:bg-surface-container-low"
-                                            }`}
-                                    >
-                                        Get Started with {plan.name}
-                                    </Link>
-                                )}
+                                            : onSelectPlan ? "bg-[#006c49] text-white hover:bg-[#005a3c]" : "bg-surface-container-lowest border border-border/40 hover:bg-surface-container-low"
+                                        }`}
+                                >
+                                    {currentPlan === plan.id 
+                                        ? (isPastDue ? "Renew Plan" : "Active Plan") 
+                                        : onSelectPlan 
+                                            ? `Upgrade to ${plan.name}` 
+                                            : `Get Started with ${plan.name}`}
+                                </button>
                             </motion.div>
                         );
                     })}
@@ -312,6 +348,106 @@ export function LandingPricing({
                 </div>
 
             </div>
+
+
+            {/* Pre-signup Billing Modal */}
+            <AnimatePresence>
+                {billingStep && selectedPlanDetails && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setBillingStep(null)}
+                            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative w-full max-w-lg overflow-hidden rounded-[2.5rem] border border-border/50 bg-surface-elevated p-8 shadow-2xl sm:p-10"
+                        >
+                            <button
+                                onClick={() => setBillingStep(null)}
+                                className="absolute right-6 top-6 rounded-full p-2 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+
+                            {billingStep === "email" ? (
+                                <div className="flex flex-col gap-6">
+                                    <div>
+                                        <h3 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">
+                                            Start with {selectedPlanDetails.name}
+                                    </h3>
+                                    <p className="mt-2 text-[15px] text-muted-foreground">
+                                        Enter the email address you'll use for your business account.
+                                    </p>
+                                </div>
+
+                                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[13px] font-medium text-muted-foreground ml-1">
+                                            Business Email
+                                        </label>
+                                        <input
+                                            autoFocus
+                                            type="email"
+                                            required
+                                            value={preSignupEmail}
+                                            onChange={(e) => setPreSignupEmail(e.target.value)}
+                                            placeholder="e.g. hello@bakery.com"
+                                            className="h-12 w-full rounded-2xl border border-border/60 bg-background px-4 text-[15px] outline-none transition-all focus:border-[#006c49]/40 focus:ring-4 focus:ring-[#006c49]/5"
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#006c49] text-[15px] font-semibold text-white transition-all hover:bg-[#005a3c]"
+                                    >
+                                        Continue to Payment
+                                        <ArrowRight className="h-4 w-4" />
+                                    </button>
+                                </form>
+
+                                <div className="rounded-2xl bg-secondary/5 p-4 border border-secondary/10">
+                                    <div className="flex justify-between text-sm mb-1">
+                                        <span className="text-muted-foreground">Selected Plan:</span>
+                                        <span className="font-semibold text-foreground uppercase tracking-wider text-xs">
+                                            {selectedPlanDetails.name}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Total to pay:</span>
+                                        <span className="font-bold text-foreground">
+                                            GHS {selectedPlanDetails.price}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-6">
+                                <div>
+                                    <h3 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">
+                                        Complete Payment
+                                    </h3>
+                                    <p className="mt-2 text-[15px] text-muted-foreground">
+                                        Securely pay with Mobile Money to activate your plan.
+                                    </p>
+                                </div>
+
+                                <PaymentFlow
+                                    plan={selectedPlanDetails.id as any}
+                                    cycle={selectedPlanDetails.cycle}
+                                    amountGHS={selectedPlanDetails.price}
+                                    preSignupEmail={preSignupEmail}
+                                    onSuccess={handleBillingSuccess}
+                                />
+                            </div>
+                        )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </section>
     );
 }

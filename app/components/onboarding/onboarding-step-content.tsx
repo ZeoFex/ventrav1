@@ -694,50 +694,35 @@ export function OnboardingStepContent({
       );
 
     case "billing": {
-      // If starter, they shouldn't even see this step (it skips via canProceed logic), 
-      // but just in case, show a simple message
-      if (data.plan === "starter") {
-        return (
-          <div className="space-y-6 text-center py-12">
-            <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
-              Starter Plan Selected
-            </h2>
-            <p className="text-muted-foreground">Your free plan is active. You can proceed.</p>
-            <button
-              onClick={() => setData(d => ({ ...d, billingComplete: true }))}
-              className="mt-4 px-6 py-2 bg-[#006c49] text-white rounded-lg font-medium hover:bg-[#005a3c]"
-            >
-              Continue Validation
-            </button>
-          </div>
-        );
-      }
-
-      const planDetails = PLANS.find(p => p.id === data.plan);
-      const amount = data.cycle === "monthly" 
-        ? planDetails?.priceMonthly ?? 0
-        : planDetails?.priceAnnually ?? 0;
+      const planDetails = PLANS.find((p) => p.id === data.plan);
+      const amount =
+        data.cycle === "monthly"
+          ? planDetails?.priceMonthly ?? 0
+          : planDetails?.priceAnnually ?? 0;
 
       return (
-        <div className="space-y-6 max-w-lg mx-auto">
-          <div className="text-center mb-8">
+        <div className="mx-auto max-w-lg space-y-6">
+          <div className="mb-8 text-center">
             {formStepLabel ? (
-              <p className="text-sm font-medium text-muted-foreground mb-2">{formStepLabel}</p>
+              <p className="mb-2 text-sm font-medium text-muted-foreground">
+                {formStepLabel}
+              </p>
             ) : null}
-            <h2 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+            <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               Complete your subscription
             </h2>
             <p className="mt-2 text-base text-muted-foreground">
-              You selected the {data.plan} plan ({data.cycle}). Please complete your payment to unlock these features.
+              You selected the {data.plan} plan ({data.cycle}). Please complete
+              your payment to unlock these features.
             </p>
           </div>
-          
+
           <PaymentFlow
-            plan={data.plan as "growth" | "pro"}
+            plan={data.plan as any}
             cycle={data.cycle}
             amountGHS={amount}
             onSuccess={() => {
-              setData(d => ({ ...d, billingComplete: true }));
+              setData((d) => ({ ...d, billingComplete: true }));
             }}
           />
         </div>

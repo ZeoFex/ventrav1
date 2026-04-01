@@ -9,6 +9,7 @@ import { branches } from "../db/schema/branches";
 import { users } from "../db/schema/users";
 import { roles, userRoles, permissions, rolePermissions } from "../db/schema/roles";
 import { emailVerifications } from "../db/schema/email-verifications";
+import { pendingSubscriptions } from "../db/schema/pending-subscriptions";
 import { passwordResets } from "../db/schema/password-resets";
 import { auditLogs } from "../db/schema/audit-logs";
 import { hashPassword, verifyPassword } from "./password-service";
@@ -100,7 +101,8 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
                 name: input.businessName.trim(),
                 slug,
                 contactEmail: emailNormalized,
-                currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                subscriptionStatus: "past_due",
+                currentPeriodEnd: new Date(0), // Initial state: expired
             })
             .returning({ id: businesses.id });
 
@@ -268,6 +270,30 @@ export async function verifyEmail(
                 updatedAt: new Date(),
             })
             .where(eq(users.id, user.id));
+
+        // Reconcile pending subscription if user paid before signing up
+        const [pending] = await tx
+            .select()
+            .from(pendingSubscriptions)
+            .where(eq(pendingSubscriptions.email, emailNormalized))
+            .limit(1);
+
+        if (pending && pending.status === "success") {
+            console.log(`[Auth Service] Reconciling pending subscription for ${emailNormalized} → ${pending.plan}`);
+            const daysToAdd = pending.cycle === "annually" ? 365 : 30;
+            const newExpiry = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000);
+
+            await tx.update(businesses)
+                .set({
+                    plan: pending.plan as "starter" | "growth" | "pro",
+                    subscriptionStatus: "active",
+                    currentPeriodEnd: newExpiry,
+                })
+                .where(eq(businesses.id, user.businessId));
+            
+            // Cleanup: delete the pending record after it's applied
+            await tx.delete(pendingSubscriptions).where(eq(pendingSubscriptions.id, pending.id));
+        }
     });
 
     console.log(`[Verify API] Successfully verified OTP for ${emailNormalized}`);

@@ -16,6 +16,11 @@ interface ChargeResponse extends BaseResponse {
   data: {
     reference: string;
     status: string;
+    amount?: number;
+    customer?: {
+      email: string;
+      [key: string]: any;
+    };
     display_text?: string;
     authorization?: {
       authorization_code: string;
