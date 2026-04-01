@@ -1,0 +1,17 @@
+# Next.js Suspense Rule
+
+Always wrap components using `useSearchParams()` in a `<Suspense>` boundary in the parent page/component.
+
+## Why?
+Next.js App Router bails out of static generation when `useSearchParams()` is used without a Suspense boundary. This causes production build failures (`⨯ useSearchParams() should be wrapped in a suspense boundary`).
+
+## Implementation
+1. Identify components using `useSearchParams()`.
+2. In the `page.tsx` or the immediate parent, import `Suspense` from `react`.
+3. Wrap the offending component:
+   ```tsx
+   <Suspense fallback={<LoadingSkeleton />}>
+     <MySearchComponent />
+   </Suspense>
+   ```
+4. If the page is a Client Component (`"use client"`), this is still required to handle CSR bailing.

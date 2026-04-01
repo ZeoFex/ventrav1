@@ -1,0 +1,24 @@
+---
+description: VentraPOS design system — Financial Atelier; follow for all UI/CSS
+alwaysApply: true
+---
+
+# Design system (authoritative detail: `DESIGN.md`)
+
+**North star:** "The Financial Atelier" — rigorous, boutique warmth; **intentional asymmetry** (varying widths, editorial overlaps), not a uniform SaaS grid.
+
+## Non-negotiables
+- **No-line rule:** Do not use 1px solid borders to separate sections. Use **tonal shifts** only (e.g. `surface` → `surface-container-low`).
+- **No dividers in lists:** Spacing tokens `3`/`4` or alternate row `surface-container-low` — no divider lines.
+- **Shadows:** Never pure black. Float shadows: **blur 32px**, `rgba(0, 53, 39, 0.04)`. Ghost borders if needed: `outline-variant` (#bfc9c3) at **~15% opacity**.
+- **Layout:** Prefer **left-aligned** editorial layouts; center only empty states / minimal modals.
+
+## Tokens (reference)
+- **Primary / secondary:** `#003527`, `#006c49` — CTAs: linear gradient primary → `primary-container` (#064e3b) at **135deg**.
+- **Surfaces:** `surface` #f7f9fb → `surface-container-low` #f2f4f6 → cards `surface-container-lowest` #ffffff; hover `surface-container-high` #e6e8ea.
+- **Glass overlays:** `surface-container-lowest` ~80% opacity, **backdrop-blur 20px**.
+- **Typography:** **Plus Jakarta Sans** (display/headlines); **Inter** (body/UI). Subtext: `on-surface-variant` #404944.
+- **Accent (sparingly):** `secondary-fixed` #6ffbbe for success / positive trends.
+- **Metric glass cards:** 70% white, blur 12px, ghost border ~20%, **2px top** in `secondary-fixed`.
+
+When implementing components, match `DESIGN.md` and these rules before introducing generic template styling.

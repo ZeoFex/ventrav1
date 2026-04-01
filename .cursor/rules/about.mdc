@@ -1,0 +1,1437 @@
+---
+description: All you need to know about what we are building. VentraPOS
+alwaysApply: true
+---
+
+# VentraPOS System Breakdown
+## Complete Product Context for LLMs, Agents, Designers, and Engineers
+
+> **VentraPOS** is a cloud-based business operations platform for SMEs. It helps businesses such as supermarkets, mini marts, pharmacies, restaurants, boutiques, provision shops, and general retailers manage sales, inventory, staff, customers, finances, and reporting from one modern system.
+
+---
+
+## 1. Product Identity
+
+### Product name
+**VentraPOS**
+
+### Product category
+Cloud-based POS and business management SaaS.
+
+### Product purpose
+VentraPOS replaces manual notebooks, loose receipts, spreadsheet confusion, and fragmented business operations with one unified digital system.
+
+### Core value proposition
+A business should be able to:
+
+1. Sign up
+2. Set up its store
+3. Add products
+4. Add staff
+5. Configure finance settings
+6. Start selling through POS
+7. Track stock, reports, and business performance
+
+without hiring developers to build custom software from scratch.
+
+### Primary promise
+VentraPOS gives SMEs a modern, trustworthy operating system to run daily business operations.
+
+---
+
+## 2. Problem Being Solved
+
+Many small and growing businesses still run operations manually. This causes:
+
+- poor sales records
+- stock loss and inaccurate inventory
+- unclear profit visibility
+- weak staff accountability
+- no customer history
+- difficulty scaling across branches
+- messy receipt and expense tracking
+- poor operational insight
+
+VentraPOS solves this by creating a structured digital workflow from setup to daily execution.
+
+---
+
+## 3. Target Businesses
+
+VentraPOS is designed for:
+
+- retail shops
+- supermarkets
+- mini marts
+- provision stores
+- pharmacies
+- boutiques
+- electronics shops
+- restaurants
+- growing SMEs
+
+---
+
+## 4. Core Product Philosophy
+
+VentraPOS should be understood as **business infrastructure**, not a side utility.
+
+### It must be:
+- fast
+- clear
+- reliable
+- auditable
+- secure
+- role-aware
+- branch-aware
+- finance-aware
+- mobile-friendly
+- easy for non-technical operators
+
+### It must not be:
+- a toy dashboard
+- only a checkout app
+- only an inventory app
+- a generic template POS
+- visually cheap
+- operationally careless
+
+### Product mindset
+This system will hold sensitive business records and operational truth. That means:
+- data integrity matters
+- security matters
+- permissions matter
+- auditability matters
+- speed matters
+- trust matters
+
+---
+
+## 5. Product Scope
+
+## 5.1 MVP scope
+The practical usable MVP for VentraPOS should include:
+
+- authentication
+- store setup
+- branch setup
+- onboarding checklist
+- product management
+- initial stock setup
+- staff creation
+- basic role permissions
+- finance settings
+- expense tracking
+- POS checkout
+- receipts
+- dashboard
+- sales report
+- stock report
+
+## 5.2 Post-MVP scope
+- advanced permissions
+- audit logs
+- branch comparisons
+- shift management
+- refunds and approval flows
+- batch and expiry tracking
+- supplier workflows
+- multi-terminal POS
+- advanced reporting
+- industry-specific modules
+- Android app
+
+---
+
+## 6. System Model
+
+VentraPOS is a **multi-tenant SaaS**.
+
+### Multi-tenant means:
+- many businesses use the same platform
+- each business is isolated from every other business
+- each business has its own stores, branches, staff, products, sales, expenses, customers, settings, and reports
+
+### High-level hierarchy
+```text
+Platform
+└── Business Account (Tenant)
+    ├── Business Profile
+    ├── Branches
+    │   ├── Staff
+    │   ├── Products / Inventory
+    │   ├── POS Terminals / Sessions
+    │   ├── Sales
+    │   ├── Expenses
+    │   └── Reports
+    ├── Customers
+    ├── Finance Settings
+    ├── Permissions / Roles
+    ├── Audit Logs
+    └── Subscription / Billing
+```
+
+---
+
+## 7. Primary User Roles
+
+## 7.1 Business Owner / Super Admin
+Full control of the business.
+
+Can:
+- manage the business account
+- create and edit branches
+- view all reports
+- add staff
+- assign roles
+- manage products
+- view finances
+- configure settings
+- manage subscription
+
+## 7.2 Branch Manager
+Operates one branch or a subset of branches.
+
+Can:
+- view branch activity
+- manage branch stock
+- monitor staff
+- view branch reports
+- approve some actions depending on permissions
+
+## 7.3 Cashier
+Handles front-of-house sales.
+
+Can:
+- access POS
+- process sales
+- print or send receipts
+- view assigned transaction history
+- process refunds only if allowed
+
+## 7.4 Stock Officer
+Handles inventory operations.
+
+Can:
+- add stock
+- adjust stock
+- transfer stock
+- track low stock
+- mark damaged or expired items
+
+## 7.5 Finance Officer / Accountant
+Handles expenses and finance visibility.
+
+Can:
+- create and review expenses
+- access finance summaries
+- export records
+- monitor revenue and cost trends
+
+## 7.6 Platform Super Admin
+Internal VentraPOS administrative role.
+
+Can:
+- manage tenants
+- manage support workflows
+- see platform health
+- manage subscriptions
+- handle incidents
+- manage feature flags
+
+---
+
+## 8. Primary Business Use Case
+
+## Example business
+**FreshMart Mini Supermarket**
+
+### Business profile
+- one small supermarket
+- one main branch initially
+- owner
+- one cashier
+- one manager
+- one stock officer
+- products such as drinks, rice, canned goods, milk, toiletries, bread, snacks
+
+### What FreshMart needs
+- create store profile
+- add branch
+- upload logo
+- enter products and stock
+- assign cashier and manager
+- set accepted payment methods
+- start selling immediately
+- print receipts
+- track daily sales
+- know which items are low
+- see expenses and profit summary
+- later expand to another branch
+
+---
+
+## 9. Product Journey
+
+The system journey should be understood in stages.
+
+## Stage 1: Discovery
+Business hears about VentraPOS through marketing, referral, demo, or direct outreach.
+
+## Stage 2: Signup
+Business creates account and verifies identity.
+
+## Stage 3: Business setup
+Business enters business information and creates its operational structure.
+
+## Stage 4: Guided onboarding
+System guides the user through all required setup steps.
+
+## Stage 5: Operational readiness
+Products, stock, staff, and finance settings are prepared.
+
+## Stage 6: Live usage
+POS, inventory, expenses, staff monitoring, and reporting become daily workflows.
+
+## Stage 7: Growth
+Business adds branches, staff, deeper permissions, and more advanced reporting.
+
+---
+
+## 10. Core Modules
+
+## 10.1 Public Website and Marketing Module
+Purpose: acquire businesses.
+
+Includes:
+- landing page
+- features page
+- pricing page
+- compare page
+- industry pages
+- FAQ
+- demo request
+- contact sales
+
+## 10.2 Authentication Module
+Purpose: secure access.
+
+Includes:
+- signup
+- login
+- email or phone verification
+- password reset
+- session management
+- refresh token flow
+- device/session tracking
+- account status handling
+
+## 10.3 Business Setup Module
+Purpose: create the business identity and operational structure.
+
+Includes:
+- business profile
+- contact details
+- address
+- currency
+- tax basics
+- receipt branding
+- business type
+- logo upload
+
+## 10.4 Branch Management Module
+Purpose: support one or multiple store locations.
+
+Includes:
+- branch creation
+- branch profile
+- operating hours
+- branch contact data
+- branch manager assignment
+- branch settings
+- branch reports
+
+## 10.5 Onboarding Module
+Purpose: guide the new business to first sale.
+
+Includes:
+- setup checklist
+- progress states
+- next recommended task
+- completion tracking
+
+## 10.6 Product Management Module
+Purpose: define what the business sells.
+
+Includes:
+- create product
+- product categories
+- barcode / SKU
+- pricing
+- cost price
+- variants
+- stock rules
+- branch assignment
+- image support
+- bulk import
+
+## 10.7 Inventory Module
+Purpose: track stock accurately.
+
+Includes:
+- opening stock
+- stock adjustments
+- transfer between branches
+- low stock alerts
+- damaged stock
+- expired stock
+- stock count sessions
+- stock movement history
+- valuation
+
+## 10.8 Staff and Permissions Module
+Purpose: control who can do what.
+
+Includes:
+- staff creation
+- role assignment
+- custom permissions
+- login credentials
+- branch assignment
+- activity log
+- access control
+
+## 10.9 POS Module
+Purpose: power checkout and transaction capture.
+
+Includes:
+- product search
+- barcode support
+- cart
+- payment methods
+- receipts
+- hold sale
+- returns
+- refunds
+- cashier sessions
+- register open/close
+
+## 10.10 Sales Module
+Purpose: record and expose transaction history.
+
+Includes:
+- sales list
+- sale details
+- sales by date
+- sales by cashier
+- sales by branch
+- refunded sales
+- voided sales
+- exports
+
+## 10.11 Customer Module
+Purpose: maintain customer records and purchase history.
+
+Includes:
+- customer list
+- customer details
+- customer purchase history
+- customer contact information
+- notes
+- top customer views
+
+## 10.12 Finance Module
+Purpose: track revenue and expenses.
+
+Includes:
+- payment methods
+- finance settings
+- expense categories
+- expenses
+- opening balance
+- cash flow summary
+- revenue summary
+- gross profit estimate
+- profit and loss summary
+
+## 10.13 Reports Module
+Purpose: turn operations into insight.
+
+Includes:
+- sales reports
+- inventory reports
+- expense reports
+- payment reports
+- branch reports
+- staff performance reports
+- low stock reports
+- profit reports
+- exports
+
+## 10.14 Billing and Subscription Module
+Purpose: monetize the product and manage access.
+
+Includes:
+- plan selection
+- monthly or yearly billing
+- invoices
+- payment failures
+- upgrades and downgrades
+- plan limits
+- custom enterprise inquiry
+
+## 10.15 Audit and Security Module
+Purpose: track important changes and protect business records.
+
+Includes:
+- activity logs
+- stock change logs
+- sale edits
+- expense changes
+- permission changes
+- login sessions
+- suspicious activity
+- device tracking
+
+## 10.16 Support and Help Module
+Purpose: help customers succeed.
+
+Includes:
+- knowledge base
+- product walkthroughs
+- support ticketing
+- bug reporting
+- feature requests
+
+---
+
+## 11. Full End-to-End Flow
+
+## 11.1 Acquisition to Signup
+1. Business visits VentraPOS landing page.
+2. Business reads the value proposition.
+3. Business clicks **Get Started**.
+4. Business signs up using email or phone.
+5. Business verifies account.
+
+## 11.2 Business Setup
+6. User enters store name.
+7. User chooses business type.
+8. User enters contact details.
+9. User enters address and location.
+10. User uploads logo.
+11. User sets currency and tax basics.
+12. User chooses single store or multi-branch.
+
+## 11.3 Branch Creation
+13. User creates main branch.
+14. User optionally creates additional branches.
+15. User assigns branch managers.
+
+## 11.4 Onboarding Guidance
+16. User lands on onboarding checklist.
+17. System shows remaining setup tasks.
+18. User continues to product setup.
+
+## 11.5 Product and Stock Setup
+19. User adds categories.
+20. User adds products manually or by import.
+21. User sets price, cost price, quantity, reorder threshold, barcode.
+22. User sets opening stock.
+
+## 11.6 Staff Setup
+23. User creates cashier.
+24. User creates manager.
+25. User creates stock officer.
+26. User assigns permissions and branch access.
+
+## 11.7 Finance Setup
+27. User enables payment methods such as cash, mobile money, and card.
+28. User creates expense categories.
+29. User sets receipt defaults.
+30. User configures finance preferences.
+
+## 11.8 POS Setup
+31. User enables POS for a branch.
+32. Cashier logs in.
+33. Cashier opens register and enters opening cash balance.
+
+## 11.9 First Sale
+34. Customer comes to counter.
+35. Cashier searches or scans products.
+36. Items are added to cart.
+37. Payment method is selected.
+38. Transaction is completed.
+39. Receipt is generated.
+
+## 11.10 Automatic System Effects
+40. Stock is reduced.
+41. Sale is saved.
+42. Cashier activity is recorded.
+43. Dashboard updates.
+44. Sales reports update.
+45. Low stock alerts may trigger.
+
+## 11.11 Ongoing Operations
+46. Manager reviews branch performance.
+47. Owner reviews dashboard and reports.
+48. Stock officer restocks and adjusts items.
+49. Finance officer enters expenses.
+50. Business continues operating daily.
+
+---
+
+## 12. Screen Inventory Summary
+
+A complete screen map exists, but conceptually the system breaks into these screen groups:
+
+## 12.1 Public
+- landing
+- features
+- pricing
+- contact
+- compare
+- FAQ
+
+## 12.2 Auth
+- signup
+- login
+- verify
+- forgot password
+- reset password
+- account states
+
+## 12.3 Setup
+- business profile
+- business type
+- address
+- tax basics
+- branding
+- branch setup
+- onboarding checklist
+
+## 12.4 Core operational screens
+- dashboard
+- products
+- inventory
+- POS
+- staff
+- customers
+- finance
+- reports
+- settings
+
+## 12.5 Support and account
+- billing
+- support
+- help center
+- subscription
+- security
+
+---
+
+## 13. Critical Domain Objects
+
+These are the primary business entities the system revolves around.
+
+## 13.1 Tenant / Business
+Represents one customer business using VentraPOS.
+
+Fields may include:
+- id
+- business name
+- slug
+- business type
+- contact email
+- phone
+- address
+- logo
+- currency
+- timezone
+- subscription plan
+- status
+- createdAt
+- updatedAt
+
+## 13.2 Branch
+Represents one physical operating location.
+
+Fields:
+- id
+- businessId
+- name
+- code
+- address
+- phone
+- location metadata
+- hours
+- managerId
+- status
+
+## 13.3 User
+Represents a system user with access.
+
+Fields:
+- id
+- businessId
+- firstName
+- lastName
+- email
+- phone
+- passwordHash
+- status
+- lastLoginAt
+
+## 13.4 Role
+Represents a role type.
+
+Examples:
+- owner
+- branch_manager
+- cashier
+- stock_officer
+- finance_officer
+- platform_admin
+
+## 13.5 Permission
+Represents granular access.
+
+Examples:
+- can_create_product
+- can_adjust_stock
+- can_view_reports
+- can_refund_sale
+- can_manage_staff
+- can_view_finance
+
+## 13.6 Product
+Represents a sellable item.
+
+Fields:
+- id
+- businessId
+- name
+- categoryId
+- brand
+- sku
+- barcode
+- sellingPrice
+- costPrice
+- taxBehavior
+- reorderThreshold
+- active status
+
+## 13.7 ProductCategory
+Represents a grouping for products.
+
+## 13.8 InventoryRecord
+Represents current stock state per product per branch.
+
+## 13.9 InventoryMovement
+Represents stock change event.
+
+Examples:
+- opening_stock
+- adjustment
+- sale_deduction
+- transfer_out
+- transfer_in
+- damaged
+- expired
+- recount
+
+## 13.10 Sale
+Represents one completed transaction.
+
+Fields:
+- id
+- businessId
+- branchId
+- cashierId
+- customerId optional
+- subtotal
+- discount
+- tax
+- total
+- paymentStatus
+- paymentMethod
+- saleTimestamp
+
+## 13.11 SaleItem
+Represents one line item within a sale.
+
+## 13.12 Customer
+Represents a buyer.
+
+## 13.13 Expense
+Represents non-sale spending.
+
+## 13.14 ExpenseCategory
+Represents a grouping such as rent, electricity, transport.
+
+## 13.15 POSSession
+Represents cashier register lifecycle.
+
+Includes:
+- cashier
+- branch
+- openedAt
+- openingBalance
+- closedAt
+- closingCount
+- reconciliation data
+
+## 13.16 AuditLog
+Represents important tracked change.
+
+## 13.17 Subscription
+Represents product plan and billing state.
+
+## 13.18 SupportTicket
+Represents help request from customer.
+
+---
+
+## 14. Detailed Module Behavior
+
+## 14.1 Authentication Behavior
+
+### Responsibilities
+- create account
+- log in user
+- verify identity
+- reset password
+- manage sessions
+- protect routes
+
+### Rules
+- passwords must be hashed securely
+- sessions must be revocable
+- sensitive routes require authentication
+- role and permission checks happen server-side
+- account status can block access
+
+### Edge cases
+- expired verification code
+- invalid login
+- locked account
+- suspended business account
+- expired session
+- concurrent device sessions
+
+---
+
+## 14.2 Business Setup Behavior
+
+### Responsibilities
+- define the business identity
+- establish the business as a tenant
+- configure business-wide defaults
+
+### Must capture
+- name
+- business type
+- contact
+- address
+- currency
+- tax basics
+- logo
+- receipt branding basics
+
+### Important principle
+The business setup information is reused across:
+- receipts
+- reports
+- dashboard branding
+- communications
+- subscription information
+
+---
+
+## 14.3 Branch Management Behavior
+
+### Responsibilities
+- support single or multiple branches
+- localize staff, stock, and sales per branch
+- make reporting branch-aware
+
+### Branch-level data affects
+- branch inventory
+- cashier assignment
+- expense tracking
+- sales filtering
+- branch performance reports
+- permissions
+
+### Important rule
+Most day-to-day operational records should be branch-aware.
+
+---
+
+## 14.4 Onboarding Behavior
+
+### Purpose
+Prevent users from signing up and getting lost.
+
+### Checklist example
+- account verified
+- business profile complete
+- branch created
+- products added
+- opening stock set
+- staff added
+- finance settings configured
+- POS enabled
+- first sale completed
+
+### System should
+- save progress
+- show next best action
+- reduce friction
+- help the user become live quickly
+
+---
+
+## 14.5 Product Management Behavior
+
+### Product creation supports
+- name
+- category
+- selling price
+- cost price
+- SKU / barcode
+- quantity
+- unit
+- reorder threshold
+- branch linkage where relevant
+- optional image
+- optional expiry / batch behavior
+
+### Important design principle
+Products are not just display data. They influence:
+- POS availability
+- stock tracking
+- profit estimation
+- alerts
+- category reports
+- best seller analysis
+
+### Edge cases
+- duplicate SKU
+- invalid barcode
+- negative price
+- disabled products still appearing in POS
+- bulk import row errors
+
+---
+
+## 14.6 Inventory Behavior
+
+### Inventory must support
+- opening stock
+- restock additions
+- reductions from sales
+- transfers
+- adjustments
+- damage
+- expiry
+- physical stock counts
+
+### Core rule
+All stock changes should be explainable through movement history.
+
+### Important outputs
+- current quantity
+- low stock alerts
+- out of stock state
+- stock valuation
+- branch stock views
+- movement history
+
+### High-risk area
+Inventory errors destroy trust. Stock flows must be deterministic and auditable.
+
+---
+
+## 14.7 Staff and Permissions Behavior
+
+### Staff system must support
+- different roles
+- branch assignments
+- role-based access control
+- custom permission overrides
+- temporary passwords or invite flows
+- deactivation
+- activity visibility
+
+### Important rule
+Permission enforcement must happen both in UI visibility and backend authorization.
+
+### Examples
+- cashier cannot edit finance settings
+- stock officer cannot see sensitive financial summaries unless granted
+- branch manager cannot access another branch unless allowed
+- only authorized roles can refund sales or change pricing
+
+---
+
+## 14.8 POS Behavior
+
+### POS must be:
+- fast
+- keyboard-friendly where needed
+- search-efficient
+- barcode-ready
+- clear under pressure
+- cashier-friendly
+
+### POS actions
+- open register
+- search products
+- scan products
+- add to cart
+- modify quantity
+- apply discount
+- attach customer
+- choose payment method
+- complete sale
+- generate receipt
+- hold sale
+- resume sale
+- refund / return if allowed
+- close shift
+
+### Automatic system effects after successful sale
+- save sale
+- save line items
+- reduce stock
+- update dashboards
+- write activity log
+- update cashier stats
+- possibly trigger low stock alerts
+
+### Risks
+- duplicate sale processing
+- slow checkout
+- stock not updating
+- wrong totals
+- receipts not generating
+
+---
+
+## 14.9 Sales Behavior
+
+### Sales module must support
+- sale record storage
+- detailed line item review
+- branch filtering
+- cashier filtering
+- payment method filtering
+- refund and void visibility
+- exports
+
+### Sale records must preserve
+- exact items sold
+- quantities
+- prices at sale time
+- discount state
+- payment metadata
+- cashier identity
+- customer identity if attached
+- timestamp
+- branch
+
+---
+
+## 14.10 Customer Behavior
+
+### Customer module supports
+- customer identity
+- contact info
+- purchase history
+- notes
+- repeat customer visibility
+
+### Customer attachment in workflow
+Customer may be attached:
+- during POS sale
+- after sale adjustment if permitted
+- through dedicated customer creation flows
+
+### Value
+This enables:
+- better record keeping
+- repeat customer recognition
+- future loyalty features
+- customer spend visibility
+
+---
+
+## 14.11 Finance Behavior
+
+### Finance module includes
+- accepted payment methods
+- expense recording
+- expense categorization
+- opening cash balance
+- revenue summary
+- payment breakdown
+- gross profit estimation
+- basic P&L
+
+### Important limitation
+At least early on, this is operational finance visibility, not a full accounting ERP.
+
+### Finance data comes from
+- sales
+- expenses
+- register balances
+- branch filters
+- payment method aggregation
+
+---
+
+## 14.12 Reports Behavior
+
+### Reports are built from operational truth
+Reports should not be manually editable.
+
+### Core reports
+- daily sales
+- monthly sales
+- product performance
+- low stock
+- out of stock
+- payment method breakdown
+- staff performance
+- branch performance
+- expense reports
+- gross profit view
+
+### Good report design principles
+- filterable
+- exportable
+- branch-aware
+- date-range aware
+- role-aware
+- visually simple
+
+---
+
+## 14.13 Billing Behavior
+
+### Billing should support
+- Starter plan
+- Growth plan
+- Pro plan
+- yearly billing
+- monthly billing
+- custom enterprise inquiry
+
+### Role of billing in the system
+- defines access limits
+- may define branch count
+- may define user count
+- may define advanced module access
+
+### Example gating
+- Starter may have 1 branch
+- Growth may unlock multiple branches
+- Pro may unlock advanced reports and audit logs
+
+---
+
+## 14.14 Audit and Security Behavior
+
+### Audit log targets
+- stock adjustments
+- product edits
+- permission changes
+- expense edits
+- refunds
+- price overrides
+- login events
+- suspicious actions
+
+### Why this matters
+Businesses can lose trust instantly if they cannot answer:
+- who changed this
+- when was this changed
+- why did stock go missing
+- who refunded this sale
+- who altered the price
+
+---
+
+## 15. Industry Adaptation Layer
+
+VentraPOS is one platform with a shared operational core. Industry differences sit on top of that core.
+
+## 15.1 Shared core for all industries
+- sales
+- products/items
+- stock
+- staff
+- customer records
+- expenses
+- reporting
+- receipts
+
+## 15.2 Supermarket / mini mart extensions
+- high-volume barcode checkout
+- shelf replenishment awareness
+- fast-moving product views
+- branch transfer support
+
+## 15.3 Pharmacy extensions
+- expiry tracking
+- batch tracking
+- regulated product flags
+- stronger stock control
+
+## 15.4 Restaurant extensions
+- order type handling
+- table workflows
+- kitchen views
+- menu item behavior
+
+## 15.5 Boutique / fashion extensions
+- size and color variants
+- promotion workflows
+- seasonal stock views
+
+---
+
+## 16. Pricing Context
+
+VentraPOS currently assumes plan-based SaaS pricing.
+
+### Suggested pricing structure
+#### Starter
+- simple businesses
+- 1 branch
+- essential POS, products, stock, expenses, basic reports
+
+#### Growth
+- growing businesses
+- multiple branches
+- stronger permissions
+- branch reports
+- refunds
+- barcode support
+- deeper operational control
+
+#### Pro
+- advanced businesses
+- audit logs
+- shift management
+- advanced analytics
+- expiry / batch
+- approval flows
+- stronger support
+
+#### Custom / Enterprise
+- custom workflows
+- integrations
+- branded deployments
+- industry-specific logic
+
+---
+
+## 17. UX and Design Direction
+
+VentraPOS is not meant to feel cold or overly corporate.
+
+### Desired feel
+- warm
+- modern
+- elegant
+- inviting
+- premium
+- trustworthy
+- clear
+
+### Product visual principles
+- polished layout
+- strong typography
+- clean hierarchy
+- premium motion where appropriate
+- fast-feeling UI
+- visually calm but powerful
+
+### Landing page direction
+The brand direction for the landing page is:
+- white
+- green
+- green shades
+- product-agency quality
+- split hero
+- 3D-first visual direction
+- sleek POS model / device mockup
+- dashboard screenshot placeholders
+- soft lighting blends
+
+---
+
+## 18. Technology Direction
+
+### Current intended stack direction
+- Next.js
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- PostgreSQL
+- Drizzle ORM
+- custom auth system
+- JWT access and refresh flow
+- Argon2 password hashing
+- React Hook Form
+- Zod
+- TanStack Query
+- Zustand
+- Sentry
+- Docker
+- Nginx
+
+### Optional later additions
+- Redis
+- BullMQ
+- advanced background workers
+- object storage enhancements
+- more enterprise observability layers
+
+### Important architectural principles
+- multi-tenant data isolation
+- role-based authorization
+- audit logs
+- backup discipline
+- restore testing
+- branch-aware records
+- careful transaction integrity
+
+---
+
+## 19. Non-Functional Requirements
+
+## 19.1 Performance
+The product must feel fast.
+- POS should be responsive
+- dashboard should load summaries quickly
+- product search should be snappy
+- reports should not block normal operation
+
+## 19.2 Security
+- strong password hashing
+- secure session handling
+- refresh token rotation
+- route protection
+- permission enforcement
+- auditability
+- basic anti-abuse protections
+
+## 19.3 Reliability
+- sales must not disappear
+- stock changes must be traceable
+- receipts must generate consistently
+- important failures must be visible
+
+## 19.4 Usability
+- mobile-friendly
+- understandable by non-technical staff
+- guided onboarding
+- clean forms
+- clear validation errors
+
+## 19.5 Scalability
+- must support many businesses
+- must support multi-branch businesses
+- must support growing product catalogs and transaction histories
+
+---
+
+## 20. Risks
+
+## 20.1 Trust risk
+If totals, stock, or reports are wrong, businesses lose trust immediately.
+
+## 20.2 Security risk
+If permissions are weak or data leaks across tenants, the platform fails at a foundational level.
+
+## 20.3 UX risk
+If onboarding is confusing, users do not become active.
+
+## 20.4 POS speed risk
+If checkout is slow, businesses stop using it.
+
+## 20.5 Inventory risk
+If stock logic is inconsistent, the product becomes dangerous for real operations.
+
+---
+
+## 21. What VentraPOS Is Not
+
+VentraPOS is **not**:
+- only a POS screen
+- only an accounting tool
+- only an inventory tool
+- a custom one-off build for one business
+- a generic admin dashboard template
+
+VentraPOS **is**:
+- a structured multi-tenant SaaS
+- a business operating system for SMEs
+- an operational and financial visibility layer
+- a product that helps businesses move from manual operations to digital control
+
+---
+
+## 22. Summary for LLMs and Agents
+
+Use this as the compressed mental model:
+
+```text
+VentraPOS is a cloud-based multi-tenant POS and business management platform for SMEs.
+It serves supermarkets, mini marts, pharmacies, restaurants, boutiques, and retailers.
+Its core modules are auth, business setup, branch management, onboarding, products,
+inventory, staff and permissions, POS, sales, customers, finance, reports, billing,
+audit/security, and support.
+
+A business signs up, creates its store, adds branches, adds products and opening stock,
+adds staff, configures finance and payment methods, enables POS, and starts selling.
+Every sale updates inventory, activity logs, dashboards, and reports.
+
+The system is branch-aware, role-aware, and finance-aware. It must be secure, reliable,
+fast, and trustworthy because it handles sensitive business operations and financial data.
+
+The product starts as a web-based system and is intended to be simple, affordable, and
+powerful for Ghanaian and African SMEs, with the longer-term ability to support more
+complex operations and multiple business types.
+```
+
+---
+
+## 23. One-Paragraph Master Description
+
+VentraPOS is a cloud-based business and retail management platform built for SMEs such as supermarkets, mini marts, pharmacies, restaurants, boutiques, and general retail stores. It enables businesses to move from manual operations to a structured digital workflow by supporting account creation, store and branch setup, product and inventory management, staff and permissions, POS checkout, receipt generation, expense tracking, customer records, dashboards, and reporting. It is a multi-tenant SaaS designed to be fast, trustworthy, role-based, branch-aware, and financially aware, with a product philosophy centered on operational reliability, clean user experience, and affordability for businesses in Ghana and across Africa.
+
+---
+
+## 24. Suggested Next Document
+
+The next ideal artifact after this is:
+
+```markdown
+# VentraPOS Developer Spec
+- folder structure
+- module boundaries
+- database schema
+- API contracts
+- auth flow
+- permissions matrix
+- queue jobs
+- audit model
+- billing rules
+- onboarding state machine
+- report query strategy
+```
+
