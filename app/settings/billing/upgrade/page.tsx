@@ -49,6 +49,7 @@ export default function UpgradePage() {
         </button>
         <PaymentFlow 
           plan={selectedPlan as "growth" | "pro"} 
+          cycle="monthly"
           amountGHS={planDetails.priceGHS} 
           onSuccess={handleSuccess} 
         />

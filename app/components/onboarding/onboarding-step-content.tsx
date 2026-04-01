@@ -734,6 +734,7 @@ export function OnboardingStepContent({
           
           <PaymentFlow
             plan={data.plan as "growth" | "pro"}
+            cycle={data.cycle}
             amountGHS={amount}
             onSuccess={() => {
               setData(d => ({ ...d, billingComplete: true }));

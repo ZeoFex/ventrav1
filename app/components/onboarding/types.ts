@@ -55,8 +55,8 @@ export type OnboardingData = {
   receiptFooter: string;
   schedule: WeeklySchedule;
   structure: StoreStructure;
-  plan: string;
-  cycle: string;
+  plan: "starter" | "growth" | "pro";
+  cycle: "monthly" | "annually";
   billingComplete: boolean;
   /** Multi-branch flow: Array of branches. */
   branches: BranchData[];

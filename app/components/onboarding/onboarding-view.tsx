@@ -63,10 +63,10 @@ export function OnboardingView() {
           ? { legalName: p.legalName }
           : {}),
         ...(typeof p.plan === "string" && p.plan
-          ? { plan: p.plan, billingComplete: p.plan === "starter" } // Auto-complete for free starter plan
+          ? { plan: p.plan as OnboardingData["plan"], billingComplete: p.plan === "starter" } // Auto-complete for free starter plan
           : {}),
         ...(typeof p.cycle === "string" && p.cycle
-          ? { cycle: p.cycle }
+          ? { cycle: p.cycle as OnboardingData["cycle"] }
           : {}),
       }));
     } catch {
