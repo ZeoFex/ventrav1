@@ -4,7 +4,7 @@
  */
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db";
-import { products, productTags, tags, categories } from "../db/schema/products";
+import { products, productTags, tags, categories, productVariations } from "../db/schema/products";
 import { redis } from "../lib/redis";
 
 // Key formats
@@ -31,6 +31,16 @@ export interface ProductInput {
     reorderAt: number;
     status?: "active" | "archived" | "out_of_stock";
     tagIds?: string[];
+    variations?: ProductVariationInput[];
+}
+
+export interface ProductVariationInput {
+    id?: string;
+    name: string;
+    type: string;
+    priceGhs?: string | null;
+    stock: number;
+    sku?: string | null;
 }
 
 /**
@@ -76,11 +86,20 @@ export async function getProducts(businessId: string, branchId?: string | null) 
             )
         );
 
-    // Note: For large catalogs, we'd add tags separately or with an aggregate join.
-    // For now, simple cache set.
-    await redis.setex(key, CACHE_TTL, JSON.stringify(rows));
+    // Fetch variations for these products
+    const productIds = rows.map(r => r.id);
+    const variations = productIds.length > 0 
+        ? await db.select().from(productVariations).where(sql`${productVariations.productId} IN ${productIds}`)
+        : [];
 
-    return rows;
+    const rowsWithVariations = rows.map(row => ({
+        ...row,
+        variations: variations.filter(v => v.productId === row.id)
+    }));
+
+    await redis.setex(key, CACHE_TTL, JSON.stringify(rowsWithVariations));
+
+    return rowsWithVariations;
 }
 
 /**
@@ -116,6 +135,20 @@ export async function saveProduct(input: ProductInput) {
                 input.tagIds.map(tid => ({
                     productId: inserted.id,
                     tagId: tid,
+                }))
+            );
+        }
+
+        // 3. Insert variations
+        if (input.variations && input.variations.length > 0) {
+            await tx.insert(productVariations).values(
+                input.variations.map(v => ({
+                    productId: inserted.id,
+                    name: v.name,
+                    type: v.type,
+                    priceGhs: v.priceGhs,
+                    stock: v.stock,
+                    sku: v.sku,
                 }))
             );
         }

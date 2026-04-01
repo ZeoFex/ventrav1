@@ -129,3 +129,27 @@ export const productTags = pgTable(
     },
     (t) => [primaryKey({ columns: [t.productId, t.tagId] })]
 );
+/** Product Variations (Sizes, Colors, Extras etc.) */
+export const productVariations = pgTable(
+    "product_variations",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        productId: uuid("product_id")
+            .notNull()
+            .references(() => products.id, { onDelete: "cascade" }),
+        name: varchar("name", { length: 255 }).notNull(), // e.g. "XL", "Blue", "Extra Cheese"
+        type: varchar("type", { length: 100 }).notNull(), // e.g. "size", "color", "extras"
+        priceGhs: decimal("price_ghs", { precision: 12, scale: 2 }), // Optional override
+        stock: integer("stock").default(0).notNull(),
+        sku: varchar("sku", { length: 100 }),
+        createdAt: timestamp("created_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+        updatedAt: timestamp("updated_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+    },
+    (t) => [
+        index("product_variations_product_id_idx").on(t.productId),
+    ]
+);

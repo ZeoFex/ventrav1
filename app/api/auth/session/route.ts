@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
                 subscriptionStatus: businesses.subscriptionStatus,
                 currentPeriodEnd: businesses.currentPeriodEnd,
                 createdAt: businesses.createdAt,
+                businessType: businesses.businessType,
             })
             .from(users)
             .innerJoin(businesses, eq(users.businessId, businesses.id))
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
                 plan: userDb?.plan || payload.plan || "starter",
                 subscriptionStatus: userDb?.subscriptionStatus || "active",
                 currentPeriodEnd: userDb?.currentPeriodEnd || (userDb?.createdAt ? new Date(new Date(userDb.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString() : null),
+                businessType: userDb?.businessType || null,
             }
         });
 

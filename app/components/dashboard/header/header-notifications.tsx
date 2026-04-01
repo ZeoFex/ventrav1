@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Package, Receipt, Settings, X, Info, AlertTriangle } from "lucide-react";
+import { Bell, Package, Receipt, Settings, X, Info, AlertTriangle, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useNotifications } from "./notifications-data-hooks";
 import type { NotificationIcon } from "./notifications-data-hooks";
@@ -29,7 +29,7 @@ function IconFor({ icon }: { icon: NotificationIcon }) {
 
 export function HeaderNotifications() {
   const [open, setOpen] = useState(false);
-  const { notifications, mutate } = useNotifications();
+  const { notifications, mutate, isLoading, isError } = useNotifications();
   const panelId = useId();
   const unread = notifications.filter((i) => !i.isRead).length;
 
@@ -143,7 +143,18 @@ export function HeaderNotifications() {
           </div>
 
           <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            {notifications.length === 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                <p className="mt-3 text-[14px] text-muted-foreground">Loading notifications...</p>
+              </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                <AlertTriangle className="size-6 text-destructive" />
+                <p className="mt-3 text-[14px] font-medium text-foreground">Failed to load</p>
+                <p className="mt-1 text-[13px] text-muted-foreground">Please try again later.</p>
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
                 <div className="flex size-12 items-center justify-center rounded-2xl bg-surface-elevated dark:bg-[#141414]">
                   <Bell className="size-6 text-muted-foreground" strokeWidth={1.5} aria-hidden />

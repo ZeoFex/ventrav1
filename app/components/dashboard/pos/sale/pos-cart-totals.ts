@@ -1,6 +1,6 @@
 import { type ProductRow } from "../../products/types";
 
-export type CartLine = { productId: string; qty: number };
+export type CartLine = { productId: string; qty: number; variationId?: string };
 
 export function computePosTotals(
   lines: CartLine[],
@@ -12,7 +12,16 @@ export function computePosTotals(
   const subtotal = lines.reduce((sum, line) => {
     const p = productById.get(line.productId);
     if (!p) return sum;
-    return sum + Number(p.priceGhs) * line.qty;
+
+    let price = Number(p.priceGhs);
+    if (line.variationId && p.variations) {
+      const v = p.variations.find((v) => v.id === line.variationId);
+      if (v?.priceGhs) {
+        price = Number(v.priceGhs);
+      }
+    }
+
+    return sum + price * line.qty;
   }, 0);
 
   const tax = subtotal * taxRate;

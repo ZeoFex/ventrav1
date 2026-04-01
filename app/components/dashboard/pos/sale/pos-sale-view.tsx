@@ -58,11 +58,22 @@ function buildReceiptData(
 ): PosReceiptData {
   const receiptLines: PosReceiptLine[] = lines.map((line) => {
     const p = productById.get(line.productId)!;
+    let name = p.name;
+    let price = Number(p.priceGhs);
+
+    if (line.variationId && p.variations) {
+      const v = p.variations.find(v => v.id === line.variationId);
+      if (v) {
+        name = `${p.name} (${v.name})`;
+        if (v.priceGhs) price = Number(v.priceGhs);
+      }
+    }
+
     return {
-      name: p.name,
+      name,
       qty: line.qty,
-      unitPriceGhs: Number(p.priceGhs),
-      lineTotalGhs: Number(p.priceGhs) * line.qty,
+      unitPriceGhs: price,
+      lineTotalGhs: price * line.qty,
     };
   });
   const m = getPaymentMethod(payment.methodId);
@@ -134,6 +145,7 @@ function PosSaleViewInner() {
   const [scanOpen, setScanOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
+  const [selectedVariationProduct, setSelectedVariationProduct] = useState<ProductRow | null>(null);
 
   const { products = [], isLoading: isProductsLoading, mutate: mutateProducts } = useProducts();
   const { categories = [] } = useCategories();
@@ -216,27 +228,40 @@ function PosSaleViewInner() {
     );
   }, [invoiceId, paymentSnapshot, lines, productById, totals, selectedCustomer, config]);
 
-  const addToCart = useCallback((productId: string) => {
+  const addToCart = useCallback((productId: string, variationId?: string) => {
     const p = productById.get(productId);
     if (!p) return;
 
-    // Check availability
-    const inCart = lines.find(l => l.productId === productId)?.qty || 0;
-    if (inCart >= p.stock) {
-      alert(`Cannot add more of ${p.name}. Stock limit reached.`);
+    // If product has variations and none selected, open modal
+    if (p.variations && p.variations.length > 0 && !variationId) {
+      setSelectedVariationProduct(p);
+      return;
+    }
+
+    // Check availability (of specific variation if applicable)
+    let stock = p.stock;
+    if (variationId && p.variations) {
+      const v = p.variations.find(v => v.id === variationId);
+      if (v) stock = v.stock;
+    }
+
+    const inCart = lines.find(l => l.productId === productId && l.variationId === variationId)?.qty || 0;
+    if (inCart >= stock) {
+      alert(`Cannot add more. Stock limit reached.`);
       return;
     }
 
     playPosAddProductBeep();
     setLines((prev) => {
-      const i = prev.findIndex((l) => l.productId === productId);
+      const i = prev.findIndex((l) => l.productId === productId && l.variationId === variationId);
       if (i >= 0) {
         const next = [...prev];
         next[i] = { ...next[i]!, qty: next[i]!.qty + 1 };
         return next;
       }
-      return [...prev, { productId, qty: 1 }];
+      return [...prev, { productId, qty: 1, variationId }];
     });
+    setSelectedVariationProduct(null);
   }, [lines, productById]);
 
   const increment = useCallback((productId: string) => {
@@ -308,12 +333,22 @@ function PosSaleViewInner() {
         customerId: selectedCustomer?.id,
         lines: lines.map((l) => {
           const p = productById.get(l.productId)!;
+          let price = Number(p.priceGhs);
+          let name = p.name;
+          if (l.variationId && p.variations) {
+            const v = p.variations.find(varItem => varItem.id === l.variationId);
+            if (v) {
+              name = `${p.name} (${v.name})`;
+              if (v.priceGhs) price = Number(v.priceGhs);
+            }
+          }
           return {
             productId: l.productId,
+            variationId: l.variationId,
             quantity: l.qty,
-            productName: p.name,
-            unitPriceGhs: Number(p.priceGhs),
-            lineTotalGhs: Number(p.priceGhs) * l.qty,
+            productName: name,
+            unitPriceGhs: price,
+            lineTotalGhs: price * l.qty,
           };
         }),
       };
@@ -513,7 +548,72 @@ function PosSaleViewInner() {
           </div>
         </div>
       )}
+      <PosVariationModal 
+        product={selectedVariationProduct}
+        onClose={() => setSelectedVariationProduct(null)}
+        onSelect={(pId, vId) => addToCart(pId, vId)}
+      />
     </>
+  );
+}
+
+function PosVariationModal({
+  product,
+  onClose,
+  onSelect,
+}: {
+  product: ProductRow | null;
+  onClose: () => void;
+  onSelect: (productId: string, variationId: string) => void;
+}) {
+  if (!product) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
+      <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#111]">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold">{product.name}</h2>
+          <p className="text-sm text-muted-foreground">Select a variation to add to cart</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+          {product.variations?.map((v) => {
+            const isOutOfStock = v.stock <= 0;
+            return (
+              <button
+                key={v.id}
+                disabled={isOutOfStock}
+                onClick={() => onSelect(product.id, v.id!)}
+                className={`flex items-center justify-between p-4 rounded-2xl border border-border text-left transition-all ${
+                  isOutOfStock 
+                    ? "opacity-50 grayscale cursor-not-allowed bg-muted/20" 
+                    : "hover:border-[#006c49] hover:bg-[#006c49]/5 hover:shadow-md active:scale-[0.98]"
+                }`}
+              >
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{v.type}</span>
+                  <h3 className="text-[15px] font-semibold">{v.name}</h3>
+                  <p className="text-[12px] text-muted-foreground">{v.stock} in stock</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-[#006c49] dark:text-[#6ffbbe]">
+                    ₵{v.priceGhs || product.priceGhs}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={onClose}
+          className="mt-6 w-full py-3 rounded-2xl border border-border font-semibold hover:bg-muted transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 

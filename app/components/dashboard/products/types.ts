@@ -13,6 +13,17 @@ export interface ProductRow {
     description?: string;
     imageSrc?: string | null;
     slug?: string;
+    variations?: ProductVariation[];
+}
+
+export interface ProductVariation {
+    id?: string;
+    productId?: string;
+    name: string;
+    type: string;
+    priceGhs?: number | string;
+    stock: number;
+    sku?: string;
 }
 
 export interface CategoryRow {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyAccessToken } from "@/server/auth/token-service";
 import { db } from "@/server/db";
-import { products, productTags } from "@/server/db/schema/products";
+import { products, productTags, productVariations } from "@/server/db/schema/products";
 import { eq, and } from "drizzle-orm";
 import { COOKIE_NAMES } from "@/server/config/auth-config";
 
@@ -29,14 +29,15 @@ export async function GET(
         if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
         // Manual tag fetch for now
-        const tags = await db
-            .select({ tagId: productTags.tagId })
-            .from(productTags)
-            .where(eq(productTags.productId, id));
+        const [tags, variations] = await Promise.all([
+            db.select({ tagId: productTags.tagId }).from(productTags).where(eq(productTags.productId, id)),
+            db.select().from(productVariations).where(eq(productVariations.productId, id))
+        ]);
 
         return NextResponse.json({
             ...data,
-            tagIds: tags.map(t => t.tagId)
+            tagIds: tags.map(t => t.tagId),
+            variations: variations
         });
     } catch (error) {
         console.error(error);

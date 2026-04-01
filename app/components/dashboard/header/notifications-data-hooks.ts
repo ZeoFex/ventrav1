@@ -20,9 +20,9 @@ export function useNotifications() {
         refreshInterval: 60000, // Refresh every minute
     });
     return {
-        notifications: data || [],
+        notifications: Array.isArray(data) ? data : [],
         isLoading: !error && !data,
-        isError: error,
+        isError: !!error || (data && !Array.isArray(data)),
         mutate,
     };
 }

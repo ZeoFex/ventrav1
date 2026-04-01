@@ -15,6 +15,7 @@ function buildInitial(): ProductFormInitialValues {
     tagIds: [],
     status: "active",
     imageSrc: null,
+    variations: [],
   };
 }
 

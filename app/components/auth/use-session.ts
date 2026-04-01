@@ -14,6 +14,7 @@ export type SessionUser = {
     plan: "starter" | "growth" | "pro";
     subscriptionStatus: "active" | "past_due" | "canceled";
     currentPeriodEnd: string | null;
+    businessType?: string | null;
 };
 
 export function useSession() {

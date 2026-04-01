@@ -13,6 +13,7 @@ import { products } from "./products";
 import { customers } from "./customers";
 import { branches } from "./branches";
 import { users } from "./users";
+import { productVariations } from "./products";
 
 export const saleStatusEnum = pgEnum("sale_status", [
     "completed",
@@ -67,6 +68,7 @@ export const saleItems = pgTable(
             .references(() => sales.id, { onDelete: "cascade" }),
         productId: uuid("product_id")
             .references(() => products.id, { onDelete: "set null" }),
+        variationId: uuid("variation_id").references(() => productVariations.id, { onDelete: "set null" }),
         productName: varchar("product_name", { length: 255 }).notNull(),
         quantity: integer("quantity").notNull(),
         unitPriceGhs: decimal("unit_price_ghs", { precision: 12, scale: 2 }).notNull(),

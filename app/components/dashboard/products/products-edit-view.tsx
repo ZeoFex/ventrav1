@@ -46,6 +46,7 @@ export function ProductsEditView({ productId }: { productId: string }) {
     tagIds: product.tagIds || [],
     status: product.status,
     imageSrc: product.imageSrc || null,
+    variations: product.variations || [],
   };
 
   return (

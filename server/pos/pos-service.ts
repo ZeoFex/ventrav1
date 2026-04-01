@@ -1,6 +1,6 @@
 import { eq, sql, and, gte, lte, desc } from "drizzle-orm";
 import { db } from "../db";
-import { products, categories } from "../db/schema/products";
+import { products, categories, productVariations } from "../db/schema/products";
 import { sales, saleItems } from "../db/schema/sales";
 import { redis } from "../lib/redis";
 
@@ -17,6 +17,7 @@ function branchFilter(branchId?: string | null) {
 
 export interface CheckoutLine {
     productId: string;
+    variationId?: string | null;
     quantity: number;
     productName: string;
     unitPriceGhs: number;
@@ -45,22 +46,30 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
         // 1. Deduct stock
         for (const line of input.lines) {
             if (line.quantity <= 0) continue;
-            const [updated] = await tx
-                .update(products)
-                .set({
-                    stock: sql`${products.stock} - ${line.quantity}`,
-                    updatedAt: new Date(),
-                })
-                .where(
-                    and(
-                        eq(products.id, line.productId),
-                        eq(products.businessId, businessId)
-                    )
-                )
-                .returning({ id: products.id });
 
-            if (!updated) {
-                throw new Error(`Product ${line.productId} not found`);
+            if (line.variationId) {
+                // Deduct from variation stock
+                await tx
+                    .update(productVariations)
+                    .set({
+                        stock: sql`${productVariations.stock} - ${line.quantity}`,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(productVariations.id, line.variationId));
+            } else {
+                // Deduct from main product stock
+                await tx
+                    .update(products)
+                    .set({
+                        stock: sql`${products.stock} - ${line.quantity}`,
+                        updatedAt: new Date(),
+                    })
+                    .where(
+                        and(
+                            eq(products.id, line.productId),
+                            eq(products.businessId, businessId)
+                        )
+                    );
             }
         }
 
@@ -87,6 +96,7 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
             input.lines.map((l) => ({
                 saleId: sale.id,
                 productId: l.productId,
+                variationId: l.variationId || null,
                 productName: l.productName,
                 quantity: l.quantity,
                 unitPriceGhs: String(l.unitPriceGhs),
