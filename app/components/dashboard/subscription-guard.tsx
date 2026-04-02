@@ -12,13 +12,16 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
         return <>{children}</>;
     }
 
+    const isExpired = user.subscriptionStatus === "past_due" || 
+        (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getTime() < Date.now());
+
     // Allow access to Home and Billing Settings
     if (pathname === "/dashboard" || pathname.startsWith("/dashboard/settings/billing")) {
         return <>{children}</>;
     }
 
     // Lock if past due
-    if (user.subscriptionStatus === "past_due") {
+    if (isExpired) {
         return (
             <div className="flex h-full min-h-[50vh] flex-col items-center justify-center p-8 text-center bg-background/50 rounded-xl my-4 mx-4 border border-border">
                 <div className="rounded-full bg-destructive/10 p-4 mb-4">
@@ -26,7 +29,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight mb-2">Subscription Expired</h2>
                 <p className="text-muted-foreground max-w-md mb-6">
-                    Your initial VentraPOS subscription cycle has ended. Please renew your plan to unlock all features and continue managing your business.
+                    Your free trial or subscription has ended. Please renew your plan to unlock all features and continue managing your business.
                 </p>
                 <a
                     href="/dashboard/settings/billing"

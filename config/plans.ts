@@ -15,12 +15,13 @@ export const PLANS: Plan[] = [
   {
     id: "starter",
     name: "Starter",
-    description: "Help a business move from manual processes into a clean digital operating flow.",
+    description: "Includes a 14-Day Free Trial to help your business move from manual processes into a clean digital operating flow.",
     bestFor: "Single-location SMEs, mini marts, small pharmacies, boutiques.",
     priceMonthly: 1,
     priceAnnually: 10,
     highlighted: false,
     features: [
+      "14-Day Free Trial",
       "1 branch & store setup",
       "POS checkout & digital receipts",
       "Product & stock tracking",

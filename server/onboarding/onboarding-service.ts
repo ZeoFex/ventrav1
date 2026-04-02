@@ -73,6 +73,10 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
                 schedule: input.schedule,
                 structure: input.structure,
                 plan: input.plan,
+                ...(input.plan === "starter" ? {
+                    subscriptionStatus: "active",
+                    currentPeriodEnd: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+                } : {}),
                 onboardingCompleted: true,
                 updatedAt: now,
             })

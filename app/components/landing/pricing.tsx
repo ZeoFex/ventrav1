@@ -95,6 +95,16 @@ export function LandingPricing({
             return;
         }
 
+        // The starter plan is a free trial, skip upfront payment
+        if (plan.id === "starter") {
+            const params = new URLSearchParams({
+                plan: plan.id,
+                cycle: cycle,
+            });
+            router.push(`/signup?${params.toString()}`);
+            return;
+        }
+
         // For paid plans, trigger pre-signup billing
         setSelectedPlanDetails({
             id: plan.id as PlanId,
@@ -259,7 +269,7 @@ export function LandingPricing({
                                         ? (isPastDue ? "Renew Plan" : "Active Plan") 
                                         : onSelectPlan 
                                             ? `Upgrade to ${plan.name}` 
-                                            : `Get Started with ${plan.name}`}
+                                            : plan.id === "starter" ? "Start 14-Day Free Trial" : `Get Started with ${plan.name}`}
                                 </button>
                             </motion.div>
                         );

@@ -34,6 +34,11 @@ export async function GET(req: NextRequest) {
             .where(eq(users.id, payload.sub))
             .limit(1);
 
+        const isEpoch = userDb?.currentPeriodEnd && new Date(userDb.currentPeriodEnd).getTime() === 0;
+        const computedPeriodEnd = (userDb?.currentPeriodEnd && !isEpoch)
+            ? userDb.currentPeriodEnd
+            : (userDb?.createdAt ? new Date(new Date(userDb.createdAt).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString() : null);
+
         const response = NextResponse.json({
             user: {
                 id: payload.sub,
@@ -45,8 +50,8 @@ export async function GET(req: NextRequest) {
                 avatarUrl: userDb?.avatarUrl || payload.img,
                 permissions: payload.perms,
                 plan: userDb?.plan || payload.plan || "starter",
-                subscriptionStatus: userDb?.subscriptionStatus || "active",
-                currentPeriodEnd: userDb?.currentPeriodEnd || (userDb?.createdAt ? new Date(new Date(userDb.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString() : null),
+                subscriptionStatus: (userDb?.subscriptionStatus === "past_due" && isEpoch) ? "active" : (userDb?.subscriptionStatus || "active"),
+                currentPeriodEnd: computedPeriodEnd,
                 businessType: userDb?.businessType || null,
             }
         });

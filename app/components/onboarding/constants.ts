@@ -74,8 +74,10 @@ export function buildOnboardingSteps(structure: StoreStructure, plan: string): s
     tail.push(...BRANCH_STEP_IDS);
   }
   
-  // All plans are now paid plans (including Starter)
-  tail.push("billing");
+  // Only require billing if not on the Starter (Free Trial) plan
+  if (plan !== "starter") {
+    tail.push("billing");
+  }
   
   tail.push("checklist", "guided", "complete");
   return [...prefix, ...tail];

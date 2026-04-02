@@ -101,8 +101,8 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
                 name: input.businessName.trim(),
                 slug,
                 contactEmail: emailNormalized,
-                subscriptionStatus: "past_due",
-                currentPeriodEnd: new Date(0), // Initial state: expired
+                subscriptionStatus: "active",
+                currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), 
             })
             .returning({ id: businesses.id });
 

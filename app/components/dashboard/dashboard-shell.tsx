@@ -15,6 +15,8 @@ import { BranchProvider } from "./branch-context";
 import { OfflineBanner } from "./offline-banner";
 import { initOfflineSync } from "@/app/lib/offline/offline-sync";
 
+import { TrialBanner } from "./trial-banner";
+
 function DashboardShellFrame({
   children,
   userDisplayName,
@@ -72,6 +74,7 @@ function DashboardShellFrame({
       <DashboardSidebarMobileDrawer />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-elevated/50 dark:bg-background">
+        <TrialBanner />
         <OfflineBanner />
         <DashboardHeader userDisplayName={userDisplayName} />
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
