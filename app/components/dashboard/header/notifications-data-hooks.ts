@@ -17,7 +17,7 @@ export type Notification = {
 
 export function useNotifications() {
     const { data, error, mutate } = useSWR<Notification[]>("/api/notifications", fetcher, {
-        refreshInterval: 60000, // Refresh every minute
+        refreshInterval: 5000, // Refresh every 5 seconds
     });
     return {
         notifications: Array.isArray(data) ? data : [],

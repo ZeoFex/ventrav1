@@ -2,6 +2,7 @@ import { eq, sql, and, gte, lte, desc } from "drizzle-orm";
 import { db } from "../db";
 import { products, categories, productVariations } from "../db/schema/products";
 import { sales, saleItems } from "../db/schema/sales";
+import { notifications } from "../db/schema/notifications";
 import { redis } from "../lib/redis";
 
 const CACHE_KEYS = {
@@ -103,6 +104,15 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
                 lineTotalGhs: String(l.lineTotalGhs),
             }))
         );
+        
+        // 4. Create Notification
+        await tx.insert(notifications).values({
+            businessId,
+            branchId: branchId ?? null,
+            title: "New Sale Completed",
+            body: `Sale ${input.invoiceId} for GHC ${input.totalGhs} has been recorded.`,
+            icon: "receipt",
+        });
 
         return { saleId: sale.id };
     });
