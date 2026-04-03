@@ -8,13 +8,39 @@
 const DB_NAME = "ventrapos-offline";
 const DB_VERSION = 1;
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color?: string | null;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  sku: string;
+  priceGhs: string;
+  stock: number;
+  categoryId?: string | null;
+  imageSrc?: string | null;
+  status: "active" | "archived" | "out_of_stock";
+}
+
 export interface SyncQueueItem {
   id: string;
   type: "add-product" | "checkout";
-  payload: any;
+  payload: any; // Keeping payload as any for now as it handles dynamic JSON objects
   createdAt: number;
   attempts: number;
 }
+
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -46,7 +72,7 @@ function openDB(): Promise<IDBDatabase> {
 
 // ── Generic helpers ──
 
-async function putAll(storeName: string, items: any[]): Promise<void> {
+async function putAll<T>(storeName: string, items: T[]): Promise<void> {
   const db = await openDB();
   const tx = db.transaction(storeName, "readwrite");
   const store = tx.objectStore(storeName);
@@ -70,7 +96,7 @@ async function getAll<T>(storeName: string): Promise<T[]> {
   });
 }
 
-async function put(storeName: string, item: any): Promise<void> {
+async function put<T>(storeName: string, item: T): Promise<void> {
   const db = await openDB();
   const tx = db.transaction(storeName, "readwrite");
   tx.objectStore(storeName).put(item);
@@ -92,16 +118,16 @@ async function remove(storeName: string, key: string): Promise<void> {
 
 // ── Products ──
 
-export async function cacheProducts(products: any[]): Promise<void> {
-  return putAll("products", products);
+export async function cacheProducts(products: Product[]): Promise<void> {
+  return putAll<Product>("products", products);
 }
 
-export async function getCachedProducts(): Promise<any[]> {
-  return getAll("products");
+export async function getCachedProducts(): Promise<Product[]> {
+  return getAll<Product>("products");
 }
 
-export async function cacheProduct(product: any): Promise<void> {
-  return put("products", product);
+export async function cacheProduct(product: Product): Promise<void> {
+  return put<Product>("products", product);
 }
 
 export async function updateCachedProductStock(
@@ -115,7 +141,7 @@ export async function updateCachedProductStock(
 
   return new Promise((resolve, reject) => {
     req.onsuccess = () => {
-      const product = req.result;
+      const product = req.result as Product;
       if (product) {
         product.stock = Math.max(0, product.stock - soldQty);
         store.put(product);
@@ -128,12 +154,12 @@ export async function updateCachedProductStock(
 
 // ── Categories ──
 
-export async function cacheCategories(categories: any[]): Promise<void> {
-  return putAll("categories", categories);
+export async function cacheCategories(categories: Category[]): Promise<void> {
+  return putAll<Category>("categories", categories);
 }
 
-export async function getCachedCategories(): Promise<any[]> {
-  return getAll("categories");
+export async function getCachedCategories(): Promise<Category[]> {
+  return getAll<Category>("categories");
 }
 
 // ── Sync Queue ──

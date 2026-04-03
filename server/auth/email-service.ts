@@ -348,3 +348,67 @@ export async function sendBroadcastEmail({
   }
 }
 
+interface SendContactEmailProps {
+  senderName: string;
+  senderEmail: string;
+  subject: string;
+  message: string;
+}
+
+export async function sendContactEmail({
+  senderName,
+  senderEmail,
+  subject: contactSubject,
+  message
+}: SendContactEmailProps) {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: "VentraPOS Contact Form <noreply@ventrapos.com>",
+      to: ["support@ventrapos.com"],
+      subject: `[Contact Form] ${contactSubject}`,
+      replyTo: senderEmail,
+      html: `
+        <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
+          <h1 style="color: #003527; font-size: 24px; font-weight: 700; margin-bottom: 8px;">New Contact Message</h1>
+          <p style="color: #6b7280; font-size: 14px; margin-bottom: 24px;">Received via ventrapos.com contact page.</p>
+          
+          <div style="background-color: #f9fafb; border-radius: 12px; padding: 24px; border: 1px solid #f3f4f6;">
+            <div style="margin-bottom: 16px;">
+              <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #9ca3af; display: block; margin-bottom: 4px;">From</span>
+              <span style="font-size: 16px; font-weight: 600;">${senderName}</span>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #9ca3af; display: block; margin-bottom: 4px;">Email</span>
+              <a href="mailto:${senderEmail}" style="color: #006c49; text-decoration: none; font-size: 16px;">${senderEmail}</a>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #9ca3af; display: block; margin-bottom: 4px;">Subject</span>
+              <span style="font-size: 16px;">${contactSubject}</span>
+            </div>
+            <div>
+              <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #9ca3af; display: block; margin-bottom: 4px;">Message</span>
+              <div style="font-size: 16px; line-height: 1.6; color: #374151; white-space: pre-wrap;">${message}</div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 32px; border-top: 1px solid #f3f4f6; padding-top: 24px; text-align: center;">
+            <p style="color: #9ca3af; font-size: 12px;">This is an automated notification from VentraPOS.</p>
+          </div>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error("[Email Service - Contact]:", error);
+      return { success: false, error };
+    }
+
+    console.log(`✅ [Email Service] Contact form message from ${senderEmail} successfully routed to support inbox.`);
+    return { success: true, data };
+  } catch (error) {
+    console.error("[Email Service catch - Contact]:", error);
+    return { success: false, error };
+  }
+}
+
+
