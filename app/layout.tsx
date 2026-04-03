@@ -20,7 +20,7 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const SITE_URL = "https://ventrapos.vercel.app";
+const SITE_URL = "https://ventrapos.com";
 const OG_IMAGE = "/landing/ventra.png";
 
 export const metadata: Metadata = {
