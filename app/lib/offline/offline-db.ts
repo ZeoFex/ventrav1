@@ -26,11 +26,16 @@ export interface Product {
   name: string;
   slug: string;
   sku: string;
+  description?: string | null;
   priceGhs: string;
   stock: number;
+  reorderAt?: number | null;
   categoryId?: string | null;
+  tagIds?: string[] | null;
   imageSrc?: string | null;
-  status: "active" | "archived" | "out_of_stock";
+  status: "active" | "archived" | "out_of_stock" | string;
+  variations?: any[] | null;
+  _offline?: boolean;
 }
 
 export interface SyncQueueItem {
