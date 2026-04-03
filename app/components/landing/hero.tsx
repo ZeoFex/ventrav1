@@ -42,7 +42,7 @@ export function LandingHero({ isAuthenticated }: { isAuthenticated?: boolean }) 
             aria-hidden
           />
           <span className="font-[family-name:var(--font-display)]">
-            New feature — POS insights
+            Introducing VentraPOS - Public Beta
           </span>
         </motion.div>
 

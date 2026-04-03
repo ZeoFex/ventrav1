@@ -81,7 +81,7 @@ export function LandingPricing({
     isPastDue?: boolean;
 } = {}) {
     const router = useRouter();
-    const [billingCycle, setBillingCycle] = useState<BillingCycle>("annually");
+    const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
     const [showCompare, setShowCompare] = useState(defaultShowCompare);
 
     // Pre-signup billing states

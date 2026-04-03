@@ -12,7 +12,7 @@ interface SendOtpEmailProps {
 export async function sendOtpEmail({ to, firstName, code }: SendOtpEmailProps) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS <noreply@askorin.app>", // TODO: replace with verified domain in prod
+      from: "VentraPOS <noreply@ventrapos.com>", // TODO: replace with verified domain in prod
       to: [to],
       subject: "Your VentraPOS Verification Code",
       html: `
@@ -58,7 +58,7 @@ interface SendPasswordResetEmailProps {
 export async function sendPasswordResetEmail({ to, firstName, resetLink }: SendPasswordResetEmailProps) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS <noreply@askorin.app>", // replace in prod
+      from: "VentraPOS <noreply@ventrapos.com>", // replace in prod
       to: [to],
       subject: "Reset your VentraPOS password",
       html: `
@@ -117,9 +117,9 @@ export async function sendSubscriptionEmail({
   try {
     const greeting = firstName ? `Hi ${firstName},` : "Hello,";
     const subject = `Receipt for your VentraPOS ${planName} Plan`;
-    
+
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS <noreply@askorin.app>",
+      from: "VentraPOS <noreply@ventrapos.com>",
       to: [to],
       subject,
       html: `
@@ -177,6 +177,173 @@ export async function sendSubscriptionEmail({
     return { success: true, data };
   } catch (error) {
     console.error("[Email Service catch - Subscription]:", error);
+    return { success: false, error };
+  }
+}
+
+interface SendBroadcastEmailProps {
+  to: string | string[];
+  subject: string;
+  title: string;
+  message: string;
+  ctaText?: string;
+  ctaLink?: string;
+  footerNote?: string;
+}
+
+export async function sendBroadcastEmail({
+  to,
+  subject,
+  title,
+  message,
+  ctaText,
+  ctaLink,
+  footerNote
+}: SendBroadcastEmailProps) {
+  try {
+    const recipients = Array.isArray(to) ? to : [to];
+    
+    const { data, error } = await resend.emails.send({
+      from: "VentraPOS <noreply@ventrapos.com>",
+      to: recipients,
+      subject,
+      html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+  <style>
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f9fafb;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #f9fafb;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid #f1f5f9;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04);
+    }
+    .header {
+      padding: 40px 40px 0;
+      text-align: left;
+    }
+    .content {
+      padding: 40px;
+    }
+    .footer {
+      padding: 40px;
+      background-color: #f8fafc;
+      border-top: 1px solid #f1f5f9;
+      text-align: center;
+    }
+    .logo {
+      color: #003527;
+      font-size: 24px;
+      font-weight: 800;
+      text-decoration: none;
+      letter-spacing: -0.03em;
+    }
+    h1 {
+      color: #003527;
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 24px;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+    }
+    p {
+      color: #475569;
+      font-size: 16px;
+      line-height: 1.7;
+      margin: 0 0 24px;
+    }
+    .btn-container {
+      margin-top: 40px;
+      text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #003527;
+      color: #ffffff !important;
+      padding: 18px 40px;
+      text-decoration: none;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(0, 53, 39, 0.1);
+    }
+    .footer-text {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0;
+    }
+    .unsubscribe {
+      color: #cbd5e1;
+      text-decoration: underline;
+      font-size: 12px;
+      margin-top: 24px;
+      display: block;
+    }
+    @media (max-width: 600px) {
+      .container { border-radius: 0; }
+      .content, .header, .footer { padding: 30px; }
+      h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <a href="https://ventrapos.com" class="logo">VentraPOS</a>
+      </div>
+      <div class="content">
+        <h1>${title}</h1>
+        <p>${message.replace(/\n/g, '<br>')}</p>
+        ${ctaLink && ctaText ? `
+          <div class="btn-container">
+            <a href="${ctaLink}" class="btn">${ctaText}</a>
+          </div>
+        ` : ''}
+      </div>
+      <div class="footer">
+        ${footerNote ? `<p class="footer-text" style="color: #64748b; margin-bottom: 20px; font-weight: 500;">${footerNote}</p>` : ''}
+        <p class="footer-text">
+          &copy; 2026 VentraPOS. All rights reserved.<br>
+          Modern Retail Operating System.
+        </p>
+        <a href="#" class="unsubscribe">Unsubscribe from future updates</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+      `,
+    });
+
+    if (error) {
+      console.error("[Email Service - Broadcast]:", error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("[Email Service catch - Broadcast]:", error);
     return { success: false, error };
   }
 }
