@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { PrivacyPolicyContent, TermsOfServiceContent } from "./legal-content";
 
 const footerLinks = {
     product: [
@@ -54,6 +56,15 @@ const itemVariants: any = {
 };
 
 export function SiteFooter() {
+    const [legalModalOpen, setLegalModalOpen] = useState(false);
+    const [legalType, setLegalType] = useState<"privacy" | "terms">("privacy");
+
+    const handleLegalClick = (e: React.MouseEvent, type: "privacy" | "terms") => {
+        e.preventDefault();
+        setLegalType(type);
+        setLegalModalOpen(true);
+    };
+
     return (
         <footer className="bg-background pt-20 pb-8 border-t border-border/40">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -135,13 +146,21 @@ export function SiteFooter() {
                         <motion.div variants={itemVariants}>
                             <h3 className="mb-6 text-sm font-semibold text-foreground">Legal</h3>
                             <ul className="flex flex-col gap-4">
-                                {footerLinks.legal.map((link) => (
-                                    <li key={link.name}>
-                                        <Link href={link.href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-[#006c49] dark:hover:text-[#6ffbbe]">
-                                            {link.name}
-                                        </Link>
-                                    </li>
-                                ))}
+                                <li>
+                                    <button onClick={(e) => handleLegalClick(e, "privacy")} className="text-sm font-medium text-left text-muted-foreground transition-colors hover:text-[#006c49] dark:hover:text-[#6ffbbe] cursor-pointer">
+                                        Privacy Policy
+                                    </button>
+                                </li>
+                                <li>
+                                    <button onClick={(e) => handleLegalClick(e, "terms")} className="text-sm font-medium text-left text-muted-foreground transition-colors hover:text-[#006c49] dark:hover:text-[#6ffbbe] cursor-pointer">
+                                        Terms of Service
+                                    </button>
+                                </li>
+                                <li>
+                                    <Link href="/help" className="text-sm font-medium text-muted-foreground transition-colors hover:text-[#006c49] dark:hover:text-[#6ffbbe]">
+                                        Help Center
+                                    </Link>
+                                </li>
                             </ul>
                         </motion.div>
                     </div>
@@ -170,6 +189,14 @@ export function SiteFooter() {
                 </motion.div>
 
             </div>
+
+            <ResponsiveModal
+                open={legalModalOpen}
+                onOpenChange={setLegalModalOpen}
+                title={legalType === "privacy" ? "Privacy Policy" : "Terms of Service"}
+            >
+                {legalType === "privacy" ? <PrivacyPolicyContent /> : <TermsOfServiceContent />}
+            </ResponsiveModal>
         </footer>
     );
 }
