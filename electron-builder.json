@@ -1,0 +1,56 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.ventrapos.desktop",
+  "productName": "VentraPOS",
+  "directories": {
+    "output": "release"
+  },
+  "afterPack": "build-hooks/afterPack.js",
+  "files": [
+    "electron/**/*",
+    "public/**/*",
+    ".env.local"
+  ],
+  "extraResources": [
+    {
+      "from": ".next/standalone",
+      "to": "app/.next/standalone",
+      "filter": [
+        "**/*",
+        ".next/standalone/node_modules/**/*"
+      ]
+    },
+    {
+      "from": ".next/static",
+      "to": "app/.next/standalone/.next/static",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "public",
+      "to": "app/.next/standalone/public",
+      "filter": ["**/*"]
+    },
+    {
+      "from": ".env.local",
+      "to": "app/.env.local"
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "app/icon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": true,
+    "allowToChangeInstallationDirectory": true
+  }
+}

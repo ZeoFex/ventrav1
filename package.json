@@ -2,6 +2,7 @@
   "name": "ventrapos",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +12,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:check": "drizzle-kit check"
+    "db:check": "drizzle-kit check",
+    "electron:dev": "concurrently --kill-others \"pnpm dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "pnpm build && electron-builder --config electron-builder.json --win"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
@@ -72,12 +75,16 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.1",
+    "concurrently": "^9.1.2",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.10",
+    "electron": "^35.1.2",
+    "electron-builder": "^26.0.12",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.1",
+    "wait-on": "^8.0.3"
   }
 }
