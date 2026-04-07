@@ -202,7 +202,7 @@ export async function sendBroadcastEmail({
 }: SendBroadcastEmailProps) {
   try {
     const recipients = Array.isArray(to) ? to : [to];
-    
+
     const { data, error } = await resend.emails.send({
       from: "VentraPOS <noreply@ventrapos.com>",
       to: recipients,
@@ -407,6 +407,120 @@ export async function sendContactEmail({
     return { success: true, data };
   } catch (error) {
     console.error("[Email Service catch - Contact]:", error);
+    return { success: false, error };
+  }
+}
+
+interface SendWeeklyReportEmailProps {
+  to: string;
+  businessName: string;
+  reportDate: string;
+  stats: {
+    revenue: string;
+    profit: string;
+    orders: number;
+    topProducts: Array<{ name: string; quantity: number; revenue: string }>;
+    lowStockCount: number;
+  };
+  excelBuffer: Buffer;
+}
+
+export async function sendWeeklyReportEmail({
+  to,
+  businessName,
+  reportDate,
+  stats,
+  excelBuffer
+}: SendWeeklyReportEmailProps) {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: "VentraPOS Reports <reports@ventrapos.com>",
+      to: [to],
+      subject: `Weekly Performance Report: ${businessName} (${reportDate})`,
+      attachments: [
+        {
+          filename: `VentraPOS_Weekly_Report_${businessName.replace(/\s+/g, '_')}_${reportDate}.xlsx`,
+          content: excelBuffer,
+        },
+      ],
+      html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <style>
+    body { font-family: 'Inter', -apple-system, sans-serif; background-color: #f8fafc; margin: 0; padding: 40px 20px; }
+    .container { max-width: 650px; margin: 0 auto; background: white; border-radius: 24px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+    .header { background: linear-gradient(135deg, #003527 0%, #064e3b 100%); padding: 48px 40px; color: white; }
+    .content { padding: 40px; }
+    .kpi-grid { display: block; margin-bottom: 32px; }
+    .kpi-card { background: #f8fafc; border-radius: 16px; padding: 24px; margin-bottom: 20px; border: 1px solid #f1f5f9; }
+    .kpi-label { color: #64748b; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .kpi-value { font-size: 28px; font-weight: 800; color: #0f172a; }
+    .section-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 40px 0 20px; }
+    .product-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+    .footer { padding: 32px; background: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center; color: #94a3b8; font-size: 14px; }
+    .badge { background: #fff1f2; color: #e11d48; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div style="font-size: 14px; font-weight: 600; opacity: 0.8; text-transform: uppercase; margin-bottom: 8px;">Weekly Summary</div>
+      <h1 style="margin: 0; font-size: 32px; letter-spacing: -0.025em;">${businessName}</h1>
+      <div style="margin-top: 16px; font-size: 16px; opacity: 0.9;">Period: ${reportDate}</div>
+    </div>
+    <div class="content">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Gross Revenue</div>
+          <div class="kpi-value" style="color: #059669;">GHS ${stats.revenue}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Estimated Profit</div>
+          <div class="kpi-value">GHS ${stats.profit}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Orders</div>
+          <div class="kpi-value">${stats.orders}</div>
+        </div>
+      </div>
+
+      <div class="section-title">Top Performing Products</div>
+      ${stats.topProducts.map(p => `
+        <div class="product-row">
+          <div style="font-weight: 600; color: #334155;">${p.name}</div>
+          <div style="color: #64748b;">${p.quantity} sold · GHS ${p.revenue}</div>
+        </div>
+      `).join('')}
+
+      <div style="margin-top: 40px; padding: 24px; background: #fffbeb; border-radius: 16px; border: 1px solid #fef3c7;">
+        <span class="badge" style="background: #fef3c7; color: #d97706;">Stock Alert</span>
+        <div style="margin-top: 12px; color: #92400e; font-weight: 600;">
+          ${stats.lowStockCount} products are currently below reorder points.
+        </div>
+        <div style="margin-top: 4px; color: #b45309; font-size: 14px;">
+          Check the attached Excel file for the full list of items needing restock.
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      &copy; 2026 VentraPOS Reports. All rights reserved.<br>
+      This is an automated performance audit.
+    </div>
+  </div>
+</body>
+</html>
+      `,
+    });
+
+    if (error) {
+      console.error("[Email Service - Weekly Report Error]:", error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("[Email Service - Weekly Report Catch]:", error);
     return { success: false, error };
   }
 }

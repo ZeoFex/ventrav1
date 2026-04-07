@@ -73,6 +73,12 @@ async function processItem(item: SyncQueueItem): Promise<void> {
       return syncAddProduct(item.payload);
     case "checkout":
       return syncCheckout(item.payload);
+    case "add-customer":
+      return syncAddCustomer(item.payload);
+    case "update-customer":
+      return syncUpdateCustomer(item.payload);
+    case "add-expense":
+      return syncAddExpense(item.payload);
     default:
       throw new Error(`Unknown sync type: ${item.type}`);
   }
@@ -92,6 +98,45 @@ async function syncAddProduct(payload: any): Promise<void> {
 
 async function syncCheckout(payload: any): Promise<void> {
   const res = await fetch("/api/pos/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+}
+
+async function syncAddCustomer(payload: any): Promise<void> {
+  const res = await fetch("/api/customers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+}
+
+async function syncUpdateCustomer(payload: any): Promise<void> {
+  // Using the id to PUT to specific route if needed, else to general. We'll assume general or specific API exists.
+  // Actually, we've used standard API pattern /api/customers/[id]
+  const customerId = payload.id;
+  const res = await fetch(`/api/customers/${customerId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+}
+
+async function syncAddExpense(payload: any): Promise<void> {
+  const res = await fetch("/api/expenses", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

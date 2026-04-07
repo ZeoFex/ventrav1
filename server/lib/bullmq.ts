@@ -1,5 +1,6 @@
 import { Queue, Worker, Job } from "bullmq";
 import { redis } from "./redis";
+import { processWeeklyReport } from "./reporting-service";
 
 /** 
  * BullMQ Setup — leverages Redis for high-speed background job processing.
@@ -12,6 +13,7 @@ const connection = redis;
 // 2. Define Queues
 export const inventoryQueue = new Queue("inventory_tasks", { connection: connection as any });
 export const emailQueue = new Queue("email_tasks", { connection: connection as any });
+export const reportQueue = new Queue("report_tasks", { connection: connection as any });
 
 // 3. Worker logic (triggered by background process or server start)
 //    In a serverless environment like Vercel, this won't stay active.
@@ -38,10 +40,20 @@ export function startWorkers() {
         }
     }, { connection: connection as any });
 
-    // Worker for email distribution (keeps UI snappy by offloading mail server latency)
+    // Worker for email distribution
     new Worker("email_tasks", async (job: Job) => {
         // offload to resend-service...
         console.log(`[Worker] sending email job ${job.id}`);
+    }, { connection: connection as any });
+
+    // Worker for weekly reporting tasks
+    new Worker("report_tasks", async (job: Job) => {
+        const { type, businessId } = job.data;
+        console.log(`[Worker] processing report job ${job.id} for biz ${businessId}...`);
+
+        if (type === "weekly_summary") {
+            await processWeeklyReport(businessId);
+        }
     }, { connection: connection as any });
 }
 

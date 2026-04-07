@@ -5,16 +5,31 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Plus, Search, Users, Loader2 } from "lucide-react";
 import { type CustomerRow } from "./customers-mock-data";
+import { getCachedCustomers, cacheCustomers } from "@/app/lib/offline/offline-db";
+import { useOnlineStatus } from "@/app/lib/offline/use-online-status";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { useBranchContext } from "../branch-context";
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to fetch data");
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to fetch data");
+    }
+    const data = await res.json();
+    // Cache the fresh data for offline use
+    await cacheCustomers(data).catch(console.error);
+    return data;
+  } catch (err) {
+    // If the network request fails (offline or server error), fallback to DB
+    const cached = await getCachedCustomers();
+    if (cached && cached.length > 0) {
+      console.warn("[Offline-First] Falling back to cached customers.", err);
+      return cached;
+    }
+    throw err;
   }
-  return res.json();
 };
 
 function statusBadge(status: CustomerRow["status"]) {

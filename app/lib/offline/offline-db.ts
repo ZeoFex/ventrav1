@@ -2,11 +2,11 @@
 
 /**
  * IndexedDB wrapper for offline data storage.
- * Stores: products, categories, syncQueue
+ * Stores: products, categories, customers, expenses, syncQueue
  */
 
 const DB_NAME = "ventrapos-offline";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented for new stores
 
 export interface Category {
   id: string;
@@ -40,7 +40,7 @@ export interface Product {
 
 export interface SyncQueueItem {
   id: string;
-  type: "add-product" | "checkout";
+  type: "add-product" | "checkout" | "add-customer" | "update-customer" | "add-expense";
   payload: any; // Keeping payload as any for now as it handles dynamic JSON objects
   createdAt: number;
   attempts: number;
@@ -65,6 +65,13 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains("syncQueue")) {
         db.createObjectStore("syncQueue", { keyPath: "id" });
+      }
+      // -- Phase 2 features --
+      if (!db.objectStoreNames.contains("customers")) {
+        db.createObjectStore("customers", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("expenses")) {
+        db.createObjectStore("expenses", { keyPath: "id" });
       }
     };
 
@@ -165,6 +172,34 @@ export async function cacheCategories(categories: Category[]): Promise<void> {
 
 export async function getCachedCategories(): Promise<Category[]> {
   return getAll<Category>("categories");
+}
+
+// ── Customers ──
+
+export async function cacheCustomers(customers: any[]): Promise<void> {
+  return putAll("customers", customers);
+}
+
+export async function getCachedCustomers(): Promise<any[]> {
+  return getAll("customers");
+}
+
+export async function cacheCustomer(customer: any): Promise<void> {
+  return put("customers", customer);
+}
+
+// ── Expenses ──
+
+export async function cacheExpenses(expenses: any[]): Promise<void> {
+  return putAll("expenses", expenses);
+}
+
+export async function getCachedExpenses(): Promise<any[]> {
+  return getAll("expenses");
+}
+
+export async function cacheExpense(expense: any): Promise<void> {
+  return put("expenses", expense);
 }
 
 // ── Sync Queue ──

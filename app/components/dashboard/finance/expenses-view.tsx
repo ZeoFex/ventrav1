@@ -7,6 +7,8 @@ import { Plus, Search, Filter, ReceiptText, Loader2, Check, X, ChevronDown, Cale
 import { ProductsPageShell } from "../products/products-page-shell";
 import { useBranchContext } from "../branch-context";
 import { toast } from "sonner";
+import { getCachedExpenses, cacheExpenses } from "@/app/lib/offline/offline-db";
+import { useOnlineStatus } from "@/app/lib/offline/use-online-status";
 
 const EXPENSE_CATEGORIES = [
     "Payroll",
@@ -34,7 +36,24 @@ function formatDate(d: string): string {
     }).format(new Date(d));
 }
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+const fetcher = async (url: string) => {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to fetch expenses");
+        const data = await res.json();
+        // Cache the fresh data
+        await cacheExpenses(data).catch(console.error);
+        return data;
+    } catch (err) {
+        // Fallback to cache
+        const cached = await getCachedExpenses();
+        if (cached && cached.length > 0) {
+            console.warn("[Offline-First] Falling back to cached expenses.");
+            return cached;
+        }
+        throw err;
+    }
+};
 
 export function ExpensesView() {
     const { branchId } = useBranchContext();

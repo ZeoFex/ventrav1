@@ -96,8 +96,8 @@ export const metadata: Metadata = {
 
   // ── Icons ──
   icons: {
-    icon: "/favicon.ico",
-    apple: "/landing/ventra.png",
+    icon: "/logo.jpg",
+    apple: "/logo.jpg",
   },
 
   // ── Verification (placeholders — fill when ready) ──
@@ -108,6 +108,7 @@ export const metadata: Metadata = {
   // ── App ──
   applicationName: "VentraPOS",
   category: "Business",
+  manifest: "/manifest.json",
 
   // ── Other ──
   other: {

@@ -7,6 +7,9 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { type CustomerStatus } from "./customers-mock-data";
 import { useSWRConfig } from "swr";
+import { useOnlineStatus } from "@/app/lib/offline/use-online-status";
+import { addToSyncQueue, cacheCustomer } from "@/app/lib/offline/offline-db";
+import { toast } from "sonner";
 
 export type CustomerFormInitialValues = {
   id?: string;
@@ -35,6 +38,7 @@ export function CustomerForm({
 }: CustomerFormProps) {
   const router = useRouter();
   const { mutate } = useSWRConfig();
+  const { isOnline } = useOnlineStatus();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,13 +53,39 @@ export function CustomerForm({
     setError(null);
 
     try {
+      const payload = { name, phone, email, status };
+
+      if (!isOnline) {
+        // --- OFFLINE MODE ---
+        const tempId = mode === "new" ? `off-${Date.now()}` : initial.id!;
+        
+        // 1. Add to sync queue for later server push
+        await addToSyncQueue({
+          type: mode === "new" ? "add-customer" : "update-customer",
+          payload: mode === "new" ? payload : { ...payload, id: tempId }
+        });
+
+        // 2. Optimistically add to local IndexedDB so it appears in the list immediately
+        await cacheCustomer({ ...payload, id: tempId, _offline: true });
+
+        toast.success("Saved offline. Will sync when you reconnect.");
+        
+        if (onSuccess) {
+          onSuccess({ ...payload, id: tempId });
+        } else {
+          router.push("/dashboard/customers");
+        }
+        return;
+      }
+
+      // --- ONLINE MODE ---
       const url = mode === "new" ? "/api/customers" : `/api/customers/${initial.id}`;
       const method = mode === "new" ? "POST" : "PATCH";
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, email, status }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
