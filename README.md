@@ -24,11 +24,10 @@ The platform includes a **marketing landing page**, **secure authentication** (J
 
 ```mermaid
 flowchart TB
-  subgraph Client ["Browser / Mobile"]
+  subgraph Clients ["Client Layer"]
     LP["Landing Page"]
-    AUTH["Auth Pages"]
-    ONB["Onboarding Wizard"]
     DASH["Dashboard SPA"]
+    ELEC["Desktop Client\n(Electron)"]
   end
 
   subgraph NextJS ["Next.js 16 App Router"]
@@ -40,26 +39,28 @@ flowchart TB
   subgraph Services ["Server Layer"]
     AS["Auth Service"]
     PS["Product Service"]
-    CS["Customer Service"]
     POS_S["POS / Checkout"]
-    FS["Finance Service"]
     BS["Branch Service"]
+    FIS["Finance Service"]
+    BJ["Background Jobs\n(BullMQ)"]
   end
 
   subgraph Data ["Data Layer"]
     PG[("PostgreSQL\nDrizzle ORM")]
-    RD[("Redis\nUpstash")]
+    RD[("Redis\nUpstash / IORedis")]
     UT["Uploadthing\n(File Storage)"]
     RS["Resend\n(Email)"]
   end
 
-  Client --> MW --> API
+  Clients --> MW --> API
   API --> Services
   SSR --> Services
   Services --> PG
   Services --> RD
+  BJ --> RD
   AS --> RS
   DASH --> UT
+  ELEC --> DASH
 ```
 
 ---
@@ -72,15 +73,16 @@ flowchart TB
 | **Frontend** | React 19, TypeScript 5 |
 | **Styling** | Tailwind CSS v4, CSS custom properties (light/dark) |
 | **Database** | PostgreSQL via [Drizzle ORM](https://orm.drizzle.team/) |
-| **Caching** | [Upstash Redis](https://upstash.com/) |
-| **Auth** | JWT (`jose`), Argon2 password hashing, OTP email verification |
+| **Caching / Queues** | [Upstash Redis](https://upstash.com/) + [BullMQ](https://docs.bullmq.io/) |
+| **Desktop** | [Electron](https://www.electronjs.org/) (Standalone package) |
+| **Auth** | JWT (`jose`), Argon2id password hashing, OTP email verification |
 | **File Uploads** | [Uploadthing](https://uploadthing.com/) |
 | **Email** | [Resend](https://resend.com/) |
 | **Charts** | [Recharts](https://recharts.org/) |
-| **Data Fetching** | [SWR](https://swr.vercel.app/) (client), server-side prefetching |
+| **Theming** | `next-themes` (light / dark) |
 | **Animations** | [Motion](https://motion.dev/) (Framer Motion) |
 | **Barcodes** | `jsbarcode` (Code 128), `qrcode` (QR) |
-| **Theming** | `next-themes` (light / dark) |
+| **Testing** | [Vitest](https://vitest.dev/) |
 | **Fonts** | Plus Jakarta Sans (display), Inter (body) |
 
 ---
@@ -149,11 +151,12 @@ VentraPOS uses **Drizzle ORM** with PostgreSQL. The schema includes 12 core tabl
 - Responsive footer with social links
 
 ### 🔐 Authentication
-- **Sign Up** — Email/password with OTP email verification via Resend
-- **Login** — JWT-based sessions stored in `httpOnly` cookies, toast notifications on success
-- **Forgot Password** — Email submission with resend cooldown
-- **Role-Based Access Control** — Owner-only routes enforced via middleware; unauthorized users see a premium "Access Denied" page
-- **Password Security** — Argon2 hashing via `@node-rs/argon2`
+- **Sign Up** — Email/password with OTP email verification via Resend.
+- **Starter Trial** — New accounts automatically receive a **14-day free trial** on the Starter plan.
+- **Login** — JWT-based sessions stored in `httpOnly` cookies, toast notifications on success.
+- **Forgot Password** — Email submission with resend cooldown and secure reset tokens.
+- **Role-Based Access Control** — Owner-only routes enforced via middleware; unauthorized users see a premium "Access Denied" page.
+- **Password Security** — Argon2id hashing via `@node-rs/argon2`.
 
 ```mermaid
 sequenceDiagram
@@ -206,18 +209,20 @@ flowchart LR
 ```
 
 ### 📊 Dashboard Home
-- Greeting with real user data, KPI cards (revenue, orders, profit)
-- Quick action shortcuts and recent activity feed
-- Server-side prefetched analytics with Redis caching
+- **Collapsible Sidebar UI** — Persistent sidebar state for maximized workspace, optimized for both tablet and desktop.
+- **Greeting & KPIs** — Interactive cards with real user data (revenue, orders, profit).
+- **Quick Actions** — Global shortcuts and recent activity feed.
+- **Server Prefetching** — Analytics are prefetched on the server and cached via Redis for instant loading.
 
 ### 💳 POS — Point of Sale
-- **Product Grid** with category chips and morphing search bar
-- **Cart** with quantity controls, hold/resume functionality
-- **Barcode Scanner** — Camera-based Code 128 scanning with product resolution
-- **Payment** — Ghana payment methods with tender/change calculation
-- **Receipt** — Thermal-style summary with print/save options
-- **Held Sales** — Park carts to `localStorage`, resume anytime
-- **Sound Effects** — Add-to-cart beep for sensory feedback
+- **Product Grid** with category chips and morphing search bar.
+- **Cart** with quantity controls, hold/resume functionality.
+- **Barcode Scanner** — Camera-based Code 128 scanning with product resolution.
+- **Payment** — Ghana payment methods with tender/change calculation (Cash, Card, Mobile Money).
+- **Receipt** — Thermal-style summary with print/save options.
+- **Held Sales** — Park carts to `localStorage`, resume anytime.
+- **Sound Effects** — Add-to-cart beep for sensory feedback.
+- **Offline Support** — Basic transaction persistence (Experimental).
 
 ```mermaid
 stateDiagram-v2
@@ -308,10 +313,18 @@ flowchart TD
 ```
 
 ### 📱 Mobile-First Design
-- **Card Layouts** — All data tables (Products, Inventory, Categories, Customers, Expenses) transform into touch-optimized cards on mobile
-- **Responsive Forms** — Stacked layouts with full-width inputs and action buttons
-- **Touch Interactions** — Active scale effects, horizontal scrolling for action bars
-- **Adaptive Navigation** — Mobile sidebar with hamburger menu
+- **Card Layouts** — All data tables transform into touch-optimized cards on mobile.
+- **Responsive Forms** — Stacked layouts with full-width inputs and action buttons.
+- **Adaptive Navigation** — Mobile sidebar with hamburger menu.
+
+### 💻 Desktop Application
+- **Electron Packaging** — Native Windows application for dedicated POS environments.
+- **Standalone Next.js** — Uses Next.js standalone build for maximum performance when packaged.
+- **Automatic Port Management** — Integrated Electron-to-Next.js bridge for seamless local execution.
+
+### ⚙️ Background Operations
+- **BullMQ + Redis** — Robust background job queue for async processing (Bulk imports, Emails).
+- **Scheduled Tasks** — Support for recurring maintenance tasks.
 
 ---
 
@@ -630,8 +643,12 @@ See `DESIGN.md` and `.cursor/rules/design-system.mdc` for full details.
 | `pnpm build` | Production build |
 | `pnpm start` | Run production server |
 | `pnpm lint` | Run ESLint |
+| `pnpm test` | Run Vitest suite |
 | `pnpm drizzle-kit push` | Push schema to database |
+| `pnpm drizzle-kit generate` | Generate migration scripts |
 | `pnpm drizzle-kit studio` | Open Drizzle Studio (DB GUI) |
+| `pnpm electron:dev` | Launch Electron in development mode |
+| `pnpm electron:build` | Package native Windows executable |
 
 ---
 
@@ -662,9 +679,9 @@ See `DESIGN.md` and `.cursor/rules/design-system.mdc` for full details.
 
 ## Roadmap
 
-- [ ] Real-time notifications via WebSocket/SSE
+- [x] Real-time notifications via WebSocket/SSE
+- [x] Receipt printing via thermal printer API
 - [ ] GPS/Map integration for branch addresses
-- [ ] Receipt printing via thermal printer API
 - [ ] Offline mode with service workers
 - [ ] Mobile companion app (React Native)
 - [ ] Advanced reporting with PDF export
