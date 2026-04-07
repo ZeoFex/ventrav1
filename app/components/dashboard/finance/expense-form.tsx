@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
 import { ArrowLeft, UploadCloud, X, Loader2 } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
+import { useOnlineStatus } from "@/app/lib/offline/use-online-status";
+import { addToSyncQueue, cacheExpense } from "@/app/lib/offline/offline-db";
+import { toast } from "sonner";
 
 export type ExpenseFormInitialValues = {
     description: string;
@@ -41,6 +44,7 @@ export function ExpenseForm({
 }: ExpenseFormProps) {
     const router = useRouter();
     const { mutate } = useSWRConfig();
+    const { isOnline } = useOnlineStatus();
     const [savedHint, setSavedHint] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -92,16 +96,40 @@ export function ExpenseForm({
         setIsSaving(true);
 
         try {
-            const res = await fetch("/api/finance/expenses", {
-                method: "POST",
+            const payload = {
+                description,
+                amountGhs: Number(amount),
+                category,
+                date,
+                status
+            };
+
+            if (!isOnline) {
+                // --- OFFLINE MODE ---
+                const tempId = mode === "new" ? `off-exp-${Date.now()}` : (initial as any).id || `off-exp-${Date.now()}`;
+                
+                // 1. Queue for sync
+                await addToSyncQueue({
+                    type: "add-expense", // Currently sync engine only handles 'add-expense' generic
+                    payload: payload
+                });
+
+                // 2. Cache locally for immediate view
+                await cacheExpense({ ...payload, id: tempId, amount: Number(amount), _offline: true });
+
+                toast.success("Expense saved locally. Will sync when online.");
+                router.push("/dashboard/finance/expenses");
+                return;
+            }
+
+            // --- ONLINE MODE ---
+            const url = mode === "new" ? "/api/finance/expenses" : `/api/finance/expenses/${(initial as any).id}`;
+            const method = mode === "new" ? "POST" : "PATCH";
+
+            const res = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    description,
-                    amountGhs: Number(amount),
-                    category,
-                    date,
-                    status
-                })
+                body: JSON.stringify(payload)
             });
 
             if (!res.ok) throw new Error("Failed to save expense");
