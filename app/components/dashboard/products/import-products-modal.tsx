@@ -33,13 +33,22 @@ export function ImportProductsModal({ isOpen, onClose, onImport }: ImportProduct
         if (step === "importing") {
             const timer = setInterval(() => {
                 setVisualProgress(prev => {
-                    if (prev < importProgress) {
-                        return Math.min(prev + 1, importProgress);
+                    // Creep towards the next 5% mark even if no chunk has finished yet
+                    // to give visual feedback that something is happening.
+                    const target = Math.max(importProgress, 2); 
+                    if (prev < target) {
+                        return prev + 0.5; // Small increment for smoothness
+                    }
+                    if (prev < 99 && importProgress > 0) {
+                        return prev + 0.1; // Slow creep while waiting for next chunk
                     }
                     return prev;
                 });
             }, 50);
             return () => clearInterval(timer);
+        } else if (step === "success") {
+            setVisualProgress(100);
+            setImportProgress(100);
         }
     }, [step, importProgress]);
 
@@ -159,6 +168,7 @@ export function ImportProductsModal({ isOpen, onClose, onImport }: ImportProduct
     const handleImport = async () => {
         setStep("importing");
         setError(null);
+        setImportProgress(2); // Initial jump to show life
 
         const mappedData = parsedData.map((row) => {
             const item: any = {};
