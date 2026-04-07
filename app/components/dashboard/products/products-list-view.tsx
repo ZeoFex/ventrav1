@@ -91,9 +91,8 @@ export function ProductsListView() {
     }
   };
 
-  const handleImport = async (data: any[]) => {
-    // In a real app, we'd loop and POST to /api/products or do a bulk POST
-    alert(`Importing ${data.length} products... (Bulk API implementation pending)`);
+  const handleImport = () => {
+    mutateProducts();
   };
 
   const handleSyncMain = () => setIsSyncModalOpen(true);

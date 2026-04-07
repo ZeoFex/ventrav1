@@ -190,3 +190,26 @@ export async function updateStock(businessId: string, productId: string, delta: 
 
     return updated;
 }
+
+/**
+ * Bulk save products for high throughput.
+ * This skips relation handling (tags/variations) for maximum speed.
+ */
+export async function saveProductsBulk(businessId: string, branchId: string, items: any[]) {
+    const result = await db.insert(products).values(
+        items.map(item => ({
+            ...item,
+            businessId,
+            branchId: branchId === "all" ? null : branchId,
+            status: item.status || "active",
+        }))
+    ).returning({ id: products.id });
+
+    // Invalidate cache once
+    await Promise.all([
+        redis.del(CACHE_KEYS.LIST(businessId, branchId)),
+        redis.del(CACHE_KEYS.LIST(businessId, "all"))
+    ]);
+
+    return result;
+}
