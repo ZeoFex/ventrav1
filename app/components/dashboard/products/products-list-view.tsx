@@ -13,6 +13,9 @@ import { ProductsPageShell } from "./products-page-shell";
 import { ImportProductsModal } from "./import-products-modal";
 import { BarcodeGridModal } from "./barcode-grid-modal";
 import { SyncProgressModal } from "./sync-progress-modal";
+import { BulkDeleteModal } from "./bulk-delete-modal";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "motion/react";
 import { type ProductRow } from "./types";
 import { useProducts, useCategories, useTags } from "./products-data-hooks";
 import { formatGhs, getCategoryName, getTagNames } from "@/app/lib/catalog-utils";
@@ -44,6 +47,10 @@ export function ProductsListView() {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Bulk delete state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Real data hooks
   const { products = [], isLoading: isProductsLoading, mutate: mutateProducts } = useProducts();
@@ -82,12 +89,45 @@ export function ProductsListView() {
       const res = await fetch(`/api/products?id=${deletingProduct.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
 
+      toast.success(`${deletingProduct.name} deleted successfully`);
       mutateProducts();
+      
+      // Remove from selected set if present
+      setSelectedIds(prev => {
+        const copy = new Set(prev);
+        copy.delete(deletingProduct.id);
+        return copy;
+      });
       setDeletingProduct(null);
     } catch (err) {
-      alert("Found an error while deleting the product.");
+      toast.error("Failed to delete product");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0 || isBulkDeleting) return;
+    setIsBulkDeleting(true);
+    try {
+      const res = await fetch(`/api/products/bulk-delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Bulk delete failed");
+      }
+      
+      toast.success(`${selectedIds.size} products deleted successfully`);
+      await mutateProducts();
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      toast.error(err.message || "Error during bulk delete");
+    } finally {
+      setIsBulkDeleting(false);
+      setIsBulkDeleteOpen(false);
     }
   };
 
@@ -134,6 +174,25 @@ export function ProductsListView() {
     XLSX.writeFile(workbook, `products_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
+  // Toggle selection of a product ID
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const copy = new Set(prev);
+      if (copy.has(id)) copy.delete(id);
+      else copy.add(id);
+      return copy;
+    });
+  };
+
+  const selectAll = () => {
+    const allIds = filtered.map((p: any) => p.id);
+    setSelectedIds(new Set(allIds));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
   return (
     <ProductsPageShell
       title="Products"
@@ -176,6 +235,28 @@ export function ProductsListView() {
               <Plus className="size-4" /> Add
             </Link>
           )}
+          {/* Bulk Delete Toolbar */}
+          <AnimatePresence>
+            {selectedIds.size > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex items-center gap-2 ml-auto"
+              >
+                <span className="text-sm font-medium bg-muted px-3 py-1.5 rounded-lg border">{selectedIds.size} selected</span>
+                <button
+                  onClick={() => setIsBulkDeleteOpen(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-colors shadow-sm"
+                  disabled={isBulkDeleting}
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </button>
+                <button onClick={deselectAll} className="px-4 py-2 rounded-xl border font-medium hover:bg-muted/50 transition-colors">Clear</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       }
     >
@@ -199,6 +280,13 @@ export function ProductsListView() {
         onClose={() => setIsSyncModalOpen(false)}
         onComplete={() => mutateProducts()}
         type="products"
+      />
+      <BulkDeleteModal
+        isOpen={isBulkDeleteOpen}
+        onClose={() => setIsBulkDeleteOpen(false)}
+        onConfirm={handleBulkDelete}
+        count={selectedIds.size}
+        isDeleting={isBulkDeleting}
       />
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row">
@@ -240,8 +328,9 @@ export function ProductsListView() {
           {/* Mobile Card View */}
           <div className="grid gap-4 sm:hidden pb-10">
             {filtered.map((p: any) => (
-              <div key={p.id} className="rounded-2xl border border-border bg-white p-4 dark:bg-[#111] dark:border-white/10 shadow-sm active:scale-[0.98] transition-transform">
-                <div className="flex gap-4">
+              <div key={p.id} className="rounded-2xl border border-border bg-white p-4 dark:bg-[#111] dark:border-white/10 shadow-sm active:scale-[0.98] transition-transform flex items-start">
+                <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="mr-2 mt-1" />
+                <div className="flex gap-4 w-full">
                   <div className="size-16 shrink-0 rounded-xl bg-muted overflow-hidden relative border dark:border-white/5">
                     {p.imageSrc ? (
                       <Image src={p.imageSrc} alt="" fill className="object-cover" />
@@ -261,7 +350,7 @@ export function ProductsListView() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2 pt-4 border-t dark:border-white/5">
+                <div className="mt-4 flex gap-2 pt-4 border-t dark:border-white/5 w-full">
                   <Link href={`/dashboard/products/${p.id}/edit`} className="flex-1 flex justify-center py-2 text-[14px] font-semibold rounded-lg bg-surface-card border border-border dark:bg-white/5 dark:border-white/10">
                     Edit
                   </Link>
@@ -278,6 +367,9 @@ export function ProductsListView() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b">
+                  <th className="px-4 py-3 font-semibold">
+                    <input type="checkbox" onChange={e => e.target.checked ? selectAll() : deselectAll()} checked={selectedIds.size === filtered.length && filtered.length > 0} />
+                  </th>
                   <th className="px-4 py-3 font-semibold">Product</th>
                   <th className="px-4 py-3 font-semibold">SKU</th>
                   <th className="px-4 py-3 font-semibold">Category</th>
@@ -290,6 +382,9 @@ export function ProductsListView() {
               <tbody className="divide-y">
                 {filtered.map((p: any) => (
                   <tr key={p.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3">
+                      <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-lg bg-muted overflow-hidden relative border">
