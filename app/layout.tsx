@@ -6,6 +6,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { PwaInstallBanner } from "./components/pwa-install-banner";
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -109,7 +110,7 @@ export const metadata: Metadata = {
   // ── App ──
   applicationName: "VentraPOS",
   category: "Business",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
 
   // ── Other ──
   other: {
@@ -145,6 +146,7 @@ export default function RootLayout({
           shadow="0 0 10px rgba(0,108,73,0.5),0 0 5px rgba(0,108,73,0.5)"
         />
         <ThemeProvider>{children}</ThemeProvider>
+        <PwaInstallBanner />
         <Analytics />
         <SpeedInsights />
         <Toaster position="top-center" richColors />
