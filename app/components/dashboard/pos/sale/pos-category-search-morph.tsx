@@ -31,16 +31,16 @@ export function PosCategorySearchMorph({
 
   useEffect(() => {
     if (!expanded) return;
-    function onDocMouseDown(e: MouseEvent) {
+    function onDocClick(e: MouseEvent) {
       if (!wrapRef.current?.contains(e.target as Node)) close();
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") close();
     }
-    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("click", onDocClick);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("click", onDocClick);
       document.removeEventListener("keydown", onKey);
     };
   }, [expanded, close]);

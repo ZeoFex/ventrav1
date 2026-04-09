@@ -417,12 +417,22 @@ function PosSaleViewInner() {
 
     const q = searchQuery.trim().toLowerCase();
     if (q) {
-      list = list.filter(
-        (p: any) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.description || "").toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q),
-      );
+      const tokens = q.split(/\s+/).filter(Boolean);
+      list = list.filter((p: any) => {
+        const variationText = Array.isArray(p.variations)
+          ? p.variations
+              .map((v: any) => `${v?.name ?? ""} ${v?.type ?? ""} ${v?.sku ?? ""}`)
+              .join(" ")
+          : "";
+
+        const haystack = `${p.name ?? ""} ${p.sku ?? ""} ${p.description ?? ""} ${variationText}`
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+
+        if (haystack.includes(q)) return true;
+        return tokens.every((t) => haystack.includes(t));
+      });
     }
     return list;
   }, [products, categories, categoryId, searchQuery]);
