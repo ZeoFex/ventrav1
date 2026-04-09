@@ -19,28 +19,28 @@ const tabs: TabItem[] = [
         label: "POS Checkout",
         icon: LayoutDashboard,
         description: "Experience the fastest checkout flow for retail. Scan barcodes, apply discounts, and process payments in seconds.",
-        image: "/landing/ventra.png", // Reusing hero image as placeholder for now
+        image: "/landing/ventra.jpg", // Reusing hero image as placeholder for now
     },
     {
         id: "inventory",
         label: "Inventory Management",
         icon: Package,
         description: "Keep track of every item across all branches. Set reorder points and get automated low-stock alerts.",
-        image: "/landing/ventra.png",
+        image: "/landing/ventra.jpg",
     },
     {
         id: "staff",
         label: "Staff Monitoring",
         icon: Users,
         description: "Assign roles and track individual performance. Secure logins ensure every transaction is auditable.",
-        image: "/landing/ventra.png",
+        image: "/landing/ventra.jpg",
     },
     {
         id: "reports",
         label: "Business Reports",
         icon: BarChart3,
         description: "Turn sales data into growth strategies. Export daily reports on revenue, expenses, and net profit.",
-        image: "/landing/ventra.png",
+        image: "/landing/ventra.jpg",
     },
 ];
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 
 /** Swap `public/hero-dashboard.png` — update width/height if dimensions change. */
-const DASHBOARD_IMAGE = "/landing/ventra.png";
+const DASHBOARD_IMAGE = "/landing/ventra.jpg";
 
 const partners = [
   "A&B Pharmacy",

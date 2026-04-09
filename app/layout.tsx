@@ -21,7 +21,7 @@ const inter = Inter({
 });
 
 const SITE_URL = "https://ventrapos.com";
-const OG_IMAGE = "/landing/ventra.png";
+const OG_IMAGE = "/landing/ventra.jpg";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

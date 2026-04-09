@@ -17,7 +17,7 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/x-icon",
       },
       {
-        src: "/landing/ventra.png",
+        src: "/landing/ventra.jpg",
         sizes: "1556x750",
         type: "image/png",
         purpose: "any",
