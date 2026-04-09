@@ -21,7 +21,7 @@ const inter = Inter({
 });
 
 const SITE_URL = "https://ventrapos.com";
-const OG_IMAGE = "/landing/ventra.jpg";
+const OG_IMAGE = "/landing/ventra.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -63,10 +63,10 @@ export const metadata: Metadata = {
     images: [
       {
         url: OG_IMAGE,
-        width: 1200,
-        height: 630,
+        width: 1556,
+        height: 750,
         alt: "VentraPOS dashboard — products, cart, and real-time inventory",
-        type: "image/jpeg",
+        type: "image/png",
       },
     ],
   },
