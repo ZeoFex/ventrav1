@@ -143,7 +143,7 @@ export function BarcodeGridModal({
                                         className="flex flex-col items-center border border-dashed border-gray-100 p-4"
                                     >
                                         <BarcodeItem
-                                            sku={p.barcode || p.sku} // Prioritize barcode for linear code
+                                            sku={p.sku}
                                             name={p.name}
                                             priceGhs={p.priceGhs}
                                             width={1.4}

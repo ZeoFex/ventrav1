@@ -267,7 +267,6 @@ export function ProductsListView() {
           id: p.id,
           name: p.name,
           sku: p.sku,
-          barcode: p.barcode,
           priceGhs: p.priceGhs,
         }))}
       />
