@@ -24,6 +24,7 @@ export interface ProductVariation {
     priceGhs?: number | string;
     stock: number;
     sku?: string;
+    barcode?: string;
 }
 
 export interface CategoryRow {

@@ -263,12 +263,25 @@ export function ProductsListView() {
       <BarcodeGridModal
         isOpen={isBarcodeModalOpen}
         onClose={() => setIsBarcodeModalOpen(false)}
-        products={filtered.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          priceGhs: p.priceGhs,
-        }))}
+        products={filtered.flatMap((p: any) => {
+          const base = {
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            barcode: p.barcode,
+            priceGhs: p.priceGhs,
+          };
+          
+          const vars = (p.variations || []).map((v: any) => ({
+            id: v.id,
+            name: `${p.name} (${v.name})`,
+            sku: v.sku || p.sku,
+            barcode: v.barcode || v.sku || p.sku,
+            priceGhs: v.priceGhs || p.priceGhs,
+          }));
+
+          return [base, ...vars];
+        })}
       />
       <ImportProductsModal
         isOpen={isImportModalOpen}

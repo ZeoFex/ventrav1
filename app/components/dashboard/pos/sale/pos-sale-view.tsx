@@ -475,7 +475,7 @@ function PosSaleViewInner() {
             open={scanOpen}
             onClose={() => setScanOpen(false)}
             products={products}
-            onProductAdded={(p) => addToCart(p.id)}
+            onProductAdded={(p, vId) => addToCart(p.id, vId)}
             mobileCart={{
               lines,
               productById,

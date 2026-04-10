@@ -9,6 +9,7 @@ export type BarcodeProduct = {
     id: string;
     name: string;
     sku: string;
+    barcode?: string;
     priceGhs: number;
 };
 
@@ -143,7 +144,7 @@ export function BarcodeGridModal({
                                         className="flex flex-col items-center border border-dashed border-gray-100 p-4"
                                     >
                                         <BarcodeItem
-                                            sku={p.sku}
+                                            sku={p.barcode || p.sku} // Prioritize barcode for linear code
                                             name={p.name}
                                             priceGhs={p.priceGhs}
                                             width={1.4}

@@ -173,18 +173,11 @@ export async function PUT(req: Request) {
             // Sync variations if provided
             if (data.variations) {
                 const { productVariations } = await import("@/server/db/schema/products");
+                const { prepareVariations } = await import("@/server/products/product-service");
+                
                 await tx.delete(productVariations).where(eq(productVariations.productId, id));
                 if (data.variations.length > 0) {
-                    await tx.insert(productVariations).values(
-                        data.variations.map((v: any) => ({
-                            productId: id,
-                            name: v.name,
-                            type: v.type,
-                            priceGhs: v.priceGhs?.toString(),
-                            stock: v.stock || 0,
-                            sku: v.sku,
-                        }))
-                    );
+                    await tx.insert(productVariations).values(prepareVariations(id, data.variations));
                 }
             }
         });

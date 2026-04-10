@@ -78,7 +78,7 @@ export function ProductForm({
   const addVariation = (type: string) => {
     setVariations((prev) => [
       ...prev,
-      { id: Math.random().toString(36).substr(2, 9), name: "", type, priceGhs: price, stock: 0, sku: "" },
+      { id: Math.random().toString(36).substr(2, 9), name: "", type, priceGhs: price, stock: 0, sku: "", barcode: "" },
     ]);
   };
 
@@ -310,8 +310,8 @@ export function ProductForm({
           <div className="space-y-3">
             {variations.map((v) => (
               <div key={v.id} className="group flex flex-col sm:flex-row gap-3 p-4 rounded-2xl border border-border bg-surface-elevated/20 dark:border-white/5 dark:bg-white/[0.02]">
-                <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="space-y-1 col-span-1">
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div className="space-y-1">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Type</label>
                     <input 
                       value={v.type} 
@@ -319,7 +319,7 @@ export function ProductForm({
                       className="w-full px-3 py-2 rounded-xl border border-border bg-transparent text-[13px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
                     />
                   </div>
-                  <div className="space-y-1 col-span-1">
+                  <div className="space-y-1">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Name / Value</label>
                     <input 
                       placeholder="e.g. Red, XL"
@@ -328,7 +328,34 @@ export function ProductForm({
                       className="w-full px-3 py-2 rounded-xl border border-border bg-transparent text-[13px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
                     />
                   </div>
-                  <div className="space-y-1 col-span-1">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">SKU</label>
+                    <div className="flex gap-1.5">
+                      <input 
+                        placeholder="Variant SKU"
+                        value={v.sku} 
+                        onChange={(e) => updateVariation(v.id, { sku: e.target.value.toUpperCase() })}
+                        className="flex-1 px-3 py-2 rounded-xl border border-border bg-transparent font-mono text-[12px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => updateVariation(v.id, { sku: generateProductSku() })}
+                        className="p-2 border border-border rounded-xl hover:bg-muted transition-colors dark:border-white/10"
+                      >
+                        <RefreshCw className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Barcode</label>
+                    <input 
+                      placeholder="UPC / EAN"
+                      value={v.barcode} 
+                      onChange={(e) => updateVariation(v.id, { barcode: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl border border-border bg-transparent text-[13px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                    />
+                  </div>
+                  <div className="space-y-1">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Price Override</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground">₵</span>
@@ -341,7 +368,7 @@ export function ProductForm({
                       />
                     </div>
                   </div>
-                  <div className="space-y-1 col-span-1">
+                  <div className="space-y-1">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Stock</label>
                     <input 
                       type="number"

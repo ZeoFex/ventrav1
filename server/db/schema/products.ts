@@ -142,6 +142,7 @@ export const productVariations = pgTable(
         priceGhs: decimal("price_ghs", { precision: 12, scale: 2 }), // Optional override
         stock: integer("stock").default(0).notNull(),
         sku: varchar("sku", { length: 100 }),
+        barcode: varchar("barcode", { length: 100 }),
         createdAt: timestamp("created_at", { withTimezone: true })
             .defaultNow()
             .notNull(),
@@ -151,5 +152,6 @@ export const productVariations = pgTable(
     },
     (t) => [
         index("product_variations_product_id_idx").on(t.productId),
+        index("product_variations_barcode_idx").on(t.barcode),
     ]
 );

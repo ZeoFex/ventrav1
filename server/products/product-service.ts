@@ -15,6 +15,24 @@ const CACHE_KEYS = {
 
 const CACHE_TTL = 3600; // 1 hour
 
+export function generateSku(): string {
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `VTR-${ts}-${rand}`;
+}
+
+export function prepareVariations(productId: string, variations: any[]) {
+    return variations.map((v: any) => ({
+        productId,
+        name: v.name,
+        type: v.type,
+        priceGhs: v.priceGhs?.toString(),
+        stock: v.stock || 0,
+        sku: v.sku || generateSku(),
+        barcode: v.barcode || v.sku || generateSku(),
+    }));
+}
+
 export interface ProductInput {
     businessId: string;
     branchId?: string | null;
@@ -41,6 +59,7 @@ export interface ProductVariationInput {
     priceGhs?: string | null;
     stock: number;
     sku?: string | null;
+    barcode?: string | null;
 }
 
 /**
@@ -92,9 +111,47 @@ export async function getProducts(businessId: string, branchId?: string | null) 
         ? await db.select().from(productVariations).where(sql`${productVariations.productId} IN ${productIds}`)
         : [];
 
+    // Backfill missing SKUs/Barcodes for variations lazily
+    let finalVariations = variations;
+    const toUpdate: any[] = [];
+    
+    const processedVariations = variations.map(v => {
+        if (!v.sku || !v.barcode) {
+            const sku = v.sku || generateSku();
+            const barcode = v.barcode || sku;
+            const updated = { ...v, sku, barcode };
+            toUpdate.push(updated);
+            return updated;
+        }
+        return v;
+    });
+
+    if (toUpdate.length > 0) {
+        console.log(`[Service] Auto-backfilling ${toUpdate.length} variations for business ${businessId}`);
+        // Run persistent update in background so we don't block the fetch
+        void Promise.all(toUpdate.map(v => 
+            db.update(productVariations)
+                .set({ sku: v.sku, barcode: v.barcode, updatedAt: new Date() })
+                .where(eq(productVariations.id, v.id))
+        )).catch(err => console.error(`[Service] Failed to backfill variations:`, err));
+        
+        finalVariations = processedVariations;
+    }
+
     const rowsWithVariations = rows.map(row => ({
         ...row,
-        variations: variations.filter(v => v.productId === row.id)
+        variations: finalVariations
+            .filter(v => v.productId === row.id)
+            .map(v => ({
+                id: v.id,
+                productId: v.productId,
+                name: v.name,
+                type: v.type,
+                priceGhs: v.priceGhs,
+                stock: v.stock,
+                sku: v.sku,
+                barcode: v.barcode,
+            }))
     }));
 
     await redis.setex(key, CACHE_TTL, JSON.stringify(rowsWithVariations));
@@ -141,16 +198,7 @@ export async function saveProduct(input: ProductInput) {
 
         // 3. Insert variations
         if (input.variations && input.variations.length > 0) {
-            await tx.insert(productVariations).values(
-                input.variations.map(v => ({
-                    productId: inserted.id,
-                    name: v.name,
-                    type: v.type,
-                    priceGhs: v.priceGhs,
-                    stock: v.stock,
-                    sku: v.sku,
-                }))
-            );
+            await tx.insert(productVariations).values(prepareVariations(inserted.id, input.variations));
         }
 
         return inserted;

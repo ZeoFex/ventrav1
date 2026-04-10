@@ -20,7 +20,7 @@ type PosBarcodeScanPanelProps = {
   open: boolean;
   onClose: () => void;
   products: ProductRow[];
-  onProductAdded: (product: ProductRow) => void;
+  onProductAdded: (product: ProductRow, variationId?: string) => void;
   /** Mobile: show live cart under the camera while scanning (camera stays open). */
   mobileCart?: {
     lines: CartLine[];
@@ -85,13 +85,20 @@ export function PosBarcodeScanPanel({
         setBanner({ tone: "err", text: result.message });
         return;
       }
-      console.log(`[scan:apply] matched product: "${result.product.name}" (id=${result.product.id}, sku=${result.product.sku})`);
-      onProductAdded(result.product);
+      let displayName = result.product.name;
+      if (result.variationId && result.product.variations) {
+        const v = result.product.variations.find(v => v.id === result.variationId);
+        if (v) displayName += ` (${v.name})`;
+      }
+
+      console.log(`[scan:apply] matched: "${displayName}" (id=${result.product.id}, vId=${result.variationId})`);
+      onProductAdded(result.product, result.variationId);
+
       // Desktop: toast-style banner. Mobile with inline cart: list updates; camera stays open.
       if (isDesktop || !mobileCart) {
         setBanner({
           tone: "ok",
-          text: `Added · ${result.product.name}`,
+          text: `Added · ${displayName}`,
         });
       }
     },
