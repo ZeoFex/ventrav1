@@ -34,9 +34,8 @@ export function PosBarcodeCamera({
     const scanner = scannerRef.current;
     if (!scanner) return;
     try {
-      const track = scanner.getRunningTrack();
       const newState = !torchOn;
-      await track.applyConstraints({
+      await scanner.applyVideoConstraints({
         advanced: [{ torch: newState } as any]
       });
       setTorchOn(newState);
@@ -49,9 +48,8 @@ export function PosBarcodeCamera({
     const scanner = scannerRef.current;
     if (!scanner) return;
     try {
-      const track = scanner.getRunningTrack();
       const nextZoom = Math.max(zoomRange.min, Math.min(zoomRange.max, zoomValue + delta));
-      await track.applyConstraints({
+      await scanner.applyVideoConstraints({
         advanced: [{ zoom: nextZoom } as any]
       });
       setZoomValue(nextZoom);
@@ -124,8 +122,7 @@ export function PosBarcodeCamera({
         );
 
         // Post-start: check capabilities
-        const track = scanner.getRunningTrack();
-        const caps = track.getCapabilities() as any;
+        const caps = scanner.getRunningTrackCapabilities() as any;
         if (caps.torch) setTorchSupported(true);
         if (caps.zoom) {
           setZoomSupported(true);
