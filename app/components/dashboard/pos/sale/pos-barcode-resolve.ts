@@ -2,7 +2,7 @@ import { parseProductBarcodePayload } from "@/app/components/dashboard/products/
 import { type ProductRow } from "../../products/types";
 
 export type ResolveScanResult =
-  | { ok: true; product: ProductRow; variationId?: string }
+  | { ok: true; product: ProductRow }
   | { ok: false; message: string };
 
 export function resolveProductFromScan(
@@ -33,17 +33,6 @@ export function resolveProductFromScan(
       return { ok: true, product: bySku };
     }
 
-    // Check variations by SKU
-    for (const p of products) {
-      if (p.variations) {
-        const v = p.variations.find(v => v.sku?.toUpperCase() === sku);
-        if (v) {
-          console.log(`[resolve] ✅ matched variation by SKU → "${p.name} (${v.name})"`);
-          return { ok: true, product: p, variationId: v.id };
-        }
-      }
-    }
-
     console.log(`[resolve] ❌ JSON payload id/sku not found in catalog`);
     return { ok: false, message: "Product not in this register’s catalog" };
   }
@@ -59,26 +48,10 @@ export function resolveProductFromScan(
   }
 
   // 2. Direct product Barcode match
-  // (barcode field is on ProductRow if we added it, let's check types)
-  // Products table HAS barcode. Let's see if the type has it.
   const byBarcode = products.find((p: any) => p.barcode?.toUpperCase() === matchStr);
   if (byBarcode) {
     console.log(`[resolve] ✅ matched by Barcode → "${byBarcode.name}"`);
     return { ok: true, product: byBarcode };
-  }
-
-  // 3. Variation SKU or Barcode match
-  for (const p of products) {
-    if (p.variations) {
-      const v = p.variations.find(v => 
-        v.sku?.toUpperCase() === matchStr || 
-        v.barcode?.toUpperCase() === matchStr
-      );
-      if (v) {
-        console.log(`[resolve] ✅ matched variation → "${p.name} (${v.name})"`);
-        return { ok: true, product: p, variationId: v.id };
-      }
-    }
   }
 
   console.log(`[resolve] ❌ no match found`);
