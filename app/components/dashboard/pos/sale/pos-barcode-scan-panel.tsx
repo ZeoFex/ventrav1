@@ -81,11 +81,11 @@ export function PosBarcodeScanPanel({
       console.log(`[scan:apply] resolving barcode against ${products.length} products…`);
       const result = resolveProductFromScan(raw, products);
       if (!result.ok) {
-        console.log(`[scan:apply] ❌ resolve failed: ${result.message}`);
+        console.log(`[scan:apply] resolve failed: ${result.message}`);
         setBanner({ tone: "err", text: result.message });
         return;
       }
-      console.log(`[scan:apply] ✅ matched product: "${result.product.name}" (id=${result.product.id}, sku=${result.product.sku})`);
+      console.log(`[scan:apply] matched product: "${result.product.name}" (id=${result.product.id}, sku=${result.product.sku})`);
       onProductAdded(result.product);
       // Desktop: toast-style banner. Mobile with inline cart: list updates; camera stays open.
       if (isDesktop || !mobileCart) {
@@ -119,7 +119,7 @@ export function PosBarcodeScanPanel({
           sessionId: string;
           token: string;
         };
-        console.log(`[scan:pair] ✅ session created: id=${data.sessionId} token=${data.token.slice(0, 8)}…`);
+        console.log(`[scan:pair] session created: id=${data.sessionId} token=${data.token.slice(0, 8)}…`);
         if (cancelled) return;
         setSessionId(data.sessionId);
         setPairToken(data.token);
@@ -133,7 +133,7 @@ export function PosBarcodeScanPanel({
         });
         if (!cancelled) setQrDataUrl(dataUrl);
       } catch (err) {
-        console.error(`[scan:pair] ❌ pairing failed:`, err);
+        console.error(`[scan:pair] pairing failed:`, err);
         if (!cancelled) setRelayError("Pairing unavailable. Check connection.");
       }
     })();

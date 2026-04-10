@@ -34,7 +34,7 @@ export const PLANS: Plan[] = [
     name: "Growth",
     description: "Move from simple digital operations into structured operational management.",
     bestFor: "Growing SMEs with multiple branches or active supermarkets.",
-    priceMonthly: 249,
+    priceMonthly: 1,
     priceAnnually: 2490,
     highlighted: true,
     features: [

@@ -17,6 +17,8 @@ export function HeaderBranchSelector() {
 
   const isLoading = branchesLoading || sessionLoading;
   const isLocked = Boolean(user?.branchId);
+  const hasSingleBranch = branches?.length === 1;
+  const singleBranch = hasSingleBranch ? branches[0] : null;
 
   // Auto-select locked branch or main branch
   useEffect(() => {
@@ -37,30 +39,41 @@ export function HeaderBranchSelector() {
       <label htmlFor={id} className="sr-only">
         Branch
       </label>
-      <select
-        id={id}
-        value={branchId}
-        onChange={(e) => setBranchId(e.target.value)}
-        className={`${fieldClass} ${isLocked ? "cursor-not-allowed bg-muted/30" : ""}`}
-        disabled={isLoading || isLocked}
-      >
-        {!isLocked && <option value="all">All Branches</option>}
-        {isLoading ? (
-          <option value="" disabled>Loading branches...</option>
-        ) : branches && branches.length > 0 ? (
-          branches.map((b: any) => (
-            <option key={b.id} value={b.id}>
-              {b.name} {b.id === user?.branchId ? "(Assigned)" : ""}
-            </option>
-          ))
-        ) : null}
-      </select>
-      {!isLocked && (
-        <ChevronDown
-          className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          strokeWidth={2}
-          aria-hidden
-        />
+      {hasSingleBranch && singleBranch ? (
+        <div className={`${fieldClass} flex items-center cursor-default`}>
+          <span className="truncate">
+            {singleBranch.name}
+            {singleBranch.id === user?.branchId ? " (Assigned)" : ""}
+          </span>
+        </div>
+      ) : (
+        <>
+          <select
+            id={id}
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className={`${fieldClass} ${isLocked ? "cursor-not-allowed bg-muted/30" : ""}`}
+            disabled={isLoading || isLocked}
+          >
+            {!isLocked && <option value="all">All Branches</option>}
+            {isLoading ? (
+              <option value="" disabled>Loading branches...</option>
+            ) : branches && branches.length > 0 ? (
+              branches.map((b: any) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} {b.id === user?.branchId ? "(Assigned)" : ""}
+                </option>
+              ))
+            ) : null}
+          </select>
+          {!isLocked && (
+            <ChevronDown
+              className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              strokeWidth={2}
+              aria-hidden
+            />
+          )}
+        </>
       )}
     </div>
   );
