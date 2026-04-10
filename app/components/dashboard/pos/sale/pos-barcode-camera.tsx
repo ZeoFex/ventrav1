@@ -1,5 +1,8 @@
+"use client";
+
+import Quagga, { QuaggaJSResultObject } from "@ericblade/quagga2";
 import { Zap, ZoomIn, ZoomOut } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type PosBarcodeCameraProps = {
   active: boolean;
@@ -8,18 +11,17 @@ type PosBarcodeCameraProps = {
 };
 
 /**
- * Camera scanner optimised for printed Code 128 barcodes.
- * High FPS, narrow format list, wide rectangular scan region.
+ * High-Performance Barcode Scanner using Quagga2.
+ * Specialized for 1D barcodes with long-distance and blur handling.
  */
 export function PosBarcodeCamera({
   active,
   onScan,
   className,
 }: PosBarcodeCameraProps) {
-  const reactId = useId();
-  const containerId = `pos-bc-${reactId.replace(/:/g, "")}`;
   const onScanRef = useRef(onScan);
   const lastRef = useRef<{ text: string; at: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -27,144 +29,146 @@ export function PosBarcodeCamera({
   const [zoomValue, setZoomValue] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1, step: 0.1 });
   
-  const scannerRef = useRef<import("html5-qrcode").Html5Qrcode | null>(null);
   onScanRef.current = onScan;
 
+  const getCameraTrack = useCallback(() => {
+    try {
+      return Quagga.CameraAccess.getActiveTrack();
+    } catch {
+      return null;
+    }
+  }, []);
+
   const toggleTorch = useCallback(async () => {
-    const scanner = scannerRef.current;
-    if (!scanner) return;
+    const track = getCameraTrack();
+    if (!track) return;
     try {
       const newState = !torchOn;
-      await scanner.applyVideoConstraints({
+      await track.applyConstraints({
         advanced: [{ torch: newState } as any]
       });
       setTorchOn(newState);
     } catch (err) {
       console.error("Failed to toggle torch:", err);
     }
-  }, [torchOn]);
+  }, [torchOn, getCameraTrack]);
 
   const changeZoom = useCallback(async (delta: number) => {
-    const scanner = scannerRef.current;
-    if (!scanner) return;
+    const track = getCameraTrack();
+    if (!track) return;
     try {
       const nextZoom = Math.max(zoomRange.min, Math.min(zoomRange.max, zoomValue + delta));
-      await scanner.applyVideoConstraints({
+      await track.applyConstraints({
         advanced: [{ zoom: nextZoom } as any]
       });
       setZoomValue(nextZoom);
     } catch (err) {
       console.error("Failed to change zoom:", err);
     }
-  }, [zoomRange, zoomValue]);
+  }, [zoomRange, zoomValue, getCameraTrack]);
 
   useEffect(() => {
     if (!active) return;
 
     let cancelled = false;
 
-    async function start() {
-      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import(
-        "html5-qrcode",
-      );
-      if (cancelled) return;
-      await new Promise((r) => requestAnimationFrame(r));
-      if (!document.getElementById(containerId) || cancelled) return;
+    const handleDetected = (result: QuaggaJSResultObject) => {
+      const code = result.codeResult.code;
+      if (!code) return;
+      
+      const now = Date.now();
+      const prev = lastRef.current;
+      if (prev && prev.text === code && now - prev.at < 800) {
+        return;
+      }
+      lastRef.current = { text: code, at: now };
+      onScanRef.current(code);
+    };
 
-      const scanner = new Html5Qrcode(containerId, {
-        verbose: false,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-        ],
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true,
+    const startScanner = () => {
+      if (!containerRef.current) return;
+      
+      Quagga.init({
+        inputStream: {
+          type: "LiveStream",
+          target: containerRef.current,
+          constraints: {
+            width: { min: 640, ideal: 1920 },
+            height: { min: 480, ideal: 1080 },
+            facingMode: "environment",
+            aspectRatio: { ideal: 1.7777777778 }
+          },
+          area: { top: "30%", right: "0%", left: "0%", bottom: "30%" } // Focused Scan Area
         },
-      });
-      scannerRef.current = scanner;
-
-      try {
-        const config = {
-          fps: 25,
-          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-            const width = Math.min(viewfinderWidth * 0.85, 450);
-            const height = Math.min(viewfinderHeight * 0.35, 200);
-            return { width, height };
-          },
-          aspectRatio: 1.777778,
-          videoConstraints: {
-            width: { min: 640, ideal: 1920, max: 1920 },
-            height: { min: 480, ideal: 1080, max: 1080 },
-            facingMode: "environment"
-          }
-        };
-
-        await scanner.start(
-          { facingMode: "environment" },
-          config,
-          (decodedText) => {
-            const now = Date.now();
-            const prev = lastRef.current;
-            if (
-              prev &&
-              prev.text === decodedText &&
-              now - prev.at < 600
-            ) {
-              return;
-            }
-            lastRef.current = { text: decodedText, at: now };
-            onScanRef.current(decodedText);
-          },
-          () => undefined,
-        );
-
-        // Post-start: check capabilities
-        const caps = scanner.getRunningTrackCapabilities() as any;
-        if (caps.torch) setTorchSupported(true);
-        if (caps.zoom) {
-          setZoomSupported(true);
-          setZoomRange({
-            min: caps.zoom.min || 1,
-            max: caps.zoom.max || 1,
-            step: caps.zoom.step || 0.1
-          });
-          setZoomValue(caps.zoom.min || 1);
+        decoder: {
+          readers: [
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "upc_reader",
+            "upc_e_reader"
+          ],
+          multiple: false
+        },
+        locate: true,
+        numOfWorkers: navigator.hardwareConcurrency || 4,
+        frequency: 10
+      }, (err) => {
+        if (err) {
+          console.error("Quagga initialization failed:", err);
+          return;
         }
 
-      } catch (err) {
-        console.error("Scanner start error:", err);
-      }
-    }
+        if (cancelled) {
+          Quagga.stop();
+          return;
+        }
 
-    void start();
+        Quagga.start();
+        Quagga.onDetected(handleDetected);
+
+        // Check Hardware Capabilities
+        setTimeout(() => {
+            const track = getCameraTrack();
+            if (track) {
+                const caps = track.getCapabilities() as any;
+                if (caps.torch) setTorchSupported(true);
+                if (caps.zoom) {
+                    setZoomSupported(true);
+                    setZoomRange({
+                        min: caps.zoom.min || 1,
+                        max: caps.zoom.max || 1,
+                        step: caps.zoom.step || 0.1
+                    });
+                    setZoomValue(caps.zoom.min || 1);
+                }
+            }
+        }, 800);
+      });
+    };
+
+    startScanner();
 
     return () => {
       cancelled = true;
-      const s = scannerRef.current;
-      if (s) {
-        s.stop()
-          .then(() => s.clear())
-          .catch(() => undefined);
-      }
+      Quagga.offDetected(handleDetected);
+      Quagga.stop();
     };
-  }, [active, containerId]);
+  }, [active, getCameraTrack]);
 
   if (!active) return null;
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
       <div
-        id={containerId}
-        className="h-full w-full bg-black"
+        ref={containerRef}
+        className="h-full w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"
         aria-hidden={false}
       />
       
-      {/* High-Performance Scan Zone Overlay */}
+      {/* Visual Overlay - Unified with Quagga's area */}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4">
-        <div className="relative h-[35%] w-full max-h-[180px] max-w-[420px]">
+        <div className="relative h-[40%] w-full max-h-[220px] max-w-[440px]">
           {/* Scanning Corners */}
           <div className="absolute top-0 left-0 h-8 w-8 border-t-[3px] border-l-[3px] border-[#00ff9d] rounded-tl-2xl drop-shadow-[0_0_8px_rgba(0,255,157,0.5)]" />
           <div className="absolute top-0 right-0 h-8 w-8 border-t-[3px] border-r-[3px] border-[#00ff9d] rounded-tr-2xl drop-shadow-[0_0_8px_rgba(0,255,157,0.5)]" />
@@ -175,7 +179,7 @@ export function PosBarcodeCamera({
           <div className="absolute inset-x-4 top-1/2 h-[1px] -translate-y-1/2 bg-gradient-to-r from-transparent via-[#00ff9d] to-transparent opacity-60 shadow-[0_0_12px_#00ff9d] animate-pulse" />
           
           {/* Subtle Mask Overlay */}
-          <div className="absolute -inset-x-[100vw] -inset-y-[100vh] border-[100vw] border-[100vh] border-black/25" />
+          <div className="absolute -inset-x-[100vw] -inset-y-[100vh] border-[100vw] border-[100vh] border-black/30" />
         </div>
       </div>
 
@@ -206,7 +210,7 @@ export function PosBarcodeCamera({
               <ZoomOut className="size-5" />
             </button>
             <div className="flex w-10 flex-col items-center">
-              <span className="text-[11px] font-bold text-white/50 uppercase tracking-tighter">Zoom</span>
+              <span className="text-[11px] font-bold text-white/50 uppercase tracking-tighter text-center">Zoom</span>
               <span className="text-[13px] font-mono font-bold text-white">{zoomValue.toFixed(1)}x</span>
             </div>
             <button
