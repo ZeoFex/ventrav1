@@ -171,13 +171,14 @@ export function QuickCheckoutDrawer({
   };
 
   return (
-    <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()} direction="right">
+    <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()} direction="bottom">
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-        <Drawer.Content className="fixed bottom-0 right-0 top-0 z-50 flex w-[400px] max-w-[100vw] flex-col rounded-l-3xl bg-background outline-none">
-          <div className="flex items-center justify-between border-b px-4 py-3 dark:border-white/10">
-            <h2 className="font-semibold">{flow === "payment" ? "Payment" : flow === "receipt" ? "Receipt" : "Quick Cart"}</h2>
-            <button onClick={onClose} className="rounded-full p-2 hover:bg-muted">
+        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto mt-24 flex max-h-[92vh] w-full max-w-[480px] flex-col rounded-t-[2rem] bg-background shadow-2xl outline-none sm:max-h-[85vh]">
+          <div className="mx-auto mt-4 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/20" />
+          <div className="flex shrink-0 items-center justify-between border-b px-5 py-4 dark:border-white/10">
+            <h2 className="font-semibold text-lg">{flow === "payment" ? "Payment" : flow === "receipt" ? "Receipt" : "Quick Cart"}</h2>
+            <button onClick={onClose} className="rounded-full bg-surface-elevated p-2 hover:bg-muted">
               <X className="size-5" />
             </button>
           </div>
