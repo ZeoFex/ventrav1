@@ -200,39 +200,39 @@ export function ProductsListView() {
       actions={
         <>
           {showSyncButton && (
-            <button onClick={handleSyncMain} className="btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2 font-medium">
-              <Download className="size-4" />
+            <button onClick={handleSyncMain} className="shrink-0 whitespace-nowrap btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2 font-medium">
+              <Download className="shrink-0 size-4" />
               Import from Main
             </button>
           )}
-          <button onClick={handleExportCSV} className="btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2">
-            <FileText className="size-4" /> CSV
+          <button onClick={handleExportCSV} className="shrink-0 whitespace-nowrap btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2">
+            <FileText className="shrink-0 size-4" /> CSV
           </button>
-          <button onClick={handleExportExcel} className="btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2">
-            <FileSpreadsheet className="size-4" /> Excel
+          <button onClick={handleExportExcel} className="shrink-0 whitespace-nowrap btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2">
+            <FileSpreadsheet className="shrink-0 size-4" /> Excel
           </button>
           <button 
             onClick={() => setIsImportModalOpen(true)} 
             disabled={branchId === "all"}
             title={branchId === "all" ? "Select a branch to import products" : ""}
-            className={`btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2 text-[14px] ${branchId === "all" ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`shrink-0 whitespace-nowrap btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2 text-[14px] ${branchId === "all" ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            <Download className="size-4" /> Import
+            <Download className="shrink-0 size-4" /> Import
           </button>
-          <button onClick={() => setIsBarcodeModalOpen(true)} className="btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2 text-[14px]">
-            <Printer className="size-4" /> Barcodes
+          <button onClick={() => setIsBarcodeModalOpen(true)} className="shrink-0 whitespace-nowrap btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2 text-[14px]">
+            <Printer className="shrink-0 size-4" /> Barcodes
           </button>
           {branchId === "all" ? (
             <button
               disabled
               title="Select a specific branch to add products"
-              className="bg-muted text-muted-foreground px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 text-[14px] cursor-not-allowed opacity-50"
+              className="shrink-0 whitespace-nowrap bg-muted text-muted-foreground px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 text-[14px] cursor-not-allowed opacity-50"
             >
-              <Plus className="size-4" /> Add
+              <Plus className="shrink-0 size-4" /> Add
             </button>
           ) : (
-            <Link href="/dashboard/products/new" className="bg-[#003527] bg-gradient-to-br from-[#003527] to-[#064e3b] text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 text-[14px] shadow-sm">
-              <Plus className="size-4" /> Add
+            <Link href="/dashboard/products/new" className="shrink-0 whitespace-nowrap bg-[#003527] bg-gradient-to-br from-[#003527] to-[#064e3b] text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 text-[14px] shadow-sm">
+              <Plus className="shrink-0 size-4" /> Add
             </Link>
           )}
           {/* Bulk Delete Toolbar */}
@@ -289,22 +289,22 @@ export function ProductsListView() {
         isDeleting={isBulkDeleting}
       />
 
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row w-full min-w-0">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground shrink-0" />
           <input
             placeholder="Search catalog..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full rounded-xl border border-border bg-white py-2.5 pl-9 text-[15px] outline-none focus:ring-2 focus:ring-[#003527]/5 dark:bg-[#141414] dark:border-white/10"
+            className="w-full rounded-xl border border-border bg-white py-2.5 pl-9 pr-3 text-[15px] outline-none focus:ring-2 focus:ring-[#003527]/5 dark:bg-[#141414] dark:border-white/10"
           />
         </div>
-        <div className="flex gap-2 sm:gap-3">
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="flex-1 sm:flex-none rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] outline-none dark:bg-[#141414] dark:border-white/10">
+        <div className="flex gap-2 sm:gap-3 shrink-0 min-w-0 w-full sm:w-auto">
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="flex-1 sm:flex-none rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] outline-none dark:bg-[#141414] dark:border-white/10 min-w-0 truncate">
             <option value="all">Categories</option>
             {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="flex-1 sm:flex-none rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] outline-none dark:bg-[#141414] dark:border-white/10">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="flex-1 sm:flex-none rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] outline-none dark:bg-[#141414] dark:border-white/10 min-w-0 truncate">
             <option value="all">Status</option>
             <option value="active">Active</option>
             <option value="archived">Archived</option>
@@ -326,35 +326,37 @@ export function ProductsListView() {
       ) : (
         <>
           {/* Mobile Card View */}
-          <div className="grid gap-4 sm:hidden pb-10">
+          <div className="grid grid-cols-1 w-full min-w-0 gap-4 sm:hidden pb-10">
             {filtered.map((p: any) => (
-              <div key={p.id} className="rounded-2xl border border-border bg-white p-4 dark:bg-[#111] dark:border-white/10 shadow-sm active:scale-[0.98] transition-transform flex items-start">
-                <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="mr-2 mt-1" />
-                <div className="flex gap-4 w-full">
-                  <div className="size-16 shrink-0 rounded-xl bg-muted overflow-hidden relative border dark:border-white/5">
-                    {p.imageSrc ? (
-                      <Image src={p.imageSrc} alt="" fill className="object-cover" />
-                    ) : (
-                      <span className="flex items-center justify-center h-full text-sm font-bold opacity-30 uppercase">{p.name[0]}</span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-semibold text-[15px] truncate">{p.name}</h4>
-                      <StatusBadge status={p.status} />
+              <div key={p.id} className="rounded-2xl border border-border bg-white p-4 dark:bg-[#111] dark:border-white/10 shadow-sm transition-transform flex flex-col w-full min-w-0 overflow-hidden">
+                <div className="flex items-start w-full">
+                  <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="mr-3 mt-1.5 size-4 appearance-none rounded border border-muted-foreground/30 checked:bg-[#006c49] checked:border-[#006c49] dark:checked:bg-[#6ffbbe] dark:checked:border-[#6ffbbe]" />
+                  <div className="flex gap-3.5 flex-1 min-w-0">
+                    <div className="size-[4.5rem] shrink-0 rounded-xl bg-muted overflow-hidden relative border dark:border-white/5">
+                      {p.imageSrc ? (
+                        <Image src={p.imageSrc} alt="" fill className="object-cover" />
+                      ) : (
+                        <span className="flex items-center justify-center h-full text-lg font-bold opacity-30 uppercase">{p.name[0]}</span>
+                      )}
                     </div>
-                    <p className="text-[12px] text-muted-foreground mt-0.5 font-mono">{p.sku}</p>
-                    <div className="mt-3 flex items-center justify-between">
-                      <p className="font-bold text-[#006c49] dark:text-[#6ffbbe]">{formatGhs(p.priceGhs)}</p>
-                      <p className="text-[12px] text-muted-foreground">Stock: <span className="font-semibold text-foreground">{p.stock}</span></p>
+                    <div className="min-w-0 flex-1 flex flex-col">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-semibold text-[15px] leading-tight truncate">{p.name}</h4>
+                        <div className="shrink-0"><StatusBadge status={p.status} /></div>
+                      </div>
+                      <p className="text-[12px] text-muted-foreground mt-1 font-mono truncate">{p.sku}</p>
+                      <div className="mt-auto pt-2 flex items-center justify-between">
+                        <p className="font-bold text-[#006c49] dark:text-[#6ffbbe]">{formatGhs(p.priceGhs)}</p>
+                        <p className="text-[12px] text-muted-foreground">Stock: <span className="font-semibold text-foreground">{p.stock}</span></p>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2 pt-4 border-t dark:border-white/5 w-full">
-                  <Link href={`/dashboard/products/${p.id}/edit`} className="flex-1 flex justify-center py-2 text-[14px] font-semibold rounded-lg bg-surface-card border border-border dark:bg-white/5 dark:border-white/10">
+                <div className="mt-4 flex gap-2 pt-3.5 border-t border-border/50 dark:border-white/5 w-full">
+                  <Link href={`/dashboard/products/${p.id}/edit`} className="tap-target flex-1 flex items-center justify-center py-2.5 text-[14px] font-semibold rounded-xl bg-surface-elevated hover:bg-surface-elevated/80 border border-border text-foreground dark:bg-white/5 dark:border-white/10 transition-colors">
                     Edit
                   </Link>
-                  <button onClick={() => setDeletingProduct(p)} className="flex-1 py-2 text-[14px] font-semibold text-red-500 rounded-lg bg-red-500/5 border border-red-500/10">
+                  <button onClick={() => setDeletingProduct(p)} className="tap-target flex-1 flex items-center justify-center py-2.5 text-[14px] font-semibold text-red-600 rounded-xl bg-red-50 hover:bg-red-100 border border-red-100 dark:bg-red-950/30 dark:border-red-900/40 dark:text-red-400 transition-colors">
                     Delete
                   </button>
                 </div>

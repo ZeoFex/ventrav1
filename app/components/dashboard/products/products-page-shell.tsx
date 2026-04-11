@@ -25,7 +25,7 @@ export function ProductsPageShell({
           ) : null}
         </div>
         {actions ? (
-          <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1 sm:flex-wrap sm:pb-0 sm:overflow-visible">
+          <div className="flex w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1 sm:w-auto sm:flex-wrap sm:pb-0 sm:overflow-visible">
             {actions}
           </div>
         ) : null}
