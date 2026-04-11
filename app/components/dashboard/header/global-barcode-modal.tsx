@@ -41,18 +41,16 @@ export function GlobalBarcodeModal({
       const result = resolveProductFromScan(code, products);
 
       if (result.ok) {
-        // Assume default variation if any, or just add.
-        // POS barcode resolve should eventually handle resolving direct to variation ID
-        // For now, if variation is required, this might just add the base product.
         addToCart(result.product.id, undefined, result.product.stock);
         playPosAddProductBeep();
-        toast.success(`Added ${result.product.name} to cart`);
+        toast.success(`Success! Added ${result.product.name}`);
         
         // Success cooldown
         if (closeTimeout.current) clearTimeout(closeTimeout.current);
         closeTimeout.current = setTimeout(() => {
            setProcessing(false);
-        }, 1200);
+           console.log("Scanner ready for next item");
+        }, 1250);
       } else {
         toast.error("Product not found");
         setProcessing(false); // allow immediate retry on failure
