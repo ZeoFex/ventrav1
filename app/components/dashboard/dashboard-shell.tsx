@@ -12,9 +12,10 @@ import {
   useDashboardNav,
 } from "./dashboard-nav-context";
 import { BranchProvider } from "./branch-context";
+import { GlobalCartProvider } from "./pos/global-cart-context";
 import { OfflineBanner } from "./offline-banner";
 import { initOfflineSync } from "@/app/lib/offline/offline-sync";
-
+import { GlobalCartIndicator } from "./pos/global-cart-indicator";
 import { TrialBanner } from "./trial-banner";
 
 function DashboardShellFrame({
@@ -81,6 +82,7 @@ function DashboardShellFrame({
           {children}
         </div>
       </div>
+      <GlobalCartIndicator />
     </div>
   );
 }
@@ -96,9 +98,11 @@ export function DashboardShell({
   return (
     <DashboardNavProvider>
       <BranchProvider>
-        <DashboardShellFrame userDisplayName={userDisplayName}>
-          {children}
-        </DashboardShellFrame>
+        <GlobalCartProvider>
+          <DashboardShellFrame userDisplayName={userDisplayName}>
+            {children}
+          </DashboardShellFrame>
+        </GlobalCartProvider>
       </BranchProvider>
     </DashboardNavProvider>
   );

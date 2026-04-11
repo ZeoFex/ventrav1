@@ -40,7 +40,7 @@ type CartPanelContentProps = {
   onSelectDiscount?: (id: string | null) => void;
 };
 
-function PosCartPanelContent({
+export function PosCartPanelContent({
   variant,
   lines,
   productById,

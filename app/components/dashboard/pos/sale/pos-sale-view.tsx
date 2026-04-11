@@ -23,6 +23,7 @@ import {
   getHeldSale,
   removeHeldSale,
 } from "./pos-held-sales-storage";
+import { useGlobalCart } from "../global-cart-context";
 
 import { useProducts, useCategories } from "../../products/products-data-hooks";
 import { useDiscounts, type Discount } from "../../marketing/discounts-data-hooks";
@@ -135,7 +136,7 @@ function PosSaleViewInner() {
   const [flow, setFlow] = useState<Flow>("browse");
   const [categoryId, setCategoryId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [lines, setLines] = useState<CartLine[]>([]);
+  const { lines, setLines } = useGlobalCart();
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [paymentSnapshot, setPaymentSnapshot] = useState<{
     methodId: GhanaPaymentMethodId;
