@@ -10,7 +10,9 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { ArrowLeft, ImageIcon, Loader2, Printer, RefreshCw, X } from "lucide-react";
+import { ArrowLeft, ImageIcon, Loader2, Printer, RefreshCw, X, Camera } from "lucide-react";
+import { toast } from "sonner";
+import { PosBarcodeCamera } from "../pos/sale/pos-barcode-camera";
 import { ProductBarcodePreview } from "./product-barcode-preview";
 import { generateProductSku } from "./product-catalog-codes";
 import { ProductsPageShell } from "./products-page-shell";
@@ -63,6 +65,8 @@ export function ProductForm({
   const [tagIds, setTagIds] = useState<string[]>(initial.tagIds);
   const [status, setStatus] = useState<string>(initial.status);
   const [variations, setVariations] = useState<any[]>(initial.variations || []);
+  const [isScanningMode, setIsScanningMode] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
 
   const { user } = useSession();
 
@@ -118,6 +122,34 @@ export function ProductForm({
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
     );
   };
+
+  const handleBarcodeScan = useCallback(async (scannedCode: string) => {
+    setIsScanningMode(false);
+    setSku(scannedCode);
+    setIsLookingUp(true);
+    
+    toast.info("Looking up product details...");
+
+    try {
+      const res = await fetch(`/api/products/lookup?barcode=${scannedCode}`);
+      const result = await res.json();
+
+      if (res.ok && result.found) {
+        setName(result.data.name);
+        setDescription(result.data.description || "");
+        if (result.data.imageUrl) {
+          setImagePreview(result.data.imageUrl);
+        }
+        toast.success("Product details found!");
+      } else {
+        toast.info("Product not found in global registry. Please enter details manually.");
+      }
+    } catch (err) {
+      toast.error("Lookup failed. Please enter details manually.");
+    } finally {
+      setIsLookingUp(false);
+    }
+  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -251,10 +283,16 @@ export function ProductForm({
               <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="e.g. Coca Cola 500ml" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">SKU *</label>
-              <div className="flex gap-2">
-                <input required value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} className="flex-1 p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" />
-                <button type="button" onClick={() => setSku(generateProductSku())} className="px-4 border border-border rounded-2xl hover:bg-muted transition-colors dark:border-white/10"><RefreshCw className="size-4" /></button>
+              <label className="text-sm font-semibold ml-1">Barcode / SKU *</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input required value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Scan or type..." />
+                <div className="flex gap-2 h-[50px] sm:h-auto">
+                  <button type="button" onClick={() => setIsScanningMode(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20" title="Scan Barcode">
+                    {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+                    <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
+                  </button>
+                  <button type="button" onClick={() => setSku(generateProductSku())} className="flex items-center justify-center px-5 border border-border rounded-2xl hover:bg-muted transition-colors dark:border-white/10" title="Generate Random SKU"><RefreshCw className="size-4" /></button>
+                </div>
               </div>
             </div>
           </div>
@@ -281,12 +319,12 @@ export function ProductForm({
         </section>
 
         <section className="space-y-4 border-t pt-8 dark:border-white/5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-sm font-semibold ml-1">Variations</h2>
               <p className="text-[12px] text-muted-foreground ml-1">Add sizes, colors, or extras for this product.</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {suggestedTypes.map((t) => (
                 <button
                   key={t}
@@ -309,8 +347,8 @@ export function ProductForm({
 
           <div className="space-y-3">
             {variations.map((v) => (
-              <div key={v.id} className="group flex flex-col sm:flex-row gap-3 p-4 rounded-2xl border border-border bg-surface-elevated/20 dark:border-white/5 dark:bg-white/[0.02]">
-                <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div key={v.id} className="group flex flex-col sm:flex-row gap-4 p-4 sm:p-5 rounded-2xl border border-border bg-surface-elevated/20 dark:border-white/5 dark:bg-white/[0.02]">
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Type</label>
                     <input 
@@ -330,17 +368,17 @@ export function ProductForm({
                   </div>
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">SKU</label>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 h-[38px]">
                       <input 
                         placeholder="Variant SKU"
                         value={v.sku} 
                         onChange={(e) => updateVariation(v.id, { sku: e.target.value.toUpperCase() })}
-                        className="flex-1 px-3 py-2 rounded-xl border border-border bg-transparent font-mono text-[12px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                        className="flex-1 w-full px-3 rounded-xl border border-border bg-transparent font-mono text-[12px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
                       />
                       <button 
                         type="button" 
                         onClick={() => updateVariation(v.id, { sku: generateProductSku() })}
-                        className="p-2 border border-border rounded-xl hover:bg-muted transition-colors dark:border-white/10"
+                        className="w-10 flex items-center justify-center border border-border rounded-xl hover:bg-muted transition-colors dark:border-white/10 shrink-0"
                       >
                         <RefreshCw className="size-3.5" />
                       </button>
@@ -378,13 +416,16 @@ export function ProductForm({
                     />
                   </div>
                 </div>
-                <button 
-                  type="button"
-                  onClick={() => removeVariation(v.id)}
-                  className="mt-4 sm:mt-0 flex items-center justify-center size-9 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                >
-                  <Trash2 className="size-4" />
-                </button>
+                <div className="flex sm:flex-col items-center justify-end sm:justify-start border-t sm:border-t-0 sm:border-l pt-3 sm:pt-0 sm:pl-4 mt-2 sm:mt-0 dark:border-white/5">
+                  <button 
+                    type="button"
+                    onClick={() => removeVariation(v.id)}
+                    className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 sm:p-2 sm:size-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors"
+                  >
+                    <Trash2 className="size-4" />
+                    <span className="text-sm font-semibold sm:hidden">Remove Variant</span>
+                  </button>
+                </div>
               </div>
             ))}
 
@@ -433,6 +474,29 @@ export function ProductForm({
         onClose={() => setIsBarcodeModalOpen(false)}
         products={[{ id: productId, name, sku, priceGhs: Number(price) || 0 }]}
       />
+
+      {isScanningMode && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/20 bg-black shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+              <h3 className="font-semibold text-white">Scan Barcode</h3>
+              <button
+                onClick={() => setIsScanningMode(false)}
+                className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-colors"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="relative h-[60vh] sm:h-[500px]">
+               <PosBarcodeCamera
+                  active={isScanningMode}
+                  onScan={handleBarcodeScan}
+                  className="h-full w-full"
+                />
+            </div>
+          </div>
+        </div>
+      )}
     </ProductsPageShell>
   );
 }

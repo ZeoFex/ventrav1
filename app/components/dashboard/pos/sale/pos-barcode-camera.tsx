@@ -3,6 +3,7 @@
 import Quagga, { QuaggaJSResultObject } from "@ericblade/quagga2";
 import { Zap, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 type PosBarcodeCameraProps = {
   active: boolean;
@@ -116,6 +117,7 @@ export function PosBarcodeCamera({
       }, (err) => {
         if (err) {
           console.error("Quagga initialization failed:", err);
+          toast.error("Camera access denied or unsupported. Please check permissions or ensure you are on a secure connection (HTTPS).");
           return;
         }
 

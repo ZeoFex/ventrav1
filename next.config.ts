@@ -8,6 +8,7 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 });
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['172.20.10.5'],
   output: "standalone",
   turbopack: {},
   images: {
