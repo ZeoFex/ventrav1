@@ -59,21 +59,34 @@ export function GlobalBarcodeModal({
     [products, addToCart, processing, isOpen, onClose],
   );
 
+  const handleClose = useCallback(() => {
+    console.log("Attempting to close GlobalBarcodeModal manually.");
+    if (closeTimeout.current) {
+        clearTimeout(closeTimeout.current);
+    }
+    setProcessing(false);
+    onClose();
+  }, [onClose]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+        onClick={handleClose}
       />
       <div className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-background shadow-2xl dark:border dark:border-white/10">
         <div className="flex items-center justify-between border-b p-4 dark:border-white/10">
           <h2 className="font-semibold">Scan Product Barcode</h2>
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-full p-2 hover:bg-muted"
+            onClick={(e) => {
+               e.preventDefault();
+               e.stopPropagation();
+               handleClose();
+            }}
+            className="tap-target rounded-full p-2 hover:bg-muted"
           >
             <X className="size-5" />
           </button>
