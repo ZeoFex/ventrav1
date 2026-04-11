@@ -48,11 +48,11 @@ export function GlobalBarcodeModal({
         playPosAddProductBeep();
         toast.success(`Added ${result.product.name} to cart`);
         
-        // Auto-close after successful scan
+        // Success cooldown
         if (closeTimeout.current) clearTimeout(closeTimeout.current);
         closeTimeout.current = setTimeout(() => {
-           onClose();
-        }, 1000);
+           setProcessing(false);
+        }, 1200);
       } else {
         toast.error("Product not found");
         setProcessing(false); // allow immediate retry on failure
@@ -81,16 +81,17 @@ export function GlobalBarcodeModal({
           </button>
         </div>
         <div className="relative h-[300px] w-full sm:h-[400px]">
-          {isLoading ? (
-            <div className="flex h-full items-center justify-center">
-               <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          <PosBarcodeCamera
+            active={cameraActive}
+            onScan={handleScan}
+            className="h-full w-full"
+          />
+
+          {isLoading && (
+            <div className="absolute top-4 right-4 flex items-center gap-2 rounded-xl bg-black/60 px-3 py-1.5 backdrop-blur-md text-white">
+               <Loader2 className="size-3.5 animate-spin text-[#00ff9d]" />
+               <span className="text-xs font-medium">Syncing...</span>
             </div>
-          ) : (
-            <PosBarcodeCamera
-              active={cameraActive}
-              onScan={handleScan}
-              className="h-full w-full"
-            />
           )}
 
           {processing && (
