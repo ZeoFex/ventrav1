@@ -22,6 +22,7 @@ const inter = Inter({
 });
 
 const SITE_URL = "https://ventrapos.com";
+const ADMIN_URL = "https://admin.ventrapos.com";
 const OG_IMAGE = "/landing/ventra.jpg";
 
 export const metadata: Metadata = {
@@ -117,6 +118,7 @@ export const metadata: Metadata = {
     "theme-color": "#003527",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "platform-admin-url": ADMIN_URL,
   },
 };
 

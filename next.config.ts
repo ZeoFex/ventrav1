@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+// next-pwa relies on webpack plugins, so production builds must run with
+// `next build --webpack` on Next.js 16+ to emit `public/sw.js`.
 const withPWA = require("@ducanh2912/next-pwa").default({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
@@ -8,7 +10,7 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 });
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['172.20.10.5'],
+  allowedDevOrigins: ["172.20.10.5", "localhost:3000", "admin.localhost:3000"],
   output: "standalone",
   turbopack: {},
   images: {

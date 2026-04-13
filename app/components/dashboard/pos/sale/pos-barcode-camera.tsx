@@ -1,6 +1,5 @@
 "use client";
 
-import Quagga, { QuaggaJSResultObject } from "@ericblade/quagga2";
 import { Zap, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +8,26 @@ type PosBarcodeCameraProps = {
   active: boolean;
   onScan: (decodedText: string) => void;
   className?: string;
+};
+
+type BarcodeDetectionResult = {
+  codeResult?: {
+    code?: string;
+  };
+};
+
+type QuaggaModule = {
+  init: (
+    config: Record<string, unknown>,
+    callback: (error?: unknown) => void
+  ) => void;
+  start: () => void;
+  stop: () => void;
+  onDetected: (callback: (result: BarcodeDetectionResult) => void) => void;
+  offDetected: (callback: (result: BarcodeDetectionResult) => void) => void;
+  CameraAccess: {
+    getActiveTrack: () => MediaStreamTrack | null;
+  };
 };
 
 /**
@@ -23,6 +42,7 @@ export function PosBarcodeCamera({
   const onScanRef = useRef(onScan);
   const lastRef = useRef<{ text: string; at: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const quaggaRef = useRef<QuaggaModule | null>(null);
   
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -33,8 +53,11 @@ export function PosBarcodeCamera({
   onScanRef.current = onScan;
 
   const getCameraTrack = useCallback(() => {
+    const quagga = quaggaRef.current;
+    if (!quagga) return null;
+
     try {
-      return Quagga.CameraAccess.getActiveTrack();
+      return quagga.CameraAccess.getActiveTrack();
     } catch {
       return null;
     }
@@ -72,89 +95,117 @@ export function PosBarcodeCamera({
     if (!active) return;
 
     let cancelled = false;
+    let handleDetected: ((result: BarcodeDetectionResult) => void) | null = null;
 
-    const handleDetected = (result: QuaggaJSResultObject) => {
-      const code = result.codeResult.code;
-      if (!code) return;
-      
-      const now = Date.now();
-      const prev = lastRef.current;
-      if (prev && prev.text === code && now - prev.at < 800) {
-        return;
-      }
-      lastRef.current = { text: code, at: now };
-      onScanRef.current(code);
-    };
-
-    const startScanner = () => {
+    const startScanner = async () => {
       if (!containerRef.current) return;
-      
-      Quagga.init({
-        inputStream: {
-          type: "LiveStream",
-          target: containerRef.current,
-          constraints: {
-            width: { min: 640, ideal: 1920 },
-            height: { min: 480, ideal: 1080 },
-            facingMode: "environment",
-            aspectRatio: { ideal: 1.7777777778 }
+
+      try {
+        const { default: Quagga } = await import("@ericblade/quagga2");
+        if (cancelled || !containerRef.current) return;
+
+        const scanner = Quagga as unknown as QuaggaModule;
+        quaggaRef.current = scanner;
+
+        handleDetected = (result: BarcodeDetectionResult) => {
+          const code = result.codeResult?.code;
+          if (!code) return;
+
+          const now = Date.now();
+          const prev = lastRef.current;
+          if (prev && prev.text === code && now - prev.at < 800) {
+            return;
+          }
+          lastRef.current = { text: code, at: now };
+          onScanRef.current(code);
+        };
+
+        scanner.init({
+          inputStream: {
+            type: "LiveStream",
+            target: containerRef.current,
+            constraints: {
+              width: { min: 640, ideal: 1920 },
+              height: { min: 480, ideal: 1080 },
+              facingMode: "environment",
+              aspectRatio: { ideal: 1.7777777778 }
+            },
+            area: { top: "30%", right: "0%", left: "0%", bottom: "30%" }
           },
-          area: { top: "30%", right: "0%", left: "0%", bottom: "30%" } // Focused Scan Area
-        },
-        decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "ean_8_reader",
-            "upc_reader",
-            "upc_e_reader"
-          ],
-          multiple: false
-        },
-        locate: true,
-        numOfWorkers: navigator.hardwareConcurrency || 4,
-        frequency: 10
-      }, (err) => {
-        if (err) {
-          console.error("Quagga initialization failed:", err);
-          toast.error("Camera access denied or unsupported. Please check permissions or ensure you are on a secure connection (HTTPS).");
-          return;
-        }
+          decoder: {
+            readers: [
+              "code_128_reader",
+              "ean_reader",
+              "ean_8_reader",
+              "upc_reader",
+              "upc_e_reader"
+            ],
+            multiple: false
+          },
+          locate: true,
+          numOfWorkers: navigator.hardwareConcurrency || 4,
+          frequency: 10
+        }, (err) => {
+          if (err) {
+            console.error("Quagga initialization failed:", err);
+            toast.error("Camera access denied or unsupported. Please check permissions or ensure you are on a secure connection (HTTPS).");
+            return;
+          }
 
-        if (cancelled) {
-          Quagga.stop();
-          return;
-        }
+          if (cancelled) {
+            scanner.stop();
+            return;
+          }
 
-        Quagga.start();
-        Quagga.onDetected(handleDetected);
+          scanner.start();
+          if (handleDetected) {
+            scanner.onDetected(handleDetected);
+          }
 
-        // Check Hardware Capabilities
-        setTimeout(() => {
+          // Check hardware capabilities after camera startup settles.
+          setTimeout(() => {
             const track = getCameraTrack();
-            if (track) {
-                const caps = track.getCapabilities() as any;
-                if (caps.torch) setTorchSupported(true);
-                if (caps.zoom) {
-                    setZoomSupported(true);
-                    setZoomRange({
-                        min: caps.zoom.min || 1,
-                        max: caps.zoom.max || 1,
-                        step: caps.zoom.step || 0.1
-                    });
-                    setZoomValue(caps.zoom.min || 1);
-                }
+            if (!track) return;
+
+            const caps = track.getCapabilities() as MediaTrackCapabilities & {
+              torch?: boolean;
+              zoom?: { min?: number; max?: number; step?: number } | number;
+            };
+
+            if (caps.torch) setTorchSupported(true);
+
+            if (caps.zoom) {
+              const zoomCapabilities =
+                typeof caps.zoom === "number"
+                  ? { min: caps.zoom, max: caps.zoom, step: 0.1 }
+                  : caps.zoom;
+
+              setZoomSupported(true);
+              setZoomRange({
+                min: zoomCapabilities.min || 1,
+                max: zoomCapabilities.max || 1,
+                step: zoomCapabilities.step || 0.1
+              });
+              setZoomValue(zoomCapabilities.min || 1);
             }
-        }, 800);
-      });
+          }, 800);
+        });
+      } catch (err) {
+        console.error("Failed to load barcode scanner:", err);
+        toast.error("Barcode scanner failed to load on this device.");
+      }
     };
 
-    startScanner();
+    void startScanner();
 
     return () => {
       cancelled = true;
-      Quagga.offDetected(handleDetected);
-      Quagga.stop();
+      const scanner = quaggaRef.current;
+      if (scanner && handleDetected) {
+        scanner.offDetected(handleDetected);
+      }
+      scanner?.stop();
+      quaggaRef.current = null;
     };
   }, [active, getCameraTrack]);
 
