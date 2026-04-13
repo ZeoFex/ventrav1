@@ -7,6 +7,9 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  // Default is true; with a redirecting start URL the SW install step can stall.
+  // Our manifest `start_url` is `/` (stable document), so disable dynamic revision logic.
+  dynamicStartUrl: false,
 });
 
 const nextConfig: NextConfig = {

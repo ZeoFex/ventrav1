@@ -6,7 +6,10 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "VentraPOS",
     description:
       "Cloud POS and business operations for supermarkets, pharmacies, restaurants, and growing retailers.",
-    start_url: "/dashboard",
+    // Public landing page — stable 200 HTML for every visitor. Using `/dashboard`
+    // here breaks install because logged-out users are redirected to `/login`, which
+    // confuses Workbox “dynamic start URL” handling during the SW install phase.
+    start_url: "/",
     scope: "/",
     display: "standalone",
     background_color: "#ffffff",

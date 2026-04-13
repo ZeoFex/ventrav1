@@ -16,6 +16,11 @@ type BarcodeDetectionResult = {
   };
 };
 
+type CameraConstraintSet = MediaTrackConstraintSet & {
+  torch?: boolean;
+  zoom?: number;
+};
+
 type QuaggaModule = {
   init: (
     config: Record<string, unknown>,
