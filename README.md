@@ -122,6 +122,46 @@ Open **http://localhost:3000** in your browser.
 
 ---
 
+## Desktop app (Windows)
+
+VentraPOS ships as a **native Windows** app built with **[Electron](https://www.electronjs.org/)** and **[electron-builder](https://www.electron.build/)**. The packaged app runs the **Next.js standalone** server locally and opens it in an embedded browser (default port **3456**).
+
+### Development
+
+```bash
+pnpm electron:dev
+```
+
+Runs the Next dev server and launches Electron against **http://localhost:3000**.
+
+### Release build (installer)
+
+```bash
+pnpm build          # next build --webpack (standalone output)
+pnpm electron:build # electron-builder --win → NSIS + portable under release/
+```
+
+- **Artifacts:** `release/` contains the **NSIS setup** (`.exe` installer) and a **portable** `.exe`. Upload the installer to **[GitHub Releases](https://docs.github.com/repositories/releasing-projects-on-github/about-releases)** (or any HTTPS host) and link it from the site.
+- **Private GitHub repo:** release assets are not public; use a **separate public repo** only for release binaries, or host the file on object storage (S3, R2, etc.).
+- **Configuration:** For production, the build pipeline should write a project-root **`.env.local`** with `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `RESEND_API_KEY`, etc., **before** `electron:build`. An **`afterPack`** hook copies that file into the bundle and flattens **pnpm** `node_modules` so the standalone server runs correctly. Optional per-machine override: `%AppData%\VentraPOS\.env.local` (see `electron/main.js`).
+- **Icon:** Windows targets use **`electron/build/app-icon.png`** (at least **256×256**).
+
+### Marketing site
+
+- **Landing hero:** primary CTA **“Use Web”** (dashboard or signup); secondary **“Download Desktop App”** → `/download`.
+- **Download page (`/download`):** OS / architecture switcher (Windows, macOS, Linux — disabled until a URL is configured). Set public env vars so the primary button resolves:
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_WINDOWS_DESKTOP_DOWNLOAD_URL` | Windows 64-bit installer `.exe` URL |
+| `NEXT_PUBLIC_DESKTOP_INSTALLER_URL` | Alternative single URL (checked first) |
+| `NEXT_PUBLIC_WINDOWS_32_DESKTOP_DOWNLOAD_URL` | Optional 32-bit (rare; Electron current releases are x64-only) |
+| `NEXT_PUBLIC_MACOS_ARM64_DESKTOP_DOWNLOAD_URL` | macOS Apple Silicon (build on macOS CI) |
+| `NEXT_PUBLIC_MACOS_X64_DESKTOP_DOWNLOAD_URL` | macOS Intel |
+| `NEXT_PUBLIC_LINUX_DESKTOP_DOWNLOAD_URL` | Linux 64-bit |
+
+---
+
 ## Database Schema
 
 VentraPOS uses **Drizzle ORM** with PostgreSQL. The schema includes 12 core tables:
@@ -208,6 +248,8 @@ flowchart LR
   MB --> CP
 ```
 
+**Starter plan:** **Multiple branches** is disabled during structure selection (upgrade to Growth/Pro). Growth and Pro can choose multi-branch and complete branch setup.
+
 ### 📊 Dashboard Home
 - **Collapsible Sidebar UI** — Persistent sidebar state for maximized workspace, optimized for both tablet and desktop.
 - **Greeting & KPIs** — Interactive cards with real user data (revenue, orders, profit).
@@ -250,7 +292,7 @@ stateDiagram-v2
 
 ### 📦 Products & Catalog
 - **Product List** — Search, category/status filters, mobile card view
-- **Add / Edit** — Photo upload (Uploadthing), auto-generated SKU, barcode generation (QR + Code 128)
+- **Add / Edit** — Photo upload (Uploadthing), auto-generated SKU, barcode generation (QR + Code 128). **Edit + barcode scan:** only **SKU** is updated from the scanner; name, description, and image are **not** overwritten by the global UPC lookup (new products still auto-fill from the registry when found).
 - **Categories** — CRUD with live database sync, branch import support
 - **Tags** — Product tagging system
 - **Inventory** — Stock levels, reorder points, stock status badges, mobile cards
@@ -318,9 +360,10 @@ flowchart TD
 - **Adaptive Navigation** — Mobile sidebar with hamburger menu.
 
 ### 💻 Desktop Application
-- **Electron Packaging** — Native Windows application for dedicated POS environments.
-- **Standalone Next.js** — Uses Next.js standalone build for maximum performance when packaged.
-- **Automatic Port Management** — Integrated Electron-to-Next.js bridge for seamless local execution.
+- **Electron** — Windows **NSIS** installer and **portable** build (`pnpm electron:build` → `release/`).
+- **Next.js standalone** — Bundled server spawned by Electron with `ELECTRON_RUN_AS_NODE`; static assets and optional env copied via `electron-builder` + `build-hooks/afterPack.js`.
+- **Dev** — `pnpm electron:dev` connects to the local Next dev server.
+- See **[Desktop app (Windows)](#desktop-app-windows)** for releases, env, and downloads.
 
 ### ⚙️ Background Operations
 - **BullMQ + Redis** — Robust background job queue for async processing (Bulk imports, Emails).
@@ -364,6 +407,7 @@ flowchart TB
 | Route | Description |
 |-------|-------------|
 | `/` | Marketing landing page |
+| `/download` | Desktop app download page (configure `NEXT_PUBLIC_*` installer URLs) |
 | `/signup` | Account creation → OTP verification → onboarding |
 | `/login` | Sign in with email/password |
 | `/forgot-password` | Password reset request |
@@ -522,6 +566,7 @@ ventrapos/
 ├── app/
 │   ├── layout.tsx                    # Root layout, fonts, ThemeProvider
 │   ├── page.tsx                      # Landing page
+│   ├── download/                     # Desktop download page (public installer links)
 │   ├── globals.css                   # Theme tokens (light/dark CSS vars)
 │   ├── onboarding/                   # Multi-step onboarding wizard
 │   ├── (auth)/                       # Auth route group
@@ -584,6 +629,9 @@ ventrapos/
 │   ├── onboarding/                   # Onboarding service
 │   ├── config/                       # App configuration
 │   └── lib/                          # Shared server utilities
+├── electron/                         # Electron main & preload; build/app-icon.png (Windows icon)
+├── build-hooks/                      # electron-builder afterPack (pnpm node_modules flatten + .env copy)
+├── electron-builder.json             # Packaging: win NSIS + portable, extraResources
 ├── public/                           # Static assets
 │   ├── landing/                      # Landing page images
 │   ├── onboarding/                   # Onboarding illustrations
@@ -647,8 +695,8 @@ See `DESIGN.md` and `.cursor/rules/design-system.mdc` for full details.
 | `pnpm drizzle-kit push` | Push schema to database |
 | `pnpm drizzle-kit generate` | Generate migration scripts |
 | `pnpm drizzle-kit studio` | Open Drizzle Studio (DB GUI) |
-| `pnpm electron:dev` | Launch Electron in development mode |
-| `pnpm electron:build` | Package native Windows executable |
+| `pnpm electron:dev` | Next dev + Electron shell (localhost:3000) |
+| `pnpm electron:build` | `pnpm build` then **electron-builder** — Windows NSIS installer + portable in `release/` |
 
 ---
 
@@ -657,11 +705,15 @@ See `DESIGN.md` and `.cursor/rules/design-system.mdc` for full details.
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `UPSTASH_REDIS_REST_URL` | Redis URL for caching |
-| `UPSTASH_REDIS_REST_TOKEN` | Redis auth token |
+| `REDIS_URL` | Redis connection (queues / cache; see `.env` for Upstash variants) |
 | `RESEND_API_KEY` | Email service API key |
-| `UPLOADTHING_TOKEN` | File upload service token |
-| `JWT_SECRET` | Secret for signing JWTs |
+| `JWT_SECRET` | Secret for signing JWTs (min 32 chars in production) |
+| `UPLOADTHING_*` | File upload (see `server/config/env.ts` for full list) |
+| `NEXT_PUBLIC_WINDOWS_DESKTOP_DOWNLOAD_URL` | Public HTTPS URL to the **Windows installer** `.exe` (download page) |
+| `NEXT_PUBLIC_DESKTOP_INSTALLER_URL` | Optional; takes precedence over the Windows URL if set |
+| Other `NEXT_PUBLIC_*` | See [Desktop app (Windows)](#desktop-app-windows) for macOS/Linux placeholder URLs on `/download` |
+
+Server-side requirements are validated in `server/config/env.ts`. Client-only `NEXT_PUBLIC_*` variables do not need to be in that schema.
 
 ---
 
@@ -681,8 +733,10 @@ See `DESIGN.md` and `.cursor/rules/design-system.mdc` for full details.
 
 - [x] Real-time notifications via WebSocket/SSE
 - [x] Receipt printing via thermal printer API
+- [x] Windows desktop installer (Electron) + download page on marketing site
 - [ ] GPS/Map integration for branch addresses
-- [ ] Offline mode with service workers
+- [ ] Deeper offline-first sync (client queue exists; expand coverage)
+- [ ] macOS / Linux desktop builds (requires macOS CI for signing)
 - [ ] Mobile companion app (React Native)
 - [ ] Advanced reporting with PDF export
 - [ ] Loyalty program and customer rewards
