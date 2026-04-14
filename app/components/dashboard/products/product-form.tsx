@@ -123,33 +123,71 @@ export function ProductForm({
     );
   };
 
-  const handleBarcodeScan = useCallback(async (scannedCode: string) => {
-    setIsScanningMode(false);
-    setSku(scannedCode);
-    setIsLookingUp(true);
-    
-    toast.info("Looking up product details...");
+  const handleBarcodeScan = useCallback(
+    async (scannedCode: string) => {
+      const code = scannedCode.trim();
+      setIsScanningMode(false);
+      setSku(code);
 
-    try {
-      const res = await fetch(`/api/products/lookup?barcode=${scannedCode}`);
-      const result = await res.json();
+      // Edit: only replace SKU from the scanner; keep the rest of the product as-is.
+      if (mode === "edit") {
+        setIsLookingUp(true);
+        toast.info("Checking catalog…");
+        try {
+          const res = await fetch(
+            `/api/products/lookup?barcode=${encodeURIComponent(code)}`,
+          );
+          const result = await res.json();
 
-      if (res.ok && result.found) {
-        setName(result.data.name);
-        setDescription(result.data.description || "");
-        if (result.data.imageUrl) {
-          setImagePreview(result.data.imageUrl);
+          if (res.ok && result.found) {
+            toast.success(
+              "SKU updated. Catalog lists this barcode — your saved name, description, and image were kept.",
+            );
+          } else {
+            toast.success(
+              "SKU updated. No catalog match — your existing product details are unchanged.",
+            );
+          }
+        } catch {
+          toast.success(
+            "SKU updated. Catalog check failed — your existing details are unchanged.",
+          );
+        } finally {
+          setIsLookingUp(false);
         }
-        toast.success("Product details found!");
-      } else {
-        toast.info("Product not found in global registry. Please enter details manually.");
+        return;
       }
-    } catch (err) {
-      toast.error("Lookup failed. Please enter details manually.");
-    } finally {
-      setIsLookingUp(false);
-    }
-  }, []);
+
+      // New product: fill from registry when found, otherwise leave fields for manual entry.
+      setIsLookingUp(true);
+      toast.info("Looking up product details…");
+
+      try {
+        const res = await fetch(
+          `/api/products/lookup?barcode=${encodeURIComponent(code)}`,
+        );
+        const result = await res.json();
+
+        if (res.ok && result.found) {
+          setName(result.data.name);
+          setDescription(result.data.description || "");
+          if (result.data.imageUrl) {
+            setImagePreview(result.data.imageUrl);
+          }
+          toast.success("Product details found!");
+        } else {
+          toast.info(
+            "Product not found in global registry. Please enter details manually.",
+          );
+        }
+      } catch {
+        toast.error("Lookup failed. Please enter details manually.");
+      } finally {
+        setIsLookingUp(false);
+      }
+    },
+    [mode],
+  );
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
+import { Lock } from "lucide-react";
 import type { OnboardingData } from "./types";
 import {
   BUSINESS_TYPES,
@@ -14,8 +17,74 @@ import { StoreSetupPreviewImage } from "./store-setup-preview-image";
 import { UploadButton } from "@/app/utils/uploadthing";
 import { PaymentFlow } from "@/app/components/billing/payment-flow";
 import { PLANS } from "@/config/plans";
+import { PLAN_LIMITS } from "@/config/plan-feature-access";
 
 type SetData = React.Dispatch<React.SetStateAction<OnboardingData>>;
+
+/** Starter (and any plan capped at one branch) cannot select multi-branch; show upgrade hint. */
+function MultiBranchOptionLocked({
+  title,
+  desc,
+}: {
+  title: string;
+  desc: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        aria-disabled="true"
+        className="relative w-full cursor-not-allowed rounded-xl px-4 py-4 text-left opacity-[0.72] ring-1 ring-border/70 bg-muted/25 outline-none focus-visible:ring-2 focus-visible:ring-[#006c49] dark:bg-muted/10 dark:focus-visible:ring-[#6ffbbe]"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+      >
+        <span className="flex items-start justify-between gap-2">
+          <span className="font-medium text-foreground">{title}</span>
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background/80 text-muted-foreground">
+            <Lock className="size-4" aria-hidden />
+          </span>
+        </span>
+        <span className="mt-1 block text-[13px] text-muted-foreground">{desc}</span>
+      </div>
+      {open ? (
+        <div
+          id="multi-branch-upgrade-hint"
+          role="tooltip"
+          className="absolute left-1/2 top-[calc(100%+10px)] z-50 w-[min(calc(100vw-2rem),280px)] -translate-x-1/2 rounded-2xl border border-[#006c49]/20 bg-surface-elevated p-4 text-left shadow-[0_24px_48px_-12px_rgba(0,0,0,0.25)] animate-in fade-in zoom-in-95 duration-150 dark:border-[#6ffbbe]/25"
+        >
+          <div className="absolute -top-1.5 left-1/2 size-3 -translate-x-1/2 rotate-45 border-l border-t border-[#006c49]/20 bg-surface-elevated dark:border-[#6ffbbe]/25" />
+          <div className="relative space-y-3 pt-0.5">
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              Multiple branches are available on{" "}
+              <span className="font-semibold text-foreground">Growth</span> and{" "}
+              <span className="font-semibold text-foreground">Pro</span>. Upgrade your plan to add more
+              than one outlet.
+            </p>
+            <Link
+              href="/pricing"
+              className="flex w-full items-center justify-center rounded-xl bg-[#006c49] py-2.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-105 dark:bg-[#6ffbbe] dark:text-[#003527]"
+            >
+              View plans &amp; upgrade
+            </Link>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function OnboardingStepContent({
   stepId,
@@ -629,7 +698,10 @@ export function OnboardingStepContent({
       );
     }
 
-    case "structure":
+    case "structure": {
+      const maxBranches = PLAN_LIMITS[data.plan].maxBranches;
+      const multiBranchLocked = maxBranches === 1;
+
       return (
         <div className="space-y-6">
           <div>
@@ -659,6 +731,15 @@ export function OnboardingStepContent({
               ] as const
             ).map((opt) => {
               const selected = data.structure === opt.id;
+              if (opt.id === "multi" && multiBranchLocked) {
+                return (
+                  <MultiBranchOptionLocked
+                    key={opt.id}
+                    title={opt.title}
+                    desc={opt.desc}
+                  />
+                );
+              }
               return (
                 <button
                   key={opt.id}
@@ -683,6 +764,7 @@ export function OnboardingStepContent({
           </div>
         </div>
       );
+    }
 
     case "branches":
       return (
