@@ -9,6 +9,7 @@ const NAV = [
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
   { href: "/compare", label: "Compare" },
+  { href: "/download", label: "Download" },
 ] as const;
 
 import { HeaderUserMenu } from "../dashboard/header/header-user-menu";

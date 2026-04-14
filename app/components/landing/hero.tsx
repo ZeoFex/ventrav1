@@ -79,7 +79,7 @@ export function LandingHero({ isAuthenticated }: { isAuthenticated?: boolean }) 
               href="/dashboard"
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-br from-[#003527] to-[#064e3b] px-8 text-[15px] font-medium text-white shadow-[0_24px_48px_-12px_rgba(0,53,39,0.18)] transition-[filter] hover:brightness-110 dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.45)]"
             >
-              Go to dashboard
+              Use Web
             </Link>
           ) : (
             <Link
@@ -90,10 +90,10 @@ export function LandingHero({ isAuthenticated }: { isAuthenticated?: boolean }) 
             </Link>
           )}
           <Link
-            href="/features"
+            href="/download"
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-secondary-cta px-8 text-[15px] font-medium text-foreground transition-colors hover:bg-secondary-cta-hover"
           >
-            See features
+            Download Desktop App
           </Link>
         </motion.div>
 
