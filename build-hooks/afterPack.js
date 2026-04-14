@@ -105,4 +105,23 @@ exports.default = async function (context) {
   }
 
   console.log(`[afterPack] Flattened ${count} packages into standalone node_modules!`);
+
+  // Ship production env with the installer (CI generates .env.local from secrets before building).
+  // End users do not configure this — only your release pipeline needs the file at build time.
+  const desktopEnvSrc = path.join(context.packager.projectDir, ".env.local");
+  const desktopEnvDest = path.join(
+    context.appOutDir,
+    "resources",
+    "app",
+    ".env.local"
+  );
+  if (fs.existsSync(desktopEnvSrc)) {
+    fs.mkdirSync(path.dirname(desktopEnvDest), { recursive: true });
+    fs.copyFileSync(desktopEnvSrc, desktopEnvDest);
+    console.log("[afterPack] Copied .env.local into the app bundle (release desktop config).");
+  } else {
+    console.warn(
+      "[afterPack] No .env.local at project root — release builds for download should generate it in CI before electron:build."
+    );
+  }
 };

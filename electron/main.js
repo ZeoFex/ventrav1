@@ -13,34 +13,38 @@ const STANDALONE = path.join(ROOT, ".next", "standalone");
 const PORT = 3456; // Use a different port to avoid clashing with dev server
 
 // ── Env vars for standalone server ──────────────────────────────────────
+function parseDotEnvFile(fs, filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const text = fs.readFileSync(filePath, "utf8");
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    let val = trimmed.slice(eqIdx + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    process.env[key] = val;
+  }
+}
+
 function loadEnv() {
   if (isDev) {
     // In dev, Next.js dev server is already running — nothing to load
     return;
   }
 
-  // In production, load .env.local that was bundled alongside standalone
+  const fs = require("fs");
   try {
-    const envPath = path.join(ROOT, ".env.local");
-    const fs = require("fs");
-    if (fs.existsSync(envPath)) {
-      const lines = fs.readFileSync(envPath, "utf8").split("\n");
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        const eqIdx = trimmed.indexOf("=");
-        if (eqIdx === -1) continue;
-        const key = trimmed.slice(0, eqIdx).trim();
-        let val = trimmed.slice(eqIdx + 1).trim();
-        // Strip surrounding quotes
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-          val = val.slice(1, -1);
-        }
-        process.env[key] = val;
-      }
-    }
+    // Production values baked in at build time (CI writes .env.local before packaging).
+    // Normal users never edit this.
+    parseDotEnvFile(fs, path.join(ROOT, ".env.local"));
+    // Optional override for IT / debugging only (same keys as .env.local).
+    parseDotEnvFile(fs, path.join(app.getPath("userData"), ".env.local"));
   } catch {
-    // Silently continue — env vars may be set externally
+    // Env may be set entirely by the OS or parent process
   }
 }
 
@@ -74,9 +78,11 @@ function startNextServer() {
       fs.writeFileSync(logPath, msg + "\n", { flag: "a" });
     };
 
-    debugLog(`[debug] Env path: ${path.join(ROOT, ".env.local")}`);
+    const bundledEnv = path.join(ROOT, ".env.local");
+    const userEnv = path.join(app.getPath("userData"), ".env.local");
+    debugLog(`[debug] Bundled env (release): ${bundledEnv} exists=${fs.existsSync(bundledEnv)}`);
+    debugLog(`[debug] User override (optional): ${userEnv} exists=${fs.existsSync(userEnv)}`);
     debugLog(`[debug] Server entry: ${serverEntry}`);
-    debugLog(`[debug] Exists env? ${fs.existsSync(path.join(ROOT, ".env.local"))}`);
     debugLog(`[debug] Exists server? ${fs.existsSync(serverEntry)}`);
 
     serverProcess = spawn(process.execPath, [serverEntry], {
@@ -342,7 +348,14 @@ async function createWindow() {
     await mainWindow.loadURL(`http://localhost:${port}/dashboard`);
   } catch (err) {
     const { dialog } = require("electron");
-    dialog.showErrorBox("Failed to Start VentraPOS", `The internal server failed to start.\n\nError: ${err.message}`);
+    dialog.showErrorBox(
+      "Failed to Start VentraPOS",
+      [
+        "The app could not start. Download the latest version from ventrapos.com, or contact support if this keeps happening.",
+        "",
+        `Details: ${err.message}`,
+      ].join("\n")
+    );
     app.quit();
   }
 }

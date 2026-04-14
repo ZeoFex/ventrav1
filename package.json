@@ -1,6 +1,8 @@
 {
   "name": "ventrapos",
   "version": "0.1.0",
+  "description": "Cloud POS for supermarkets, pharmacies, restaurants, and growing retailers.",
+  "author": "VentraPOS",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
