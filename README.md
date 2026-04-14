@@ -192,7 +192,7 @@ VentraPOS uses **Drizzle ORM** with PostgreSQL. The schema includes 12 core tabl
 
 ### 🔐 Authentication
 - **Sign Up** — Email/password with OTP email verification via Resend.
-- **Starter Trial** — New accounts automatically receive a **14-day free trial** on the Starter plan.
+- **Starter Trial** — New accounts automatically receive a **30-day free trial** (“first month on us”) on the Starter plan.
 - **Login** — JWT-based sessions stored in `httpOnly` cookies, toast notifications on success.
 - **Forgot Password** — Email submission with resend cooldown and secure reset tokens.
 - **Role-Based Access Control** — Owner-only routes enforced via middleware; unauthorized users see a premium "Access Denied" page.

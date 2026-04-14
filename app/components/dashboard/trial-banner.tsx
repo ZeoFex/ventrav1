@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "@/app/components/auth/use-session";
+import { STARTER_TRIAL_DAYS } from "@/config/plans";
 import { Clock } from "lucide-react";
 import Link from "next/link";
 
@@ -17,8 +18,8 @@ export function TrialBanner() {
     const diff = endDate.getTime() - now.getTime();
     const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
-    // Only show if on trial or recently expired
-    if (daysLeft > 30) return null; // Safety check if for some reason it's 1 year trial
+    // Hide if period end is absurdly far out (bad data); allow ~31 days due to ceil/timezones
+    if (daysLeft > STARTER_TRIAL_DAYS + 5) return null;
 
     const showRenew = daysLeft <= 5;
     const isExpired = daysLeft <= 0;
@@ -31,7 +32,13 @@ export function TrialBanner() {
                     {isExpired ? (
                         <span className="font-bold">Your trial has expired.</span>
                     ) : (
-                        <>You have <span className="font-bold">{daysLeft} {daysLeft === 1 ? 'day' : 'days'} left</span> on your Starter plan free trial.</>
+                        <>
+                            You have{" "}
+                            <span className="font-bold">
+                                {daysLeft} {daysLeft === 1 ? "day" : "days"} left
+                            </span>{" "}
+                            on your Starter plan — first month on us (30-day trial).
+                        </>
                     )}
                 </span>
             </div>

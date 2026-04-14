@@ -16,6 +16,7 @@ import { hashPassword, verifyPassword } from "./password-service";
 import { generateOtp, verifyOtp } from "./otp-service";
 import { sendOtpEmail, sendPasswordResetEmail } from "./email-service";
 import { OTP_TTL, OTP_MAX_ATTEMPTS, RESET_TOKEN_TTL } from "../config/auth-config";
+import { STARTER_TRIAL_DAYS } from "@/config/plans";
 import crypto from "crypto";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -94,7 +95,7 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
 
     // 5. Transaction: create everything atomically
     const result = await db.transaction(async (tx) => {
-        // Create business (starts with 30-day plan cycle)
+        // Create business (Starter trial window — see STARTER_TRIAL_DAYS)
         const [business] = await tx
             .insert(businesses)
             .values({
@@ -102,7 +103,9 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
                 slug,
                 contactEmail: emailNormalized,
                 subscriptionStatus: "active",
-                currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), 
+                currentPeriodEnd: new Date(
+                    Date.now() + STARTER_TRIAL_DAYS * 24 * 60 * 60 * 1000,
+                ),
             })
             .returning({ id: businesses.id });
 

@@ -7,7 +7,8 @@ export const metadata: Metadata = {
     "Create your free VentraPOS account. Start managing sales, inventory, and staff in minutes.",
   openGraph: {
     title: "Create Account — VentraPOS",
-    description: "Start your free trial. Cloud POS for supermarkets, pharmacies, and restaurants.",
+    description:
+      "First month on us — start your 30-day free trial. Cloud POS for supermarkets, pharmacies, and restaurants.",
   },
 };
 

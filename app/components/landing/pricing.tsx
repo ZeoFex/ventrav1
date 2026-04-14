@@ -269,7 +269,9 @@ export function LandingPricing({
                                         ? (isPastDue ? "Renew Plan" : "Active Plan") 
                                         : onSelectPlan 
                                             ? `Upgrade to ${plan.name}` 
-                                            : plan.id === "starter" ? "Start 14-Day Free Trial" : `Get Started with ${plan.name}`}
+                                            : plan.id === "starter"
+                                                ? "Start your 30-day trial"
+                                                : `Get Started with ${plan.name}`}
                                 </button>
                             </motion.div>
                         );

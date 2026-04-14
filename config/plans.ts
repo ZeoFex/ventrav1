@@ -1,5 +1,8 @@
 export type PlanId = "starter" | "growth" | "pro";
 
+/** Starter plan free-trial length (sets `currentPeriodEnd` for new Starter businesses). */
+export const STARTER_TRIAL_DAYS = 30;
+
 export interface Plan {
   id: PlanId;
   name: string;
@@ -15,13 +18,14 @@ export const PLANS: Plan[] = [
   {
     id: "starter",
     name: "Starter",
-    description: "Includes a 14-Day Free Trial to help your business move from manual processes into a clean digital operating flow.",
+    description:
+      "First month on us — a 30-day free trial to help your business move from manual processes into a clean digital operating flow.",
     bestFor: "Single-location SMEs, mini marts, small pharmacies, boutiques.",
     priceMonthly: 149,
     priceAnnually: 1490,
     highlighted: false,
     features: [
-      "14-Day Free Trial",
+      "30-day free trial",
       "1 branch & store setup",
       "POS checkout & digital receipts",
       "Product & stock tracking",

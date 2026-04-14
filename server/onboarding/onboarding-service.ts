@@ -4,6 +4,7 @@
  * Runs in a single transaction for atomicity.
  */
 import { eq, and } from "drizzle-orm";
+import { STARTER_TRIAL_DAYS } from "@/config/plans";
 import { db } from "../db";
 import { businesses } from "../db/schema/businesses";
 import { branches } from "../db/schema/branches";
@@ -75,7 +76,9 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
                 plan: input.plan,
                 ...(input.plan === "starter" ? {
                     subscriptionStatus: "active",
-                    currentPeriodEnd: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+                    currentPeriodEnd: new Date(
+                        now.getTime() + STARTER_TRIAL_DAYS * 24 * 60 * 60 * 1000,
+                    ),
                 } : {}),
                 onboardingCompleted: true,
                 updatedAt: now,
