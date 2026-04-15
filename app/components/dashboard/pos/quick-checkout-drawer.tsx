@@ -192,7 +192,7 @@ export function QuickCheckoutDrawer({
     <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()} direction="bottom">
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto mt-24 flex max-h-[92vh] w-full max-w-[480px] flex-col rounded-t-[2rem] bg-background shadow-2xl outline-none sm:max-h-[85vh]">
+        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto mt-24 flex max-h-[92vh] min-h-0 w-full max-w-[480px] flex-col rounded-t-[2rem] bg-background shadow-2xl outline-none sm:max-h-[85vh]">
           <div className="mx-auto mt-4 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/20" />
           <div className="flex shrink-0 items-center justify-between border-b px-5 py-4 dark:border-white/10">
             <h2 className="font-semibold text-lg">{flow === "payment" ? "Payment" : flow === "receipt" ? "Receipt" : "Quick Cart"}</h2>
@@ -200,10 +200,10 @@ export function QuickCheckoutDrawer({
               <X className="size-5" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-pb-4 px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             {flow === "cart" && (
               <PosCartPanelContent
-                variant="desktop"
+                variant="drawer"
                 lines={lines}
                 productById={productById}
                 onIncrement={increment}
@@ -217,7 +217,7 @@ export function QuickCheckoutDrawer({
               />
             )}
             {flow === "payment" && (
-              <div className="px-1 py-2">
+              <div className="min-h-0 py-1">
                  <PosPaymentStep
                    totalGhs={totals.total}
                    isProcessing={isCheckingOut}
@@ -227,7 +227,7 @@ export function QuickCheckoutDrawer({
               </div>
             )}
             {flow === "receipt" && receiptData && (
-              <div className="px-1 py-2">
+              <div className="min-h-0 py-1">
                  <PosReceiptStep receiptData={receiptData} onNewSale={handleNewSale} />
               </div>
             )}

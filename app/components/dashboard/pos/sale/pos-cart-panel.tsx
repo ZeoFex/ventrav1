@@ -21,7 +21,8 @@ import type { Discount } from "../../marketing/discounts-data-hooks";
 export type { CartLine } from "./pos-cart-totals";
 
 type CartPanelContentProps = {
-  variant: "desktop" | "sheet";
+  /** `drawer`: bottom-sheet quick cart — single outer scroll, no inner max-height. */
+  variant: "desktop" | "sheet" | "drawer";
   lines: CartLine[];
   productById: Map<string, ProductRow>;
   onIncrement: (productId: string) => void;
@@ -73,7 +74,12 @@ export function PosCartPanelContent({
   const scrollClass =
     variant === "sheet"
       ? "max-h-[min(48dvh,380px)] min-h-[120px]"
-      : "max-h-[min(42vh,360px)]";
+      : variant === "drawer"
+        ? ""
+        : "max-h-[min(42vh,360px)]";
+
+  const lineListScroll =
+    variant === "drawer" ? "overflow-visible" : "overflow-y-auto";
 
   const handleContinue = () => {
     onContinueClick?.();
@@ -131,7 +137,13 @@ export function PosCartPanelContent({
         </div>
       )}
 
-      <div className="mt-4 px-4 flex flex-col gap-3">
+      <div
+        className={
+          variant === "drawer"
+            ? "mt-4 flex flex-col gap-3"
+            : "mt-4 flex flex-col gap-3 px-4"
+        }
+      >
         <PosCustomerSelector
           selectedId={customerId ?? null}
           onSelect={(c) => onCustomerSelect?.(c)}
@@ -156,7 +168,7 @@ export function PosCartPanelContent({
       </div>
 
       <div
-        className={`custom-scrollbar flex min-h-0 flex-col gap-3 overflow-y-auto py-4 pr-1 ${scrollClass}`}
+        className={`custom-scrollbar flex min-h-0 flex-col gap-3 py-4 pr-1 ${lineListScroll} ${scrollClass}`}
       >
         {lines.length === 0 ? (
           <p className="py-8 text-center text-[13px] text-muted-foreground">

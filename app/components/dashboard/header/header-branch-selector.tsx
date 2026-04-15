@@ -20,12 +20,24 @@ export function HeaderBranchSelector() {
   const hasSingleBranch = branches?.length === 1;
   const singleBranch = hasSingleBranch ? branches[0] : null;
 
-  // Auto-select locked branch or main branch
+  // Auto-select locked branch; single-branch businesses; drop stale IDs (e.g. cookie cleared but LS survived)
   useEffect(() => {
     if (isLoading || !branches || branches.length === 0) return;
 
     if (isLocked && user?.branchId && branchId !== user.branchId) {
       setBranchId(user.branchId);
+      return;
+    }
+
+    const validIds = new Set(branches.map((b: { id: string }) => b.id));
+
+    if (branches.length === 1 && branchId === "all") {
+      setBranchId(branches[0].id);
+      return;
+    }
+
+    if (branchId !== "all" && !validIds.has(branchId)) {
+      setBranchId(branches.length === 1 ? branches[0].id : "all");
     }
   }, [branches, branchId, setBranchId, isLocked, user?.branchId, isLoading]);
 
