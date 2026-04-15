@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useBranchContext } from "../branch-context";
+import { useBranches } from "../branches/branches-data-hooks";
+import { resolveBranchReceiptMeta } from "./sale/pos-receipt-data";
 import { Drawer } from "vaul";
 import { X, Receipt } from "lucide-react";
 import { useGlobalCart } from "./global-cart-context";
@@ -14,6 +17,7 @@ import { usePosConfig } from "./sale/pos-config-hooks";
 import { useSession } from "../../auth/use-session";
 import type { GhanaPaymentMethodId } from "./sale/pos-payment-methods";
 import { getPaymentMethod } from "./sale/pos-payment-methods";
+import type { PosReceiptData } from "./sale/pos-receipt-data";
 
 function newInvoiceId(): string {
   return `INV-${Date.now().toString(36).toUpperCase()}`;
@@ -30,12 +34,20 @@ export function QuickCheckoutDrawer({
   const { products = [], mutate: mutateProducts } = useProducts(isOpen);
   const { config } = usePosConfig();
   const { user } = useSession();
+  const { branchId } = useBranchContext();
+  const { branches = [] } = useBranches();
+
+  const branchMeta = useMemo(
+    () => resolveBranchReceiptMeta(branches, branchId),
+    [branches, branchId],
+  );
 
   const [flow, setFlow] = useState<"cart" | "payment" | "receipt">("cart");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [manualDiscountId, setManualDiscountId] = useState<string | null>(null);
   const [paymentSnapshot, setPaymentSnapshot] = useState<any>(null);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const productById = useMemo(() => {
@@ -97,8 +109,11 @@ export function QuickCheckoutDrawer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(checkoutPayload),
         });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error("Checkout failed");
+        setReceiptSaleId(typeof data.saleId === "string" ? data.saleId : null);
       } else {
+        setReceiptSaleId(null);
         const { addToSyncQueue, updateCachedProductStock } = await import("@/app/lib/offline/offline-db");
         await addToSyncQueue({ type: "checkout", payload: checkoutPayload });
         for (const l of lines) {
@@ -128,7 +143,7 @@ export function QuickCheckoutDrawer({
     }
   };
 
-  const receiptData = useMemo(() => {
+  const receiptData = useMemo((): PosReceiptData | null => {
     if (!invoiceId || !paymentSnapshot || lines.length === 0) return null;
     return {
       invoiceId,
@@ -154,18 +169,21 @@ export function QuickCheckoutDrawer({
       amountTenderedGhs: paymentSnapshot.amountTenderedGhs,
       changeGhs: paymentSnapshot.changeGhs,
       storeName: config?.name || "Ventra POS",
-      branchName: "Main Branch",
-      receiptHeader: config?.receiptHeader,
-      receiptFooter: config?.receiptFooter,
+      branchName: branchMeta.name,
+      branchLocation: branchMeta.location,
+      receiptHeader: config?.receiptHeader ?? undefined,
+      receiptFooter: config?.receiptFooter ?? undefined,
       operatorName: user?.name || "SYSTEM",
       currencySymbol: config?.currency || "GHS",
+      saleId: receiptSaleId ?? undefined,
     };
-  }, [invoiceId, paymentSnapshot, lines, productById, totals, config, user]);
+  }, [invoiceId, receiptSaleId, paymentSnapshot, lines, productById, totals, config, user, branchMeta]);
 
   const handleNewSale = () => {
     resetCart();
     setPaymentSnapshot(null);
     setInvoiceId(null);
+    setReceiptSaleId(null);
     setFlow("cart");
     onClose();
   };
@@ -210,7 +228,7 @@ export function QuickCheckoutDrawer({
             )}
             {flow === "receipt" && receiptData && (
               <div className="px-1 py-2">
-                 <PosReceiptStep receiptData={receiptData as any} onNewSale={handleNewSale} />
+                 <PosReceiptStep receiptData={receiptData} onNewSale={handleNewSale} />
               </div>
             )}
           </div>

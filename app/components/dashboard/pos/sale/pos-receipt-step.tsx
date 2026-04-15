@@ -23,7 +23,7 @@ export function PosReceiptStep({
           Payment complete
         </h2>
         <p className="mt-1 text-[14px] text-muted-foreground">
-          Receipt preview · 58mm thermal · Print or save for your records.
+          Print or save your receipt.
         </p>
       </div>
 
@@ -31,14 +31,16 @@ export function PosReceiptStep({
         <PosSaleReceiptThermal data={receiptData} />
 
         <div className="flex w-full max-w-xs flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => printReceiptHtml(receiptData)}
-            className="tap-target inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[14px] font-semibold text-foreground shadow-sm transition-colors hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-[#141414] dark:hover:bg-[#1a1a1a]"
-          >
-            <Printer className="size-[18px]" strokeWidth={1.75} />
-            Print receipt
-          </button>
+          <div className="flex items-stretch gap-3">
+            <button
+              type="button"
+              onClick={() => void printReceiptHtml(receiptData)}
+              className="tap-target inline-flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[14px] font-semibold text-foreground shadow-sm transition-colors hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-[#141414] dark:hover:bg-[#1a1a1a]"
+            >
+              <Printer className="size-[18px] shrink-0" strokeWidth={1.75} />
+              Print receipt
+            </button>
+          </div>
           <button
             type="button"
             onClick={() =>

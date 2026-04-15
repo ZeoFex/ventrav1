@@ -8,6 +8,8 @@ export type PosReceiptLine = {
 export type PosReceiptData = {
   storeName: string;
   branchName: string;
+  /** Optional multiline address / region / phone for the active branch */
+  branchLocation?: string;
   invoiceId: string;
   date: Date;
   lines: PosReceiptLine[];
@@ -25,7 +27,61 @@ export type PosReceiptData = {
   receiptFooter?: string;
   operatorName?: string;
   currencySymbol?: string;
+  /** Set after online checkout — enables QR + `/receipt/verify/{saleId}` (opaque UUID). */
+  saleId?: string | null;
 };
+
+/** Absolute URL for receipt verification (uses current origin in the browser). */
+export function buildReceiptVerificationUrl(saleId: string): string {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/receipt/verify/${encodeURIComponent(saleId)}`;
+  }
+  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+  return base ? `${base}/receipt/verify/${saleId}` : `/receipt/verify/${saleId}`;
+}
+
+/** Build a display string from branch record fields (non-empty parts joined by newlines). */
+export function formatBranchLocation(branch: {
+  address?: string | null;
+  region?: string | null;
+  phone?: string | null;
+}): string | undefined {
+  const parts = [branch.address, branch.region, branch.phone]
+    .map((s) => (typeof s === "string" ? s.trim() : ""))
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join("\n") : undefined;
+}
+
+export type BranchRowLite = {
+  id: string;
+  name: string;
+  isMain?: boolean | null;
+  address?: string | null;
+  region?: string | null;
+  phone?: string | null;
+};
+
+/** Pick active branch for receipt header (matches POS branch context). */
+export function resolveBranchReceiptMeta(
+  branches: BranchRowLite[],
+  branchId: string | null,
+): { name: string; location?: string } {
+  if (!branches.length) {
+    return { name: "Store", location: undefined };
+  }
+  if (branchId && branchId !== "all") {
+    const b = branches.find((x) => x.id === branchId);
+    if (b) {
+      return { name: b.name, location: formatBranchLocation(b) };
+    }
+  }
+  const main = branches.find((b) => b.isMain);
+  const b = main || branches[0];
+  return {
+    name: b?.name ?? "Store",
+    location: b ? formatBranchLocation(b) : undefined,
+  };
+}
 
 export function formatCurrency(n: number, symbol: string = "GHS"): string {
   return `${symbol} ${n.toFixed(2)}`;
@@ -37,6 +93,7 @@ export function buildReceiptPlainText(d: PosReceiptData): string {
   const lines = [
     d.storeName.toUpperCase(),
     d.branchName,
+    ...(d.branchLocation ? ["", d.branchLocation] : []),
     ...(d.receiptHeader ? ["", d.receiptHeader] : []),
     "--------------------------------",
     d.date.toLocaleString("en-GH", {
@@ -63,6 +120,14 @@ export function buildReceiptPlainText(d: PosReceiptData): string {
     `Payment: ${d.paymentMethodLabel}`,
     `Amount paid  ${formatCurrency(d.amountTenderedGhs, symbol)}`,
     `Change       ${formatCurrency(d.changeGhs, symbol)}`,
+    "--------------------------------",
+    ...(d.saleId
+      ? [
+          "",
+          `Receipt verify ID: ${d.saleId}`,
+          "(Scan QR or ask merchant for the verification page.)",
+        ]
+      : []),
     "--------------------------------",
     d.receiptFooter || "Thank you — VentraPOS",
   ];

@@ -1,6 +1,6 @@
 /** Client-only helpers for receipt download / print. */
 import type { PosReceiptData } from "./pos-receipt-data";
-import { formatCurrency } from "./pos-receipt-data";
+import { buildReceiptVerificationUrl, formatCurrency } from "./pos-receipt-data";
 
 export function downloadTextFile(filename: string, content: string): void {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
@@ -15,11 +15,12 @@ export function downloadTextFile(filename: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /** Opens a minimal window with monospace receipt and triggers the print dialog. */
@@ -40,14 +41,33 @@ export function printReceiptPlainText(plainText: string): void {
   w.print();
 }
 
-/** 
- * Prints a structured thermal receipt by rendering HTML to a hidden window.
- * Matches the AXIS INDUSTRIES style provided in the reference image.
+/**
+ * Prints a structured thermal receipt by rendering HTML to a new window.
+ * Content is aligned with PosSaleReceiptThermal + buildReceiptPlainText (header, footer, payments).
  */
-export function printReceiptHtml(data: PosReceiptData): void {
+export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
   const w = window.open("", "_blank", "width=400,height=600");
   if (!w) return;
 
+  let verifyQrHtml = "";
+  const sid = data.saleId?.trim();
+  if (sid) {
+    try {
+      const QRCode = (await import("qrcode")).default;
+      const verifyUrl = buildReceiptVerificationUrl(sid);
+      const dataUrl = await QRCode.toDataURL(verifyUrl, {
+        width: 100,
+        margin: 1,
+        errorCorrectionLevel: "M",
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+      verifyQrHtml = `<div style="margin-top: 14px; text-align: center;"><img src="${dataUrl}" width="100" height="100" alt="" /></div>`;
+    } catch {
+      verifyQrHtml = "";
+    }
+  }
+
+  const sym = data.currencySymbol || "GHS";
   const dateStr = data.date.toLocaleString("en-US", {
     weekday: "short",
     month: "short",
@@ -59,23 +79,41 @@ export function printReceiptHtml(data: PosReceiptData): void {
     hour12: true,
   });
 
+  const e = escapeHtml;
   const linesHtml = data.lines
     .map(
       (l) => `
     <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-      <span style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${l.name} x${l.qty}</span>
-      <span style="font-weight: bold;">${formatCurrency(l.lineTotalGhs, data.currencySymbol)}</span>
+      <span style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${e(l.name)} x${l.qty}</span>
+      <span style="font-weight: bold;">${e(formatCurrency(l.lineTotalGhs, sym))}</span>
     </div>
   `,
     )
     .join("");
+
+  const headerExtra = data.receiptHeader
+    ? `<div style="font-size: 11px; font-weight: 600; margin-bottom: 6px; white-space: pre-wrap; max-width: 100%;">${e(data.receiptHeader)}</div>`
+    : "";
+
+  const branchBlock = `<div style="font-size: 12px; font-weight: bold; margin-bottom: 2px;">${e(data.branchName)}</div>`;
+
+  const locationBlock = data.branchLocation
+    ? `<div style="font-size: 10px; line-height: 1.35; margin-bottom: 8px; white-space: pre-wrap; opacity: 0.85; text-align: center;">${e(data.branchLocation)}</div>`
+    : `<div style="margin-bottom: 8px;"></div>`;
+
+  const footerBlock = data.receiptFooter
+    ? `<div style="margin-top: 16px; font-size: 10px; font-weight: bold; line-height: 1.4; white-space: pre-wrap; opacity: 0.75; text-align: center;">${e(data.receiptFooter)}</div>`
+    : "";
+
+  const op = e(data.operatorName || "SYSTEM");
+  const orderIdPart = data.invoiceId.split("-")[1] || data.invoiceId;
 
   w.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8"/>
-      <title>Receipt ${data.invoiceId}</title>
+      <title>Receipt ${e(data.invoiceId)}</title>
       <style>
         @page { size: 58mm auto; margin: 0; }
         body { 
@@ -114,22 +152,25 @@ export function printReceiptHtml(data: PosReceiptData): void {
       </style>
     </head>
     <body>
-      <div style="font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px;">${data.storeName}</div>
-      <div style="font-size: 11px; margin-bottom: 10px;">${dateStr}</div>
+      <div style="font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px;">${e(data.storeName)}</div>
+      ${headerExtra}
+      ${branchBlock}
+      ${locationBlock}
+      <div style="font-size: 11px; margin-bottom: 10px;">${e(dateStr)}</div>
 
       <div class="token-box">
         <span class="token-label">Token</span>
-        <div style="font-size: 14px; font-weight: bold; letter-spacing: 1px; word-break: break-all;">${data.invoiceId}</div>
+        <div style="font-size: 14px; font-weight: bold; letter-spacing: 1px; word-break: break-all;">${e(data.invoiceId)}</div>
       </div>
 
       <div class="flex-between" style="font-size: 11px;">
         <span>Customer Name</span>
-        <span class="bold">${data.customerName || "Walk-in"}</span>
+        <span class="bold">${e(data.customerName || "Walk-in")}</span>
       </div>
       <div class="divider"></div>
       <div class="flex-between" style="font-size: 11px;">
         <span>Order ID</span>
-        <span class="bold">${data.invoiceId.split("-")[1] || data.invoiceId}</span>
+        <span class="bold">${e(orderIdPart)}</span>
       </div>
       <div class="divider"></div>
 
@@ -140,23 +181,42 @@ export function printReceiptHtml(data: PosReceiptData): void {
       
       <div class="divider"></div>
 
-      <div class="flex-between"><span>Amount</span><span class="bold">${formatCurrency(data.subtotal, data.currencySymbol)}</span></div>
-      <div class="flex-between"><span>Tax</span><span class="bold">${formatCurrency(data.tax, data.currencySymbol)}</span></div>
-      <div class="flex-between"><span>Discount</span><span class="bold">-${formatCurrency(data.discount, data.currencySymbol)}</span></div>
+      <div class="flex-between"><span>Amount</span><span class="bold">${e(formatCurrency(data.subtotal, sym))}</span></div>
+      <div class="flex-between"><span>Tax</span><span class="bold">${e(formatCurrency(data.tax, sym))}</span></div>
+      <div class="flex-between"><span>Discount</span><span class="bold">-${e(formatCurrency(data.discount, sym))}</span></div>
       
       <div class="flex-between total-row">
         <span>TOTAL</span>
-        <span>${formatCurrency(data.total, data.currencySymbol)}</span>
+        <span>${e(formatCurrency(data.total, sym))}</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="flex-between" style="font-size: 11px;">
+        <span>Payment</span>
+        <span class="bold">${e(data.paymentMethodLabel)}</span>
+      </div>
+      <div class="flex-between" style="font-size: 11px;">
+        <span>Amount paid</span>
+        <span class="bold">${e(formatCurrency(data.amountTenderedGhs, sym))}</span>
+      </div>
+      <div class="flex-between" style="font-size: 11px;">
+        <span>Change</span>
+        <span class="bold">${e(formatCurrency(data.changeGhs, sym))}</span>
       </div>
 
       <div class="divider"></div>
 
       <div class="flex-between" style="font-size: 11px;">
         <span>Operator</span>
-        <span class="bold">SYSTEM</span>
+        <span class="bold">${op}</span>
       </div>
 
-      <div style="margin-top: 30px; font-size: 24px; font-weight: 900; font-style: italic; letter-spacing: -1px;">VENTRA</div>
+      ${footerBlock}
+
+      ${verifyQrHtml}
+
+      <div style="margin-top: 20px; font-size: 24px; font-weight: 900; font-style: italic; letter-spacing: -1px;">VENTRA</div>
       <div style="font-size: 9px; font-weight: bold; letter-spacing: 3px; opacity: 0.6;">POS SYSTEM</div>
     </body>
     </html>
@@ -164,11 +224,8 @@ export function printReceiptHtml(data: PosReceiptData): void {
 
   w.document.close();
   w.focus();
-  
-  // Give it a tiny bit of time to ensure it is focused and ready in some browsers
+
   setTimeout(() => {
     w.print();
-    // Some browsers block closing the window immediately after printing
-    // We'll leave it open or let user close it, or try closing it.
   }, 250);
 }

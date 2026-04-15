@@ -1,5 +1,6 @@
 import type { PosReceiptData } from "./pos-receipt-data";
 import { formatCurrency } from "./pos-receipt-data";
+import { ReceiptVerificationBlock } from "./receipt-verify-qr";
 
 function DashedDivider() {
   return <div className="my-2 border-t border-dashed border-black/20" />;
@@ -33,6 +34,19 @@ export function PosSaleReceiptThermal({ data }: { data: PosReceiptData }) {
         <div className="text-xl font-bold uppercase tracking-widest mb-1">
           {data.storeName}
         </div>
+        {data.receiptHeader ? (
+          <div className="mb-2 max-w-full whitespace-pre-wrap text-[11px] font-semibold leading-snug text-black/80">
+            {data.receiptHeader}
+          </div>
+        ) : null}
+        <div className="text-[12px] font-bold text-black">{data.branchName}</div>
+        {data.branchLocation ? (
+          <div className="mb-3 max-w-full whitespace-pre-wrap text-[10px] leading-snug text-black/65">
+            {data.branchLocation}
+          </div>
+        ) : (
+          <div className="mb-3" />
+        )}
         <div className="text-[11px] mb-4">{dateStr}</div>
 
         {/* Token Section */}
@@ -100,6 +114,23 @@ export function PosSaleReceiptThermal({ data }: { data: PosReceiptData }) {
 
           <DashedDivider />
 
+          <div className="space-y-1 pt-1 text-[12px]">
+            <div className="flex justify-between">
+              <span>Payment</span>
+              <span className="font-bold">{data.paymentMethodLabel}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Amount paid</span>
+              <span className="font-bold">{formatCurrency(data.amountTenderedGhs, data.currencySymbol)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Change</span>
+              <span className="font-bold">{formatCurrency(data.changeGhs, data.currencySymbol)}</span>
+            </div>
+          </div>
+
+          <DashedDivider />
+
           {/* Footer Info */}
           <div className="flex justify-between text-[11px] pt-2">
             <span>Operator</span>
@@ -112,6 +143,8 @@ export function PosSaleReceiptThermal({ data }: { data: PosReceiptData }) {
             {data.receiptFooter}
           </div>
         )}
+
+        <ReceiptVerificationBlock data={data} />
 
         {/* Bottom Logo */}
         <div className="mt-8 text-2xl font-black italic tracking-tighter opacity-80">

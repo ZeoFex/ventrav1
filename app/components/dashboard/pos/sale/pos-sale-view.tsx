@@ -21,7 +21,11 @@ import { PosCategoryBar } from "./pos-category-bar";
 import type { GhanaPaymentMethodId } from "./pos-payment-methods";
 import { getPaymentMethod } from "./pos-payment-methods";
 import { PosPaymentStep } from "./pos-payment-step";
-import type { PosReceiptData, PosReceiptLine } from "./pos-receipt-data";
+import {
+  resolveBranchReceiptMeta,
+  type PosReceiptData,
+  type PosReceiptLine,
+} from "./pos-receipt-data";
 import { PosReceiptStep } from "./pos-receipt-step";
 import { PosBarcodeScanPanel } from "./pos-barcode-scan-panel";
 import { resolveProductFromScan } from "./pos-barcode-resolve";
@@ -43,11 +47,11 @@ import { useDiscounts, type Discount } from "../../marketing/discounts-data-hook
 import { type ProductRow } from "../../products/types";
 import { type CustomerRow } from "../../customers/customers-mock-data";
 import { usePosConfig } from "./pos-config-hooks";
+import { useBranches } from "../../branches/branches-data-hooks";
 
 type Flow = "browse" | "payment" | "receipt";
 
 const STORE_NAME = "Ventra POS";
-const BRANCH_NAME = "Main Branch";
 
 function newInvoiceId(): string {
   return `INV-${Date.now().toString(36).toUpperCase()}`;
@@ -63,6 +67,9 @@ function buildReceiptData(
     changeGhs: number;
   },
   invoiceId: string,
+  branchName: string,
+  branchLocation?: string,
+  saleId?: string | null,
   customerName?: string,
   businessName?: string,
   receiptHeader?: string,
@@ -104,11 +111,13 @@ function buildReceiptData(
     changeGhs: payment.changeGhs,
     customerName,
     storeName: businessName || STORE_NAME,
-    branchName: BRANCH_NAME, // Keep branch name as is or add to config later
+    branchName,
+    branchLocation,
     receiptHeader,
     receiptFooter,
     operatorName,
     currencySymbol: currencySymbol || "GHS",
+    saleId: saleId ?? undefined,
   };
 }
 
@@ -151,6 +160,8 @@ function PosSaleViewInner() {
   const [searchQuery, setSearchQuery] = useState("");
   const { lines, setLines } = useGlobalCart();
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  /** Server sale UUID for `/receipt/verify/{id}` — unset for offline-queued checkouts. */
+  const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
   const [paymentSnapshot, setPaymentSnapshot] = useState<{
     methodId: GhanaPaymentMethodId;
     amountTenderedGhs: number;
@@ -165,6 +176,12 @@ function PosSaleViewInner() {
   const { categories = [] } = useCategories();
   const { discounts = [] } = useDiscounts();
   const { config } = usePosConfig();
+  const { branches = [] } = useBranches();
+
+  const branchMeta = useMemo(
+    () => resolveBranchReceiptMeta(branches, branchId),
+    [branches, branchId],
+  );
 
   const [manualDiscountId, setManualDiscountId] = useState<string | null>(null);
 
@@ -233,6 +250,9 @@ function PosSaleViewInner() {
       totals,
       paymentSnapshot,
       invoiceId,
+      branchMeta.name,
+      branchMeta.location,
+      receiptSaleId,
       selectedCustomer?.name,
       config?.name,
       config?.receiptHeader || undefined,
@@ -240,7 +260,18 @@ function PosSaleViewInner() {
       config?.currency || "GHS",
       user?.name || "SYSTEM",
     );
-  }, [invoiceId, paymentSnapshot, lines, productById, totals, selectedCustomer, config]);
+  }, [
+    invoiceId,
+    receiptSaleId,
+    paymentSnapshot,
+    lines,
+    productById,
+    totals,
+    selectedCustomer,
+    config,
+    branchMeta,
+    user?.name,
+  ]);
 
   const addToCart = useCallback((productId: string, variationId?: string) => {
     const p = productById.get(productId);
@@ -401,11 +432,13 @@ function PosSaleViewInner() {
             body: JSON.stringify(checkoutPayload),
           });
 
+          const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-            const data = await res.json();
             throw new Error(data.error || "Checkout failed");
           }
+          setReceiptSaleId(typeof data.saleId === "string" ? data.saleId : null);
         } else {
+          setReceiptSaleId(null);
           // Offline: queue for later sync
           const { addToSyncQueue, updateCachedProductStock } = await import("@/app/lib/offline/offline-db");
           await addToSyncQueue({ type: "checkout", payload: checkoutPayload });
@@ -446,6 +479,7 @@ function PosSaleViewInner() {
     setSelectedCustomer(null);
     setPaymentSnapshot(null);
     setInvoiceId(null);
+    setReceiptSaleId(null);
     setFlow("browse");
   }, []);
 
