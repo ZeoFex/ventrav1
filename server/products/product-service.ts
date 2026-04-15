@@ -111,32 +111,16 @@ export async function getProducts(businessId: string, branchId?: string | null) 
         ? await db.select().from(productVariations).where(sql`${productVariations.productId} IN ${productIds}`)
         : [];
 
-    // Backfill missing SKUs/Barcodes for variations lazily
-    let finalVariations = variations;
-    const toUpdate: any[] = [];
-    
-    const processedVariations = variations.map(v => {
+    // Fill missing variation SKU/barcode in the API response only — never write on read.
+    // (Persisting here caused SKUs to change the next time someone opened the product list.)
+    const finalVariations = variations.map((v) => {
         if (!v.sku || !v.barcode) {
             const sku = v.sku || generateSku();
             const barcode = v.barcode || sku;
-            const updated = { ...v, sku, barcode };
-            toUpdate.push(updated);
-            return updated;
+            return { ...v, sku, barcode };
         }
         return v;
     });
-
-    if (toUpdate.length > 0) {
-        console.log(`[Service] Auto-backfilling ${toUpdate.length} variations for business ${businessId}`);
-        // Run persistent update in background so we don't block the fetch
-        void Promise.all(toUpdate.map(v => 
-            db.update(productVariations)
-                .set({ sku: v.sku, barcode: v.barcode, updatedAt: new Date() })
-                .where(eq(productVariations.id, v.id))
-        )).catch(err => console.error(`[Service] Failed to backfill variations:`, err));
-        
-        finalVariations = processedVariations;
-    }
 
     const rowsWithVariations = rows.map(row => ({
         ...row,
@@ -226,15 +210,27 @@ export async function updateStock(businessId: string, productId: string, delta: 
             updatedAt: new Date(),
         })
         .where(and(eq(products.id, productId), eq(products.businessId, businessId)))
-        .returning({ id: products.id, stock: products.stock, reorderAt: products.reorderAt });
+        .returning({
+            id: products.id,
+            branchId: products.branchId,
+            stock: products.stock,
+            reorderAt: products.reorderAt,
+        });
+
+    if (!updated) {
+        return undefined;
+    }
 
     // Background check: if stock is low, we would queue an alert job here (BullMQ)
     if (updated.stock !== null && updated.reorderAt !== null && updated.stock <= updated.reorderAt) {
         // trigger low stock job...
     }
 
-    // Invalidate list cache as stock changed
-    await redis.del(CACHE_KEYS.LIST(businessId));
+    // Invalidate branch-scoped list + aggregate (POS stock must not show stale quantities)
+    await Promise.all([
+        redis.del(CACHE_KEYS.LIST(businessId, updated.branchId ?? null)),
+        redis.del(CACHE_KEYS.LIST(businessId, "all")),
+    ]);
 
     return updated;
 }

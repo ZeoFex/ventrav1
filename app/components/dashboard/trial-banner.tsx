@@ -18,7 +18,7 @@ export function TrialBanner() {
     const diff = endDate.getTime() - now.getTime();
     const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
-    // Hide if period end is absurdly far out (bad data); allow ~31 days due to ceil/timezones
+    // Hide if period end is absurdly far out (bad data); allow 31 days due to ceil/timezones
     if (daysLeft > STARTER_TRIAL_DAYS + 5) return null;
 
     const showRenew = daysLeft <= 5;

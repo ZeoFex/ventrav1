@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { Plus } from "lucide-react";
+import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
 
@@ -24,12 +24,10 @@ export function PosProductCard({
           {isOutOfStock ? "Out of Stock" : `${stockToDisplay} Stock`}
         </span>
         {product.imageSrc ? (
-          <Image
+          <CatalogProductImage
             src={product.imageSrc}
             alt={product.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground/40 text-center p-4">

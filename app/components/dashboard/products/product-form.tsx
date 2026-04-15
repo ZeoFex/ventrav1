@@ -19,6 +19,7 @@ import { ProductsPageShell } from "./products-page-shell";
 import { BarcodeGridModal } from "./barcode-grid-modal";
 import { useCategories, useTags } from "./products-data-hooks";
 import { useUploadThing } from "@/app/lib/uploadthing";
+import { useSWRConfig } from "swr";
 
 export type ProductFormInitialValues = {
   name: string;
@@ -53,6 +54,7 @@ export function ProductForm({
   shellDescription,
 }: ProductFormProps) {
   const router = useRouter();
+  const { mutate: revalidateProductCaches } = useSWRConfig();
   const [isSaving, setIsSaving] = useState(false);
 
   const [name, setName] = useState(initial.name);
@@ -216,8 +218,10 @@ export function ProductForm({
 
         if (selectedFile) {
           const uploadRes = await startUpload([selectedFile]);
-          if (uploadRes && uploadRes[0]) {
+          if (uploadRes?.[0]?.url) {
             finalImageSrc = uploadRes[0].url;
+          } else {
+            throw new Error("Image upload failed");
           }
         }
 
@@ -232,6 +236,13 @@ export function ProductForm({
         });
 
         if (!res.ok) throw new Error("Save failed");
+
+        await revalidateProductCaches(
+          (key) => typeof key === "string" && key.startsWith("/api/products"),
+          undefined,
+          { revalidate: true },
+        );
+        toast.success(mode === "new" ? "Product saved" : "Changes saved");
       } else {
         // Offline: save to IndexedDB + queue for sync
         const { addToSyncQueue, cacheProduct } = await import("@/app/lib/offline/offline-db");

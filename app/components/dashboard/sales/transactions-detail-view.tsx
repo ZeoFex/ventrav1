@@ -2,12 +2,56 @@
 
 import useSWR from "swr";
 import { SalesDetailLayout } from "./sales-detail-layout";
-import { Search, Download, Loader2, Users, User, X, ChevronDown, Check, Printer, FileText, Table as TableIcon } from "lucide-react";
+import { Search, Download, Loader2, Users, User, X, ChevronDown, Check, Printer, FileText, Table as TableIcon, Package } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "../../auth/use-session";
 import { exportToExcel, exportToCSV } from "@/app/utils/export-utils";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { CatalogProductImage } from "../products/catalog-product-image";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+type TransactionDetailSale = {
+    id: string;
+    invoiceId: string;
+    subtotalGhs: string;
+    taxGhs: string;
+    discountGhs: string;
+    totalGhs: string;
+    paymentMethod: string;
+    itemCount: number;
+    status: string;
+    createdAt: string;
+    staffName?: string | null;
+    customerName?: string | null;
+};
+
+type TransactionDetailLine = {
+    id: string;
+    productId: string | null;
+    variationId: string | null;
+    productName: string;
+    quantity: number;
+    unitPriceGhs: string;
+    lineTotalGhs: string;
+    sku: string | null;
+    imageSrc: string | null;
+};
+
+async function fetchTransactionDetail(url: string) {
+    const r = await fetch(url);
+    if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Could not load sale");
+    }
+    return r.json() as Promise<{ sale: TransactionDetailSale; lines: TransactionDetailLine[] }>;
+}
 
 function formatGhs(n: number): string {
     return new Intl.NumberFormat("en-GH", {
@@ -44,10 +88,23 @@ export function TransactionsDetailView() {
     const [staffId, setStaffId] = useState<string>("");
     const [staffOpen, setStaffOpen] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
+    const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
 
     // Fetch transactions with staff filter
     const { data, isLoading } = useSWR(`/api/sales/transactions${staffId ? `?staffId=${staffId}` : ""}`, fetcher);
     const transactions: Transaction[] = Array.isArray(data) ? data : [];
+
+    const {
+        data: detailData,
+        error: detailError,
+        isLoading: detailLoading,
+    } = useSWR(
+        selectedSaleId ? `/api/sales/transactions/${selectedSaleId}` : null,
+        fetchTransactionDetail,
+    );
+
+    const saleDetail =
+        selectedSaleId && detailData?.sale?.id === selectedSaleId ? detailData : null;
 
     // Fetch staff list for filter (only for admin)
     const { data: staffData } = useSWR(isAdmin ? "/api/staff" : null, fetcher);
@@ -109,9 +166,10 @@ export function TransactionsDetailView() {
     };
 
     return (
+        <>
         <SalesDetailLayout
             title="Total Transactions"
-            description="A complete log of every transaction processed through the system."
+            description="A complete log of every transaction processed through the system. Click a row to see items sold."
             actions={
                 <div className="flex items-center gap-3">
                     <button
@@ -256,7 +314,19 @@ export function TransactionsDetailView() {
                                 </thead>
                                 <tbody className="divide-y divide-[#f0f2f4] dark:divide-white/[0.04]">
                                     {transactions.map((trx) => (
-                                        <tr key={trx.id} className="group transition-colors hover:bg-surface-elevated/50 dark:hover:bg-white/[0.02]">
+                                        <tr
+                                            key={trx.id}
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => setSelectedSaleId(trx.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" || e.key === " ") {
+                                                    e.preventDefault();
+                                                    setSelectedSaleId(trx.id);
+                                                }
+                                            }}
+                                            className="group cursor-pointer transition-colors hover:bg-surface-elevated/50 dark:hover:bg-white/[0.02] focus-visible:bg-surface-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#006c49]/30 dark:focus-visible:ring-[#6ffbbe]/30"
+                                        >
                                             <td className="px-6 py-4 font-medium text-foreground">{trx.invoiceId}</td>
                                             <td className="px-6 py-4 text-muted-foreground">{formatDate(trx.createdAt)}</td>
                                             <td className="px-6 py-4">
@@ -293,5 +363,115 @@ export function TransactionsDetailView() {
                 </div>
             </div>
         </SalesDetailLayout>
+
+        <Dialog open={!!selectedSaleId} onOpenChange={(open) => !open && setSelectedSaleId(null)}>
+            <DialogContent className="max-h-[min(90dvh,720px)] overflow-y-auto sm:max-w-lg" showCloseButton>
+                <DialogHeader>
+                    <DialogTitle className="font-[family-name:var(--font-display)] text-lg">
+                        {saleDetail?.sale.invoiceId ?? "Sale details"}
+                    </DialogTitle>
+                    <DialogDescription className="text-left text-[13px]">
+                        {saleDetail?.sale
+                            ? `${formatDate(saleDetail.sale.createdAt)} · ${saleDetail.sale.paymentMethod} · ${saleDetail.sale.status}`
+                            : detailLoading
+                              ? "Loading…"
+                              : "Items in this sale."}
+                    </DialogDescription>
+                </DialogHeader>
+
+                {selectedSaleId && detailLoading && !saleDetail && (
+                    <div className="flex justify-center py-12">
+                        <Loader2 className="size-8 animate-spin text-muted-foreground opacity-40" />
+                    </div>
+                )}
+
+                {detailError && (
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
+                        {detailError instanceof Error ? detailError.message : "Something went wrong."}
+                    </p>
+                )}
+
+                {saleDetail && (
+                    <div className="space-y-5">
+                        <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#eef0f2] bg-muted/20 p-4 text-[13px] dark:border-white/[0.08]">
+                            <div>
+                                <p className="text-muted-foreground">Staff</p>
+                                <p className="font-medium text-foreground">
+                                    {(saleDetail.sale.staffName || "").trim() || "—"}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Customer</p>
+                                <p className="font-medium text-foreground">
+                                    {saleDetail.sale.customerName?.trim() || "Walk-in"}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Subtotal</p>
+                                <p className="font-medium tabular-nums">{formatGhs(Number(saleDetail.sale.subtotalGhs))}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Tax</p>
+                                <p className="font-medium tabular-nums">{formatGhs(Number(saleDetail.sale.taxGhs))}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Discount</p>
+                                <p className="font-medium tabular-nums">{formatGhs(Number(saleDetail.sale.discountGhs))}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Total</p>
+                                <p className="font-semibold tabular-nums text-[#006c49] dark:text-[#6ffbbe]">
+                                    {formatGhs(Number(saleDetail.sale.totalGhs))}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="mb-2 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <Package className="size-3.5" aria-hidden />
+                                Products
+                            </p>
+                            <ul className="divide-y divide-[#eef0f2] rounded-xl border border-[#eef0f2] dark:divide-white/[0.06] dark:border-white/[0.08]">
+                                {saleDetail.lines.map((line) => (
+                                    <li
+                                        key={line.id}
+                                        className="flex gap-3 p-3 first:rounded-t-[inherit] last:rounded-b-[inherit]"
+                                    >
+                                        <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                                            {line.imageSrc ? (
+                                                <CatalogProductImage
+                                                    src={line.imageSrc}
+                                                    alt={line.productName}
+                                                    className="size-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex size-full items-center justify-center text-muted-foreground">
+                                                    <Package className="size-6 opacity-40" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-medium leading-snug text-foreground">{line.productName}</p>
+                                            {line.sku ? (
+                                                <p className="mt-0.5 text-[12px] text-muted-foreground">SKU {line.sku}</p>
+                                            ) : null}
+                                            <p className="mt-1 text-[12px] text-muted-foreground">
+                                                {line.quantity} × {formatGhs(Number(line.unitPriceGhs))}
+                                            </p>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <p className="font-[family-name:var(--font-display)] font-semibold tabular-nums text-foreground">
+                                                {formatGhs(Number(line.lineTotalGhs))}
+                                            </p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

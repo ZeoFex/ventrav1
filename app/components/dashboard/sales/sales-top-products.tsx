@@ -1,8 +1,8 @@
 "use client";
 
 import useSWR from "swr";
-import Image from "next/image";
 import { Loader2 } from "lucide-react";
+import { CatalogProductImage } from "../products/catalog-product-image";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -51,12 +51,10 @@ export function SalesTopProducts() {
                             </span>
                             <div className="relative size-10 shrink-0 overflow-hidden rounded-[10px] bg-[#eceff2] dark:bg-[#1a1a1a] flex items-center justify-center">
                                 {p.imageSrc ? (
-                                    <Image
+                                    <CatalogProductImage
                                         src={p.imageSrc}
                                         alt={p.name}
-                                        fill
-                                        sizes="40px"
-                                        className="object-cover"
+                                        className="absolute inset-0 size-full object-cover"
                                     />
                                 ) : (
                                     <span className="text-sm font-bold uppercase opacity-25 text-muted-foreground">

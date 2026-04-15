@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
@@ -16,6 +15,7 @@ import { SyncProgressModal } from "./sync-progress-modal";
 import { BulkDeleteModal } from "./bulk-delete-modal";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
+import { CatalogProductImage } from "./catalog-product-image";
 import { type ProductRow } from "./types";
 import { useProducts, useCategories, useTags } from "./products-data-hooks";
 import { formatGhs, getCategoryName, getTagNames } from "@/app/lib/catalog-utils";
@@ -334,7 +334,11 @@ export function ProductsListView() {
                   <div className="flex gap-3.5 flex-1 min-w-0">
                     <div className="size-[4.5rem] shrink-0 rounded-xl bg-muted overflow-hidden relative border dark:border-white/5">
                       {p.imageSrc ? (
-                        <Image src={p.imageSrc} alt="" fill className="object-cover" />
+                        <CatalogProductImage
+                          src={p.imageSrc}
+                          alt={p.name}
+                          className="absolute inset-0 size-full object-cover"
+                        />
                       ) : (
                         <span className="flex items-center justify-center h-full text-lg font-bold opacity-30 uppercase">{p.name[0]}</span>
                       )}
@@ -391,7 +395,11 @@ export function ProductsListView() {
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-lg bg-muted overflow-hidden relative border">
                           {p.imageSrc ? (
-                            <Image src={p.imageSrc} alt="" fill className="object-cover" />
+                            <CatalogProductImage
+                              src={p.imageSrc}
+                              alt={p.name}
+                              className="absolute inset-0 size-full object-cover"
+                            />
                           ) : (
                             <span className="flex items-center justify-center h-full text-xs font-bold opacity-30 uppercase">{p.name[0]}</span>
                           )}

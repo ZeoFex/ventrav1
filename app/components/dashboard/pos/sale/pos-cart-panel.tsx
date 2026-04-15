@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   Minus,
   PauseCircle,
@@ -13,6 +12,7 @@ import {
 import { useCallback, useState } from "react";
 import type { CartLine } from "./pos-cart-totals";
 import { computePosTotals } from "./pos-cart-totals";
+import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
 import { PosCustomerSelector } from "./pos-customer-selector";
@@ -176,12 +176,10 @@ export function PosCartPanelContent({
                 <div className="flex gap-3">
                   <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-[#f8f9fa] dark:bg-[#1a1a1a] flex items-center justify-center">
                     {p.imageSrc ? (
-                      <Image
+                      <CatalogProductImage
                         src={p.imageSrc}
-                        alt=""
-                        fill
-                        className="object-cover"
-                        sizes="64px"
+                        alt={p.name}
+                        className="absolute inset-0 size-full object-cover"
                       />
                     ) : (
                       <span className="text-xl font-bold uppercase opacity-20 text-muted-foreground">

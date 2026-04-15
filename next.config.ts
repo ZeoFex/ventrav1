@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   turbopack: {},
   images: {
+    // Known marketing/static hosts only. Dynamic product photos use <img> (CatalogProductImage)
+    // so barcode/lookup/import URLs from arbitrary CDNs do not need listing here.
     remotePatterns: [
       {
         protocol: "https",
@@ -26,6 +28,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "plus.unsplash.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "pics.walgreens.com",
         pathname: "/**",
       },
       {

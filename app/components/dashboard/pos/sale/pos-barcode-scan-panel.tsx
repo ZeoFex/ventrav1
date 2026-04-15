@@ -1,8 +1,13 @@
 "use client";
 
 import QRCode from "qrcode";
-import Image from "next/image";
-import { Minus, MonitorSmartphone, Plus, ScanLine, Usb, X } from "lucide-react";
+import {
+  Keyboard,
+  Minus,
+  MonitorSmartphone,
+  Plus,
+  X,
+} from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -13,6 +18,8 @@ import {
 import type { CartLine } from "./pos-cart-totals";
 import { PosBarcodeCamera } from "./pos-barcode-camera";
 import { resolveProductFromScan } from "./pos-barcode-resolve";
+import { useIsDesktopLayout } from "./use-pos-keyboard-wedge";
+import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
 
@@ -33,18 +40,6 @@ type PosBarcodeScanPanelProps = {
   };
 };
 
-function useIsDesktopLayout(): boolean {
-  const [desktop, setDesktop] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    setDesktop(mq.matches);
-    const fn = () => setDesktop(mq.matches);
-    mq.addEventListener("change", fn);
-    return () => mq.removeEventListener("change", fn);
-  }, []);
-  return desktop;
-}
-
 export function PosBarcodeScanPanel({
   open,
   onClose,
@@ -64,7 +59,6 @@ export function PosBarcodeScanPanel({
     tone: "ok" | "err";
     text: string;
   } | null>(null);
-  const usbBufferRef = useRef("");
   const lastEmitRef = useRef<{ raw: string; at: number } | null>(null);
 
   const applyScan = useCallback(
@@ -186,35 +180,9 @@ export function PosBarcodeScanPanel({
   }, [isDesktop, sessionId, pairToken, applyScan]);
 
   useEffect(() => {
-    if (!isDesktop) return;
-
-    const onKey = (e: KeyboardEvent) => {
-      // Ignore keystrokes if the user is typing in an input field
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      if (e.key === "Enter") {
-        e.preventDefault();
-        const raw = usbBufferRef.current;
-        usbBufferRef.current = "";
-        if (raw.trim()) applyScan(raw);
-        return;
-      }
-      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        usbBufferRef.current += e.key;
-      }
-    };
-
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isDesktop, applyScan]);
-
-  useEffect(() => {
     if (!open) {
       setDesktopTab("phone");
       setBanner(null);
-      usbBufferRef.current = "";
     }
   }, [open]);
 
@@ -261,7 +229,7 @@ export function PosBarcodeScanPanel({
             </h2>
             <p className="mt-0.5 text-[12px] text-muted-foreground sm:text-[13px]">
               {isDesktop
-                ? "Pair your phone or use a USB scanner."
+                ? "Use your phone below, or scan from the sale screen with a handheld scanner."
                 : "Point at the product QR or barcode."}
             </p>
           </div>
@@ -307,9 +275,10 @@ export function PosBarcodeScanPanel({
                   ? "bg-[#003527]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
                   : "text-muted-foreground hover:bg-surface-elevated dark:hover:bg-[#141414]"
                   }`}
+                aria-label="Wired scanner tips"
               >
-                <Usb className="size-4 shrink-0" aria-hidden />
-                USB scanner
+                <Keyboard className="size-4 shrink-0" aria-hidden />
+                Scanner
               </button>
             </div>
 
@@ -346,30 +315,19 @@ export function PosBarcodeScanPanel({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-1 flex-col gap-4 px-4 py-8 sm:px-6">
-                <div className="rounded-xl border border-dashed border-[#bfc9c3]/35 bg-[#F8F9FA] p-6 text-center dark:border-white/[0.12] dark:bg-[#141414]">
-                  <ScanLine
-                    className="mx-auto size-10 text-[#006c49] dark:text-[#6ffbbe]"
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                  <p className="mt-3 text-[14px] font-medium text-foreground">
-                    USB barcode scanner
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-6 py-10 text-center">
+                <div className="flex size-16 items-center justify-center rounded-2xl bg-[#006c49]/12 text-[#006c49] dark:bg-[#6ffbbe]/12 dark:text-[#6ffbbe]">
+                  <Keyboard className="size-8" aria-hidden />
+                </div>
+                <div className="max-w-[22rem] space-y-2">
+                  <p className="font-[family-name:var(--font-display)] text-[15px] font-semibold text-foreground">
+                    Scan from the register
                   </p>
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-                    Plug in your scanner — it types digits like a keyboard.
-                    Click here, then scan; each scan should end with Enter.
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">
+                    Your scanner works on the sale page — point at a barcode and it adds to the cart. You
+                    don’t need to open this window.
                   </p>
                 </div>
-                <input
-                  type="text"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  aria-label="USB scanner capture"
-                  className="sr-only"
-                // keep focusable for accessibility; wedge still uses window keydown
-                />
               </div>
             )}
           </div>
@@ -414,12 +372,10 @@ export function PosBarcodeScanPanel({
                         >
                           <div className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-[#f8f9fa] dark:bg-[#1a1a1a] flex items-center justify-center">
                             {p.imageSrc ? (
-                              <Image
+                              <CatalogProductImage
                                 src={p.imageSrc}
                                 alt={p.name}
-                                fill
-                                sizes="56px"
-                                className="object-cover"
+                                className="absolute inset-0 size-full object-cover"
                               />
                             ) : (
                               <span className="text-lg font-bold uppercase opacity-20">

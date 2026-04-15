@@ -1,16 +1,18 @@
 import useSWR from "swr";
 import { useBranchContext } from "../branch-context";
-import { useOnlineStatus } from "@/app/lib/offline/use-online-status";
 import {
     cacheProducts,
     getCachedProducts,
     cacheCategories,
     getCachedCategories,
+    cacheProduct,
+    type Product,
 } from "@/app/lib/offline/offline-db";
 
 /**
- * Offline-aware fetcher: tries network first, caches on success,
- * returns IndexedDB cache on failure.
+ * Offline-aware fetcher: network first; cache successful list/detail responses.
+ * IndexedDB fallback is used only when the browser is offline — not on random
+ * HTTP errors while online (avoids showing stale catalog/stock after saves).
  */
 function createOfflineFetcher(cacheKey: "products" | "categories") {
     return async (url: string) => {
@@ -19,16 +21,28 @@ function createOfflineFetcher(cacheKey: "products" | "categories") {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
 
-            // Cache the fresh data in IndexedDB
             if (cacheKey === "products") {
-                cacheProducts(data).catch(() => {});
+                if (Array.isArray(data)) {
+                    cacheProducts(data as Product[]).catch(() => {});
+                } else if (
+                    data &&
+                    typeof data === "object" &&
+                    "id" in data &&
+                    typeof (data as { id: unknown }).id === "string"
+                ) {
+                    cacheProduct(data as Product).catch(() => {});
+                }
             } else {
                 cacheCategories(data).catch(() => {});
             }
 
             return data;
         } catch (err) {
-            // Network failed — try IndexedDB cache
+            const offline = typeof navigator !== "undefined" && !navigator.onLine;
+            if (!offline) {
+                throw err;
+            }
+
             const cached =
                 cacheKey === "products"
                     ? await getCachedProducts()
@@ -38,7 +52,6 @@ function createOfflineFetcher(cacheKey: "products" | "categories") {
                 return cached;
             }
 
-            // No cache either — rethrow
             throw err;
         }
     };

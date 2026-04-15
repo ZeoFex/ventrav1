@@ -1,8 +1,16 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Store } from "lucide-react";
+import { toast } from "sonner";
 import { useBranchContext } from "../../branch-context";
 import { useSession } from "../../../auth/use-session";
 
@@ -16,6 +24,11 @@ import { PosPaymentStep } from "./pos-payment-step";
 import type { PosReceiptData, PosReceiptLine } from "./pos-receipt-data";
 import { PosReceiptStep } from "./pos-receipt-step";
 import { PosBarcodeScanPanel } from "./pos-barcode-scan-panel";
+import { resolveProductFromScan } from "./pos-barcode-resolve";
+import {
+  useIsDesktopLayout,
+  usePosKeyboardWedge,
+} from "./use-pos-keyboard-wedge";
 import { PosProductCard } from "./pos-product-card";
 import { playPosAddProductBeep } from "./pos-add-beep";
 import {
@@ -264,6 +277,31 @@ function PosSaleViewInner() {
     });
     setSelectedVariationProduct(null);
   }, [lines, productById]);
+
+  const isDesktopLayout = useIsDesktopLayout();
+  const lastWedgeScanRef = useRef<{ raw: string; at: number } | null>(null);
+
+  const handleKeyboardWedgeBarcode = useCallback(
+    (raw: string) => {
+      const now = Date.now();
+      const prev = lastWedgeScanRef.current;
+      if (prev && prev.raw === raw && now - prev.at < 500) return;
+      lastWedgeScanRef.current = { raw, at: now };
+
+      const result = resolveProductFromScan(raw, products);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      addToCart(result.product.id);
+    },
+    [products, addToCart],
+  );
+
+  usePosKeyboardWedge({
+    enabled: flow === "browse" && isDesktopLayout && branchId !== "all",
+    onBarcode: handleKeyboardWedgeBarcode,
+  });
 
   const increment = useCallback((productId: string) => {
     const p = productById.get(productId);
