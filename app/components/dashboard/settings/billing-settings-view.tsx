@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { PLANS, PlanId } from "@/config/plans";
 import { useSession } from "@/app/components/auth/use-session";
 import { PaymentFlow } from "@/app/components/billing/payment-flow";
 import { LandingPricing } from "@/app/components/landing/pricing";
-import { CreditCard, Zap, CheckCircle2, History, Download, MessageSquare, Shield, X, Smartphone } from "lucide-react";
+import { Zap, CheckCircle2, History, MessageSquare, X, Smartphone, Gift, ArrowRight } from "lucide-react";
 import { useState } from "react";
 
 export function BillingSettingsView() {
@@ -36,7 +37,6 @@ export function BillingSettingsView() {
 
     // ── Upgrade: payment flow for selected plan ──────────────────
     if (isUpgrading && selectedPlan) {
-        const planDetails = PLANS.find((p) => p.id === selectedPlan)!;
         return (
             <div className="max-w-4xl mx-auto py-6">
                 <button
@@ -49,7 +49,6 @@ export function BillingSettingsView() {
                     <PaymentFlow
                         plan={selectedPlan as "starter" | "growth" | "pro"}
                         cycle={selectedCycle}
-                        amountGHS={selectedCycle === "monthly" ? planDetails.priceMonthly : planDetails.priceAnnually}
                         onSuccess={handleSuccess}
                     />
                 </div>
@@ -86,6 +85,25 @@ export function BillingSettingsView() {
     // ── Main billing overview ────────────────────────────────────
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
+            {user?.role === "owner" && (
+                <Link
+                    href="/dashboard/settings/referrals"
+                    className="flex items-center justify-between gap-4 rounded-2xl border border-[#006c49]/20 bg-[#003527]/5 p-5 transition-colors hover:bg-[#003527]/10 dark:border-[#6ffbbe]/20 dark:bg-[#6ffbbe]/5 dark:hover:bg-[#6ffbbe]/10"
+                >
+                    <div className="flex min-w-0 gap-3">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#003527]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]">
+                            <Gift className="size-5" strokeWidth={1.75} />
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="font-semibold text-foreground">Referrals</h3>
+                            <p className="mt-0.5 text-sm text-muted-foreground">
+                                Your link, activity, and subscription rewards — open Referrals to manage.
+                            </p>
+                        </div>
+                    </div>
+                    <ArrowRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+            )}
             {/* Current Plan Card */}
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2 rounded-[2.5rem] border border-[#006c49]/10 bg-gradient-to-br from-[#003527] to-[#014d3a] p-10 text-white shadow-2xl relative overflow-hidden">

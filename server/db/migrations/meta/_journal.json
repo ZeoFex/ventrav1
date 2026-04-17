@@ -8,6 +8,20 @@
       "when": 1774952969314,
       "tag": "0000_parched_tomorrow_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776253042918,
+      "tag": "0001_referral_system",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776254000000,
+      "tag": "0002_business_referral_columns",
+      "breakpoints": true
     }
   ]
 }

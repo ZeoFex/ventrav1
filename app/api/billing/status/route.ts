@@ -3,10 +3,10 @@ import { checkPendingCharge } from "@/lib/paystack";
 import { verifyAccessToken } from "@/server/auth/token-service";
 import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { db } from "@/server/db";
-import { businesses } from "@/server/db/schema/businesses";
 import { pendingSubscriptions } from "@/server/db/schema/pending-subscriptions";
-import { eq } from "drizzle-orm";
 import { sendSubscriptionEmail } from "@/server/auth/email-service";
+import { extractDetailsFromReference } from "@/server/billing/billing-reference";
+import { applySuccessfulAuthenticatedSubscriptionPayment } from "@/server/billing/apply-successful-subscription-payment";
 
 /**
  * GET /api/billing/status?reference=xxx
@@ -42,39 +42,17 @@ export async function GET(req: NextRequest) {
       if (parsedRef) {
         if (payload?.bid) {
             console.log(`[Status API] Upgrading business ${payload.bid} → ${parsedRef.plan} (${parsedRef.cycle})`);
-            
-            // Fetch the business's current billing cycle
-            const [biz] = await db
-              .select({ currentPeriodEnd: businesses.currentPeriodEnd })
-              .from(businesses)
-              .where(eq(businesses.id, payload.bid));
-
-            const now = Date.now();
-            const currentEnd = biz?.currentPeriodEnd ? biz.currentPeriodEnd.getTime() : now;
-            
-            // If they still have time left, add to it. Otherwise, start from now.
-            const baseDateDate = currentEnd > now ? currentEnd : now;
-            
-            // Calculate new expiration date
-            const daysToAdd = parsedRef.cycle === "annually" ? 365 : 30;
-            const newExpiry = new Date(baseDateDate + daysToAdd * 24 * 60 * 60 * 1000);
-
-            await db.update(businesses)
-              .set({ 
-                 plan: parsedRef.plan,
-                 subscriptionStatus: "active",
-                 currentPeriodEnd: newExpiry,
-              })
-              .where(eq(businesses.id, payload.bid));
-
-            // Send confirmation email
-            await sendSubscriptionEmail({
-                to: payload.email,
-                firstName: payload.firstName,
-                planName: parsedRef.plan.charAt(0).toUpperCase() + parsedRef.plan.slice(1),
-                amount: (paystackResult.data.amount ? paystackResult.data.amount / 100 : 0).toString(),
-                cycle: parsedRef.cycle,
-            }).catch(err => console.error("[Status API] Failed to send subscription email:", err));
+            const amountGhs = paystackResult.data.amount
+                ? paystackResult.data.amount / 100
+                : 0;
+            await applySuccessfulAuthenticatedSubscriptionPayment({
+                businessId: payload.bid,
+                reference,
+                parsed: parsedRef,
+                emailTo: payload.email,
+                firstName: payload.firstName ?? "",
+                amountGhsDisplay: amountGhs.toString(),
+            });
         } else if (reference.includes("_guest_")) {
             // Record in pending_subscriptions for pre-signup flow
             const email = paystackResult.data.customer?.email;
@@ -118,30 +96,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-/**
- * Reference format: vpn_{businessId}_{timestamp}_{planCode}_{cycleCode}
- * planCode is "sta", "gro", or "pro"
- * cycleCode is "mon" or "ann"
- */
-function extractDetailsFromReference(ref: string): { plan: "starter" | "growth" | "pro", cycle: "monthly" | "annually" } | null {
-  const parts = ref.split("_");
-  // Supports both the old 4-part format (assumes monthly) and new 5-part format
-  if (parts.length < 4 || parts[0] !== "vpn") return null;
-
-  const planCode = parts[3].toLowerCase();
-  
-  let plan: "starter" | "growth" | "pro" = "starter";
-  if (planCode.includes("pro")) plan = "pro";
-  if (planCode.includes("gro")) plan = "growth";
-  if (planCode.includes("sta")) plan = "starter";
-
-  let cycle: "monthly" | "annually" = "monthly";
-  if (parts.length >= 5) {
-      const cycleCode = parts[4].toLowerCase();
-      if (cycleCode === "ann") cycle = "annually";
-  }
-
-  return { plan, cycle };
 }

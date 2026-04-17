@@ -6,13 +6,20 @@ import { Loader2, Smartphone, ShieldCheck, AlertCircle, CheckCircle2, ChevronDow
 export interface PaymentFlowProps {
   plan: "starter" | "growth" | "pro" | string;
   cycle: "monthly" | "annually";
-  amountGHS: number;
+  /** Omit to load server quote (referral discount when logged in). */
+  amountGHS?: number;
   onSuccess: () => void;
   preSignupEmail?: string;
 }
 
 export function PaymentFlow({ plan, cycle, amountGHS, onSuccess, preSignupEmail }: PaymentFlowProps) {
   const [step, setStep] = useState<"phone" | "otp" | "poll" | "activating" | "success">("phone");
+  const [quote, setQuote] = useState<{
+    totalGhs: number;
+    subtotalGhs: number;
+    discountGhs: number;
+  } | null>(amountGHS !== undefined ? { totalGhs: amountGHS, subtotalGhs: amountGHS, discountGhs: 0 } : null);
+  const [quoteLoading, setQuoteLoading] = useState(amountGHS === undefined);
   const [phone, setPhone] = useState("");
   const [provider, setProvider] = useState<"mtn" | "vod" | "tigo">("mtn");
   const [otp, setOtp] = useState("");
@@ -25,6 +32,44 @@ export function PaymentFlow({ plan, cycle, amountGHS, onSuccess, preSignupEmail 
    * This MUST run before showing "success" so the sidebar / billing page reflect
    * the new plan immediately when the session is re-fetched.
    */
+  useEffect(() => {
+    if (amountGHS !== undefined) {
+      setQuote({
+        totalGhs: amountGHS,
+        subtotalGhs: amountGHS,
+        discountGhs: 0,
+      });
+      setQuoteLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setQuoteLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/billing/quote?plan=${encodeURIComponent(plan)}&cycle=${encodeURIComponent(cycle)}`,
+          { credentials: "include" },
+        );
+        const data = await res.json();
+        if (cancelled || !res.ok) return;
+        setQuote({
+          totalGhs: data.totalGhs,
+          subtotalGhs: data.subtotalGhs,
+          discountGhs: data.discountGhs ?? 0,
+        });
+      } finally {
+        if (!cancelled) setQuoteLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [plan, cycle, amountGHS]);
+
+  const displayTotal = quote?.totalGhs ?? 0;
+  const displaySubtotal = quote?.subtotalGhs ?? displayTotal;
+  const displayDiscount = quote?.discountGhs ?? 0;
+
   const activatePlan = useCallback(async (ref: string) => {
     setStep("activating");
     try {
@@ -172,9 +217,33 @@ export function PaymentFlow({ plan, cycle, amountGHS, onSuccess, preSignupEmail 
           <h2 className="text-xl font-semibold capitalize">{plan} Plan</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mt-1">Upgrade your business</p>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold tracking-tight">GHS {amountGHS}</p>
-          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">/ Month</p>
+        <div className="text-right min-w-[8rem]">
+          {quoteLoading ? (
+            <p className="text-sm text-muted-foreground">Loading price…</p>
+          ) : (
+            <>
+              {displayDiscount > 0 ? (
+                <>
+                  <p className="text-xs text-muted-foreground line-through tabular-nums">
+                    GHS {displaySubtotal.toFixed(2)}
+                  </p>
+                  <p className="text-2xl font-bold tracking-tight tabular-nums text-[#006c49] dark:text-[#6ffbbe]">
+                    GHS {displayTotal.toFixed(2)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    −GHS {displayDiscount.toFixed(2)} referral
+                  </p>
+                </>
+              ) : (
+                <p className="text-2xl font-bold tracking-tight tabular-nums">
+                  GHS {displayTotal.toFixed(2)}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                {cycle === "annually" ? "/ Year" : "/ Month"}
+              </p>
+            </>
+          )}
         </div>
       </div>
 
@@ -225,7 +294,7 @@ export function PaymentFlow({ plan, cycle, amountGHS, onSuccess, preSignupEmail 
 
           <button
             type="submit"
-            disabled={loading || phone.length < 9}
+            disabled={loading || quoteLoading || phone.length < 9}
             className="w-full py-2.5 bg-[#006c49] text-white rounded-xl font-medium hover:bg-[#005a3c] dark:bg-[#6ffbbe] dark:text-[#003527] dark:hover:bg-[#5debb0] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="size-4 animate-spin" /> : "Pay via MoMo"}
@@ -276,7 +345,7 @@ export function PaymentFlow({ plan, cycle, amountGHS, onSuccess, preSignupEmail 
           <div>
             <h3 className="text-lg font-medium mb-2">Check your phone</h3>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px] mx-auto">
-              Please authorize the payment prompt on your phone for GHS {amountGHS}.<br/>
+              Please authorize the payment prompt on your phone for GHS {displayTotal.toFixed(2)}.<br/>
               Waiting for provider confirmation...
             </p>
           </div>

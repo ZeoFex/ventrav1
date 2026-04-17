@@ -4,9 +4,11 @@ import {
     varchar,
     text,
     boolean,
+    integer,
     timestamp,
     jsonb,
     pgEnum,
+    index,
 } from "drizzle-orm/pg-core";
 
 export const businessStatusEnum = pgEnum("business_status", [
@@ -63,4 +65,18 @@ export const businesses = pgTable("businesses", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .defaultNow()
         .notNull(),
-});
+
+    /** Public code for ?ref= links (unique, stable). */
+    referralCode: varchar("referral_code", { length: 32 }).unique(),
+    /** Set at signup if the business registered via a valid referral link. FK in migrations. */
+    referredByBusinessId: uuid("referred_by_business_id"),
+    /** Banked discount in basis points (200 = 2%), capped in app at REFERRAL_MAX_REWARD_BPS. */
+    referralRewardBps: integer("referral_reward_bps").default(0).notNull(),
+    /** Reserved for the next successful subscription charge (claim). */
+    referralDiscountReservedBps: integer("referral_discount_reserved_bps")
+        .default(0)
+        .notNull(),
+}, (t) => [
+    index("businesses_referral_code_idx").on(t.referralCode),
+    index("businesses_referred_by_idx").on(t.referredByBusinessId),
+]);

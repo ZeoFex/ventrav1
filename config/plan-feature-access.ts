@@ -49,6 +49,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "settings": true, "settings-profile": true, "settings-receipt": true,
     "settings-notifications": true, "settings-account": true,
     "settings-security": true, "settings-billing": true,
+    "settings-referrals": true,
     "support": true,
     // Pro governance
     "audit-logs": false, "approval-workflows": false,
@@ -79,6 +80,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "settings": true, "settings-profile": true, "settings-receipt": true,
     "settings-notifications": true, "settings-account": true,
     "settings-security": true, "settings-billing": true,
+    "settings-referrals": true,
     "support": true,
     "audit-logs": false, "approval-workflows": false,
     "restricted-discounts": false, "cash-reconciliation": false,
@@ -108,6 +110,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "settings": true, "settings-profile": true, "settings-receipt": true,
     "settings-notifications": true, "settings-account": true,
     "settings-security": true, "settings-billing": true,
+    "settings-referrals": true,
     "support": true,
     "audit-logs": true, "approval-workflows": true,
     "restricted-discounts": true, "cash-reconciliation": true,

@@ -18,6 +18,10 @@ import { sendOtpEmail, sendPasswordResetEmail } from "./email-service";
 import { OTP_TTL, OTP_MAX_ATTEMPTS, RESET_TOKEN_TTL } from "../config/auth-config";
 import { STARTER_TRIAL_DAYS } from "@/config/plans";
 import crypto from "crypto";
+import {
+    resolveReferrerBusinessIdFromCode,
+    ensureReferralCodeForBusiness,
+} from "@/server/referrals/referral-service";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -26,6 +30,8 @@ export interface SignupInput {
     fullName: string;
     email: string;
     password: string;
+    /** Optional referral code from ?ref= (referrer business). */
+    referralCode?: string;
 }
 
 export interface SignupResult {
@@ -93,6 +99,13 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
     // 4. Generate business slug
     const slug = generateSlug(input.businessName);
 
+    let referredByBusinessId: string | null = null;
+    const rawRef = input.referralCode?.trim();
+    if (rawRef) {
+        referredByBusinessId =
+            await resolveReferrerBusinessIdFromCode(rawRef);
+    }
+
     // 5. Transaction: create everything atomically
     const result = await db.transaction(async (tx) => {
         // Create business (Starter trial window — see STARTER_TRIAL_DAYS)
@@ -106,6 +119,7 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
                 currentPeriodEnd: new Date(
                     Date.now() + STARTER_TRIAL_DAYS * 24 * 60 * 60 * 1000,
                 ),
+                referredByBusinessId,
             })
             .returning({ id: businesses.id });
 
@@ -176,6 +190,10 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
         resource: "user",
         resourceId: result.userId,
     });
+
+    await ensureReferralCodeForBusiness(result.businessId).catch((err) =>
+        console.error("[signup] ensureReferralCodeForBusiness:", err),
+    );
 
     return {
         userId: result.userId,

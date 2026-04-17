@@ -10,6 +10,10 @@ import type { PasswordChecks } from "./signup-account-form";
 import { SignupOtpForm } from "./signup-otp-form";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import {
+    REFERRAL_COOKIE_MAX_AGE_SEC,
+    REFERRAL_COOKIE_NAME,
+} from "@/config/referrals";
 
 const SPLIT_IMAGE_LIGHT = "/landing/order-light.png";
 const SPLIT_IMAGE_DARK = "/landing/order-pos.png";
@@ -41,6 +45,12 @@ function SignupViewContent() {
   useEffect(() => {
     const emailParam = searchParams.get("email");
     if (emailParam) setEmail(emailParam);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const ref = searchParams.get("ref")?.trim();
+    if (!ref) return;
+    document.cookie = `${REFERRAL_COOKIE_NAME}=${encodeURIComponent(ref)};path=/;max-age=${REFERRAL_COOKIE_MAX_AGE_SEC};SameSite=Lax`;
   }, [searchParams]);
 
   // API states
@@ -130,6 +140,7 @@ function SignupViewContent() {
           fullName: fullName.trim(),
           email: email.trim(),
           password,
+          referralCode: searchParams.get("ref")?.trim() || undefined,
         }),
       });
 

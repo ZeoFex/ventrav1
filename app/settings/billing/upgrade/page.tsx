@@ -38,7 +38,6 @@ export default function UpgradePage() {
   };
 
   if (selectedPlan && selectedPlan !== "starter") {
-    const planDetails = PLANS.find((p) => p.id === selectedPlan)!;
     return (
       <div className="max-w-4xl mx-auto py-12 px-6">
         <button 
@@ -50,7 +49,6 @@ export default function UpgradePage() {
         <PaymentFlow 
           plan={selectedPlan as "growth" | "pro"} 
           cycle="monthly"
-          amountGHS={planDetails.priceGHS} 
           onSuccess={handleSuccess} 
         />
       </div>

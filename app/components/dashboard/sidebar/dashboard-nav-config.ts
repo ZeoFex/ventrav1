@@ -219,6 +219,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         label: "Receipt & tax",
         href: "/dashboard/settings/receipt",
       },
+      {
+        id: "settings-referrals",
+        label: "Referrals",
+        href: "/dashboard/settings/referrals",
+      },
       // {
       //   id: "settings-notifications",
       //   label: "Notifications",

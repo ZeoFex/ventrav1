@@ -76,7 +76,9 @@ describe("POST /api/auth/signup endpoint", () => {
         const req = createReq(validPayload);
         const res = await POST(req);
 
-        expect(signup).toHaveBeenCalledWith(validPayload);
+        expect(signup).toHaveBeenCalledWith(
+            expect.objectContaining(validPayload),
+        );
         expect(res.status).toBe(201);
 
         const data = await res.json();

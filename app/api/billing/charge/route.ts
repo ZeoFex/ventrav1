@@ -6,7 +6,7 @@ import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 import { eq } from "drizzle-orm";
-import { PLANS, PlanId } from "@/config/plans";
+import { getSubscriptionQuoteForBusiness } from "@/server/billing/subscription-quote";
 
 const chargeSchema = z.object({
   plan: z.enum(["starter", "growth", "pro"]),
@@ -44,15 +44,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Email is required for payment" }, { status: 400 });
     }
     
-    // Find the correct selected plan
-    const planDetails = PLANS.find((p) => p.id === plan);
-    if (!planDetails) {
+    const quote = await getSubscriptionQuoteForBusiness(
+        payload?.bid ?? null,
+        plan,
+        cycle,
+    );
+    if (!quote) {
         return NextResponse.json({ error: "Plan not found" }, { status: 400 });
     }
-
-    // Paystack amounts are in pesewas (multiply GHS by 100)
-    const amountGHS = cycle === "monthly" ? planDetails.priceMonthly : planDetails.priceAnnually;
-    const amount = amountGHS * 100;
+    const amount = quote.totalPesewas;
     // Create a unique reference for tracking including plan and cycle
     const cycleCode = cycle === "annually" ? "ann" : "mon";
     const bidLabel = payload?.bid || "guest";

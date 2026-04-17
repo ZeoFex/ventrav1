@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Store, Receipt, Bell } from "lucide-react";
+import { Store, Receipt, Bell, Gift } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
 
 const SETTINGS_CATEGORIES = [
@@ -24,6 +24,13 @@ const SETTINGS_CATEGORIES = [
         description: "Set up email alerts for low stock and end-of-day summaries.",
         icon: Bell,
         href: "/dashboard/settings/notifications",
+        colorClass: "bg-[#006c49]/08 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]",
+    },
+    {
+        title: "Referrals",
+        description: "Share your link, track qualified sign-ups, and earn subscription discounts.",
+        icon: Gift,
+        href: "/dashboard/settings/referrals",
         colorClass: "bg-[#006c49]/08 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]",
     },
 ];
