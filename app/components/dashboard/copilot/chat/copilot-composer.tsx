@@ -1,10 +1,21 @@
 "use client";
 
 import { useEffect, useRef, type KeyboardEvent } from "react";
+import type { CopilotPreferredLanguage } from "@/app/lib/copilot/prompts/system";
 import { Mic, Send, Square } from "lucide-react";
 import { toast } from "sonner";
-import { useCopilotSpeech } from "../hooks/use-copilot-speech";
+import { useCopilotKhayaSpeech } from "../hooks/use-copilot-khaya-speech";
+import {
+  speechRecognitionAvailable,
+  useCopilotSpeech,
+} from "../hooks/use-copilot-speech";
 import { cn } from "@/lib/utils";
+
+const KHAYA_MODE_LABEL: Record<Exclude<CopilotPreferredLanguage, "en">, string> = {
+  tw: "Twi",
+  gaa: "Ga",
+  ee: "Ewe",
+};
 
 export function CopilotComposer({
   value,
@@ -12,6 +23,7 @@ export function CopilotComposer({
   onSubmit,
   onVoiceSubmit,
   disabled,
+  speechMode = "en",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -19,10 +31,15 @@ export function CopilotComposer({
   /** If set, successful voice capture sends this message (and typically clears the draft). */
   onVoiceSubmit?: (text: string) => void;
   disabled?: boolean;
+  /** English: Web Speech API. Twi / Ga / Ewe: Khaya ASR (needs KHAYA_API_KEY). */
+  speechMode?: CopilotPreferredLanguage;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const khayaAsrLang =
+    speechMode === "en" ? "tw" : speechMode;
 
-  const speech = useCopilotSpeech({
+  const browserSpeech = useCopilotSpeech({
+    lang: "en-GH",
     onInterim: onChange,
     onFinal: (text) => {
       onChange(text);
@@ -33,7 +50,33 @@ export function CopilotComposer({
     onError: (msg) => toast.error(msg),
   });
 
-  const listening = speech.state.status === "listening";
+  const khayaSpeech = useCopilotKhayaSpeech({
+    language: khayaAsrLang,
+    onFinal: (text) => {
+      onChange(text);
+      if (text.trim() && onVoiceSubmit) {
+        onVoiceSubmit(text.trim());
+      }
+    },
+    onError: (msg) => toast.error(msg),
+  });
+
+  const useKhaya = speechMode !== "en";
+
+  const listening = useKhaya
+    ? khayaSpeech.state.status === "recording" ||
+      khayaSpeech.state.status === "uploading"
+    : browserSpeech.state.status === "listening";
+
+  const uploading = useKhaya && khayaSpeech.state.status === "uploading";
+
+  const khayaLabel = useKhaya ? KHAYA_MODE_LABEL[speechMode] : "";
+
+  useEffect(() => {
+    browserSpeech.stop();
+    khayaSpeech.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run on speechMode only
+  }, [speechMode]);
 
   useEffect(() => {
     const el = ref.current;
@@ -46,7 +89,10 @@ export function CopilotComposer({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!disabled && value.trim()) {
-        if (listening) speech.stop();
+        if (listening) {
+          if (useKhaya) khayaSpeech.stop();
+          else browserSpeech.stop();
+        }
         onSubmit();
       }
     }
@@ -54,18 +100,33 @@ export function CopilotComposer({
 
   const onMicClick = () => {
     if (disabled) return;
-    if (!speech.supported) {
+    if (useKhaya) {
+      if (typeof MediaRecorder === "undefined") {
+        toast.message("Voice input needs a modern browser", {
+          description: "Try Chrome or Edge, or type your question.",
+        });
+        return;
+      }
+      if (listening) {
+        khayaSpeech.toggle();
+        return;
+      }
+      onChange("");
+      void khayaSpeech.start();
+      return;
+    }
+    if (!speechRecognitionAvailable()) {
       toast.message("Voice input needs Chrome or Edge on desktop", {
         description: "Safari support is limited; you can still type your question.",
       });
       return;
     }
     if (listening) {
-      speech.stop();
+      browserSpeech.stop();
       return;
     }
     onChange("");
-    speech.start();
+    browserSpeech.start();
   };
 
   return (
@@ -84,11 +145,17 @@ export function CopilotComposer({
           aria-pressed={listening}
           aria-label={listening ? "Stop recording" : "Speak your question"}
           title={
-            !speech.supported
-              ? "Voice input unavailable in this browser"
-              : listening
-                ? "Tap to stop"
-                : "Speak your question"
+            useKhaya
+              ? listening
+                ? uploading
+                  ? "Sending audio…"
+                  : "Tap to stop"
+                : `Speak in ${khayaLabel} (Khaya)`
+              : !speechRecognitionAvailable()
+                ? "Voice input unavailable in this browser"
+                : listening
+                  ? "Tap to stop"
+                  : "Speak your question"
           }
           className={cn(
             "tap-target relative flex size-11 items-center justify-center rounded-xl border shadow-sm transition-all",
@@ -111,7 +178,11 @@ export function CopilotComposer({
               <span className="absolute inline-flex size-full motion-safe:animate-ping rounded-full bg-[#006c49] opacity-60 dark:bg-[#6ffbbe]" />
               <span className="relative inline-flex size-2 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" />
             </span>
-            Listening…
+            {uploading
+              ? "Sending…"
+              : useKhaya
+                ? `${khayaLabel} — recording…`
+                : "Listening…"}
           </div>
         ) : null}
         <textarea
@@ -121,7 +192,11 @@ export function CopilotComposer({
           onKeyDown={onKeyDown}
           placeholder={
             listening
-              ? "Speak now — text appears as you talk"
+              ? uploading
+                ? "Transcribing your voice…"
+                : useKhaya
+                  ? `Speak ${khayaLabel} — tap stop when finished`
+                  : "Speak now — text appears as you talk"
               : "Type or tap the mic to speak…"
           }
           disabled={disabled || listening}
@@ -133,7 +208,10 @@ export function CopilotComposer({
       <button
         type="button"
         onClick={() => {
-          if (listening) speech.stop();
+          if (listening) {
+            if (useKhaya) khayaSpeech.stop();
+            else browserSpeech.stop();
+          }
           onSubmit();
         }}
         disabled={disabled || !value.trim() || listening}

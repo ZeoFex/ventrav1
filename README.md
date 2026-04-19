@@ -263,13 +263,15 @@ flowchart LR
 - **Tools** — Server-side tool calling (sales summaries, product search, low stock, billing snapshot, dashboard link suggestions, screen help, feedback, export requests). Scoped to the signed-in business and active branch.
 - **Insights** — Dismissible insight cards at the top of the panel (`GET /api/copilot/insights`), aligned with the same business data as tools.
 - **Safety** — Per-user rate limits, optional resume token flow for sensitive actions (`POST /api/copilot/resume`), Redis-backed audit for tool use.
-- **Voice input** — **Web Speech API** in the composer (mic button): live transcript while speaking; works best in **Chrome** or **Edge**. Requires microphone permission; Safari support is limited.
+- **Voice input** — **English:** Web Speech API (mic): live transcript in Chrome or Edge. **Twi:** [Ghana NLP Khaya](https://translation.ghananlp.org) ASR via `POST /api/copilot/transcribe` (record in browser, server proxies to Khaya with `KHAYA_API_KEY`). Replies can follow **English / Twi** via the chat language toggle; Twi mode also exposes optional **TTS** (speaker icon) via `POST /api/copilot/tts`.
 
 | Path | Purpose |
 |------|---------|
-| `app/components/dashboard/copilot/` | Panel UI, chat, insights strip, speech hook |
-| `app/lib/copilot/` | Config, executor, tools registry, stream protocol |
+| `app/components/dashboard/copilot/` | Panel UI, chat, insights strip, speech hooks |
+| `app/lib/copilot/` | Config, executor, tools registry, stream protocol, Khaya helpers |
 | `app/api/copilot/chat` | Authenticated streaming chat |
+| `app/api/copilot/transcribe` | Khaya ASR proxy (e.g. Twi) |
+| `app/api/copilot/tts` | Khaya TTS proxy (e.g. Twi) |
 | `app/api/copilot/insights` | Insight payloads for the strip |
 | `app/api/copilot/resume` | Confirm gated copilot actions (e.g. export approval) |
 
@@ -680,6 +682,8 @@ ventrapos/
 | `/api/sales/*` | GET | Sales analytics (overview, revenue, profit, etc.) |
 | `/api/dashboard/home` | GET | Dashboard KPIs with Redis caching |
 | `/api/copilot/chat` | POST | AI Copilot — streaming chat (Gemini + tools) |
+| `/api/copilot/transcribe` | POST | Khaya ASR proxy (e.g. Twi voice input) |
+| `/api/copilot/tts` | POST | Khaya TTS proxy (e.g. Twi playback) |
 | `/api/copilot/insights` | GET | Copilot insight cards (sales, stock, billing hints) |
 | `/api/copilot/resume` | POST | Resume / confirm gated copilot actions |
 | `/api/finance/expenses` | GET, POST | List/create expenses |
@@ -732,6 +736,8 @@ See `DESIGN.md` and `.cursor/rules/design-system.mdc` for full details.
 | `RESEND_API_KEY` | Email service API key |
 | `JWT_SECRET` | Secret for signing JWTs (min 32 chars in production) |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | **Copilot:** Google AI Studio / Gemini API key ([Google AI Studio](https://aistudio.google.com/apikey)) |
+| `KHAYA_API_KEY` | **Copilot Twi voice / TTS:** subscription key from [Ghana NLP / Khaya](https://translation.ghananlp.org) (`Ocp-Apim-Subscription-Key`); required for Twi mic and optional listen-back |
+| `KHAYA_API_BASE_URL` | Optional — override Khaya API base (default `https://translation-api.ghananlp.org`) |
 | `COPILOT_GEMINI_MODEL` | Optional — Gemini model id (default `gemini-2.5-flash`) |
 | `COPILOT_MAX_STEPS` | Optional — max agent steps per request (default `12`) |
 | `COPILOT_DAILY_CAP_PER_USER` | Optional — max Copilot chat requests per user per day (default `200`) |

@@ -5,6 +5,7 @@ import { getActiveBranchId } from "@/server/auth/get-branch-id";
 import { buildCopilotScope } from "@/app/lib/copilot/scope";
 import { isCopilotRateLimited } from "@/app/lib/copilot/rate-limit";
 import { orchestrateCopilotChat } from "@/app/lib/copilot/executor/orchestrate";
+import type { CopilotPreferredLanguage } from "@/app/lib/copilot/prompts/system";
 import { encodeCopilotEvent } from "@/app/lib/copilot/stream/serialize";
 import type { CopilotStreamEvent } from "@/app/lib/copilot/stream/events";
 
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
       messages?: unknown;
       pathname?: string;
       threadId?: string;
+      preferredLanguage?: CopilotPreferredLanguage;
     };
 
     if (body.messages === undefined) {
@@ -54,9 +56,13 @@ export async function POST(req: Request) {
           controller.enqueue(enc.encode(encodeCopilotEvent(ev)));
         };
         try {
+          const pl = body.preferredLanguage;
+          const preferredLanguage: CopilotPreferredLanguage =
+            pl === "tw" || pl === "gaa" || pl === "ee" ? pl : "en";
           await orchestrateCopilotChat({
             scope,
             messages: body.messages,
+            preferredLanguage,
             onEvent: push,
           });
         } catch (e) {

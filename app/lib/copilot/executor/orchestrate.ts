@@ -12,14 +12,17 @@ import {
 } from "../config";
 import { logCopilotAudit } from "../audit";
 import type { CopilotScope } from "../scope";
-import { buildCopilotSystemPrompt } from "../prompts/system";
+import {
+  buildCopilotSystemPrompt,
+  type CopilotPreferredLanguage,
+} from "../prompts/system";
 import type { CopilotStreamEvent } from "../stream/events";
-import { encodeCopilotEvent } from "../stream/serialize";
 import { buildCopilotToolSet } from "../tools/registry";
 
 export async function orchestrateCopilotChat(options: {
   scope: CopilotScope;
   messages: unknown;
+  preferredLanguage?: CopilotPreferredLanguage;
   onEvent: (e: CopilotStreamEvent) => void;
 }): Promise<void> {
   assertGoogleApiKeyConfigured();
@@ -38,7 +41,9 @@ export async function orchestrateCopilotChat(options: {
 
   const result = streamText({
     model,
-    system: buildCopilotSystemPrompt(options.scope),
+    system: buildCopilotSystemPrompt(options.scope, {
+      preferredLanguage: options.preferredLanguage ?? "en",
+    }),
     messages: modelMessages,
     tools,
     stopWhen: stepCountIs(getCopilotMaxSteps()),

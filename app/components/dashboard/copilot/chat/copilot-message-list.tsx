@@ -1,6 +1,10 @@
 "use client";
 
 import { CopilotMarkdown } from "./copilot-markdown";
+import {
+  CopilotKhayaPlay,
+  type KhayaPlayTtsLanguage,
+} from "./copilot-khaya-play";
 import { CopilotToolTimeline } from "../tools/copilot-tool-timeline";
 import type { ChatTurn, ToolRowState } from "../types";
 
@@ -9,11 +13,14 @@ export function CopilotMessageList({
   pendingText,
   pendingTools,
   streaming,
+  khayaTtsLanguage,
 }: {
   turns: ChatTurn[];
   pendingText: string;
   pendingTools: ToolRowState[];
   streaming: boolean;
+  /** Khaya TTS language for listen button (Twi / Ga / Ewe); omit when English */
+  khayaTtsLanguage?: KhayaPlayTtsLanguage;
 }) {
   return (
     <div className="space-y-4 px-3 py-4">
@@ -27,7 +34,17 @@ export function CopilotMessageList({
           }
         >
           {t.role === "assistant" ? (
-            <CopilotMarkdown text={t.content} />
+            <div className="flex gap-2">
+              <div className="min-w-0 flex-1">
+                <CopilotMarkdown text={t.content} />
+              </div>
+              {khayaTtsLanguage ? (
+                <CopilotKhayaPlay
+                  text={t.content}
+                  ttsLanguage={khayaTtsLanguage}
+                />
+              ) : null}
+            </div>
           ) : (
             <p className="whitespace-pre-wrap">{t.content}</p>
           )}
