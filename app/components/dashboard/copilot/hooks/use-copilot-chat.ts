@@ -2,6 +2,7 @@
 
 import { nanoid } from "nanoid";
 import { useCallback, useState } from "react";
+import type { CopilotPreferredLanguage } from "@/app/lib/copilot/prompts/system";
 import type { ChatTurn, ToolRowState } from "../types";
 
 type UiMessage = {
@@ -18,7 +19,10 @@ function turnsToUiMessages(turns: ChatTurn[]): UiMessage[] {
   }));
 }
 
-export function useCopilotChat(pathname: string) {
+export function useCopilotChat(
+  pathname: string,
+  preferredLanguage: CopilotPreferredLanguage = "en",
+) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [pendingText, setPendingText] = useState("");
   const [pendingTools, setPendingTools] = useState<ToolRowState[]>([]);
@@ -49,7 +53,11 @@ export function useCopilotChat(pathname: string) {
         const res = await fetch("/api/copilot/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: uiMessages, pathname }),
+          body: JSON.stringify({
+            messages: uiMessages,
+            pathname,
+            preferredLanguage,
+          }),
         });
 
         if (!res.ok) {
@@ -126,7 +134,7 @@ export function useCopilotChat(pathname: string) {
         setPendingText("");
       }
     },
-    [turns, streaming, pathname],
+    [turns, streaming, pathname, preferredLanguage],
   );
 
   return {
