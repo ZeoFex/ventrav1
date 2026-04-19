@@ -8,10 +8,12 @@ import { navSuggestionsTool } from "./read/nav-suggestions";
 import { salesSummaryTool } from "./read/sales-summary";
 import { requestSalesExportTool } from "./write/request-export";
 import { saveCopilotFeedbackTool } from "./write/save-feedback";
+import { merchantAnalyticsTool } from "./read/merchant-analytics";
 
 export function buildCopilotToolSet(ctx: CopilotScope): ToolSet {
   return {
     get_sales_summary: salesSummaryTool(ctx),
+    get_merchant_analytics: merchantAnalyticsTool(ctx),
     search_products: inventorySearchTool(ctx),
     list_low_stock: lowStockTool(ctx),
     get_billing_subscription_status: billingStatusTool(ctx),

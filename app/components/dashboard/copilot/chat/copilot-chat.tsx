@@ -70,15 +70,15 @@ export function CopilotChat() {
               Ask anything about your store
             </p>
             <p className="mt-2 text-[13px] text-muted-foreground">
-              Sales, stock, billing, or where to find a setting — powered by Gemini. Pick a
-              language: English uses browser dictation; Twi, Ga, and Ewe use Khaya for voice
-              and replies (set KHAYA_API_KEY on the server).
+              Trends, top products, slow movers, and ideas for promotions — grounded in your
+              data when available. Pick a language: English uses browser dictation; Twi, Ga, and
+              Ewe use Khaya for voice when configured.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {[
-                "How did sales compare to yesterday?",
-                "Which products are low on stock?",
-                "Where do I manage discounts?",
+                "What is our best selling product of all time?",
+                "Which day had the highest sales recently?",
+                "What products are selling slowly and what could we try?",
               ].map((q) => (
                 <button
                   key={q}

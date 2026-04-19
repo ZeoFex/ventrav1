@@ -18,6 +18,7 @@ describe("buildCopilotToolSet", () => {
       [
         "explain_screen",
         "get_billing_subscription_status",
+        "get_merchant_analytics",
         "get_sales_summary",
         "list_low_stock",
         "request_sales_export",
