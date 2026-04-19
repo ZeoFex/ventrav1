@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { verifyAccessToken } from "@/server/auth/token-service";
 import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { isCopilotRateLimited } from "@/app/lib/copilot/rate-limit";
+import { copilotAccessDeniedResponse } from "@/app/lib/copilot/plan-access";
 import {
   englishToKhayaTranslationPair,
   expandGhanaCedisForTts,
@@ -47,6 +48,9 @@ export async function POST(req: Request) {
     }
 
     const payload = await verifyAccessToken(token);
+    const planDenied = await copilotAccessDeniedResponse(payload.bid);
+    if (planDenied) return planDenied;
+
     if (await isCopilotRateLimited(payload.sub)) {
       return new Response(
         JSON.stringify({ error: "Copilot rate limit exceeded. Try again tomorrow." }),

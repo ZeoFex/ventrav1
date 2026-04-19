@@ -7,6 +7,9 @@
 
 export type PlanId = "starter" | "growth" | "pro";
 
+/** Feature id for Ventra Copilot (Pro-only). */
+export const COPILOT_FEATURE_ID = "copilot" as const;
+
 export const PLAN_LIMITS = {
   starter: { maxBranches: 1, maxStaff: 3, maxProducts: 500, maxTerminals: 1 },
   growth:  { maxBranches: 5, maxStaff: 15, maxProducts: 5000, maxTerminals: 3 },
@@ -54,6 +57,8 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     // Pro governance
     "audit-logs": false, "approval-workflows": false,
     "restricted-discounts": false, "cash-reconciliation": false,
+    // AI
+    "copilot": false,
   },
 
   // ── GROWTH ── Multi-branch · adv roles · barcode · refunds · deeper reports
@@ -84,6 +89,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "support": true,
     "audit-logs": false, "approval-workflows": false,
     "restricted-discounts": false, "cash-reconciliation": false,
+    "copilot": false,
   },
 
   // ── PRO ── Everything unlocked
@@ -114,6 +120,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "support": true,
     "audit-logs": true, "approval-workflows": true,
     "restricted-discounts": true, "cash-reconciliation": true,
+    "copilot": true,
   },
 };
 

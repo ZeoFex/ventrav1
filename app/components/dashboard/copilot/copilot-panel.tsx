@@ -8,11 +8,11 @@ import { CopilotInsightsStrip } from "./insights/copilot-insights-strip";
 import { CopilotConfirmDrawer } from "./gates/copilot-confirm-drawer";
 
 export function CopilotPanel() {
-  const { open, setOpen } = useCopilot();
+  const { open, setOpen, copilotEnabled } = useCopilot();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!copilotEnabled || !open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const t = window.setTimeout(() => {
@@ -22,18 +22,18 @@ export function CopilotPanel() {
       document.body.style.overflow = prev;
       window.clearTimeout(t);
     };
-  }, [open]);
+  }, [open, copilotEnabled]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!copilotEnabled || !open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, setOpen]);
+  }, [open, setOpen, copilotEnabled]);
 
-  if (!open) return null;
+  if (!copilotEnabled || !open) return null;
 
   return (
     <>

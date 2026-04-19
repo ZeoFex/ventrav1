@@ -44,6 +44,12 @@ const comparisonFeatures = [
             { name: "Priority Support & Onboarding", starter: false, growth: false, pro: true },
         ],
     },
+    {
+        category: "AI",
+        items: [
+            { name: "Ventra Copilot (in-dashboard assistant)", starter: false, growth: false, pro: true },
+        ],
+    },
 ];
 
 const containerVariants = {
