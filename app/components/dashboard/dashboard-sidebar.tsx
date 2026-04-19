@@ -3,6 +3,7 @@ import { ThemeToggle } from "@/app/components/theme-toggle";
 import { useDashboardNav } from "./dashboard-nav-context";
 import { SidebarBrand } from "./sidebar/sidebar-brand";
 import { SidebarNav } from "./sidebar/sidebar-nav";
+import { CopilotSidebarTrigger } from "./copilot";
 
 export function DashboardSidebarPanel({
   onNavigate,
@@ -38,6 +39,7 @@ export function DashboardSidebarPanel({
       </div>
 
       <div className="shrink-0 space-y-4 border-t border-[#bfc9c3]/15 px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:border-white/[0.06]">
+        <CopilotSidebarTrigger isCollapsed={isCollapsed} />
         <div className={`flex items-center gap-2 ${isCollapsed ? "flex-col" : "justify-between"}`}>
           <div className="flex flex-1 justify-center">
             <ThemeToggle />
