@@ -7,6 +7,7 @@ import { buildCopilotScope } from "@/app/lib/copilot/scope";
 import { verifyResumeToken } from "@/app/lib/copilot/resume-token";
 import { logCopilotAudit } from "@/app/lib/copilot/audit";
 import { withCopilotIdempotency } from "@/app/lib/copilot/idempotency";
+import { copilotAccessDeniedResponse } from "@/app/lib/copilot/plan-access";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,9 @@ export async function POST(req: Request) {
     }
 
     const payload = await verifyAccessToken(token);
+    const planDenied = await copilotAccessDeniedResponse(payload.bid);
+    if (planDenied) return planDenied;
+
     const body = (await req.json()) as {
       resumeToken?: string;
       confirm?: boolean;

@@ -60,6 +60,7 @@ export const PLANS: Plan[] = [
     highlighted: false,
     features: [
       "Everything in Growth, plus:",
+      "Ventra Copilot (AI assistant for your store)",
       "Audit logs & cash reconciliation",
       "Approval workflows & restricted discounts",
       "Register open/close controls",

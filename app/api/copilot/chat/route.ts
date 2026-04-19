@@ -8,6 +8,7 @@ import { orchestrateCopilotChat } from "@/app/lib/copilot/executor/orchestrate";
 import type { CopilotPreferredLanguage } from "@/app/lib/copilot/prompts/system";
 import { encodeCopilotEvent } from "@/app/lib/copilot/stream/serialize";
 import type { CopilotStreamEvent } from "@/app/lib/copilot/stream/events";
+import { copilotAccessDeniedResponse } from "@/app/lib/copilot/plan-access";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -25,6 +26,9 @@ export async function POST(req: Request) {
 
     const payload = await verifyAccessToken(token);
     const branchCookie = getActiveBranchId(cookieStore);
+
+    const planDenied = await copilotAccessDeniedResponse(payload.bid);
+    if (planDenied) return planDenied;
 
     if (await isCopilotRateLimited(payload.sub)) {
       return new Response(

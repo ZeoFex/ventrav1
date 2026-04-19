@@ -9,6 +9,7 @@ import {
   khayaAsrUrl,
   parseKhayaAsrJson,
 } from "@/app/lib/copilot/khaya";
+import { copilotAccessDeniedResponse } from "@/app/lib/copilot/plan-access";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,6 +28,9 @@ export async function POST(req: Request) {
     }
 
     const payload = await verifyAccessToken(token);
+    const planDenied = await copilotAccessDeniedResponse(payload.bid);
+    if (planDenied) return planDenied;
+
     if (await isCopilotRateLimited(payload.sub)) {
       return new Response(
         JSON.stringify({ error: "Copilot rate limit exceeded. Try again tomorrow." }),

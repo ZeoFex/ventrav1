@@ -4,6 +4,7 @@ import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { getActiveBranchId } from "@/server/auth/get-branch-id";
 import { buildCopilotScope } from "@/app/lib/copilot/scope";
 import { computeCopilotInsights } from "@/app/lib/copilot/insights-data";
+import { copilotAccessDeniedResponse } from "@/app/lib/copilot/plan-access";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,9 @@ export async function GET() {
     }
 
     const payload = await verifyAccessToken(token);
+    const planDenied = await copilotAccessDeniedResponse(payload.bid);
+    if (planDenied) return planDenied;
+
     const branchId = getActiveBranchId(cookieStore);
     const scope = buildCopilotScope(payload, branchId, null);
     const insights = await computeCopilotInsights(scope);
