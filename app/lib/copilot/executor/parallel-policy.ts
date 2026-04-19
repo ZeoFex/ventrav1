@@ -4,6 +4,7 @@
  */
 export const READ_TOOL_NAMES = new Set([
   "get_sales_summary",
+  "get_merchant_analytics",
   "search_products",
   "list_low_stock",
   "get_billing_subscription_status",
