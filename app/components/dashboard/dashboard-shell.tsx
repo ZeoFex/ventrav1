@@ -17,6 +17,7 @@ import { OfflineBanner } from "./offline-banner";
 import { initOfflineSync } from "@/app/lib/offline/offline-sync";
 import { GlobalCartIndicator } from "./pos/global-cart-indicator";
 import { TrialBanner } from "./trial-banner";
+import { CopilotPanel, CopilotProvider } from "./copilot";
 
 function DashboardShellFrame({
   children,
@@ -83,6 +84,7 @@ function DashboardShellFrame({
         </div>
       </div>
       <GlobalCartIndicator />
+      <CopilotPanel />
     </div>
   );
 }
@@ -99,9 +101,11 @@ export function DashboardShell({
     <DashboardNavProvider>
       <BranchProvider>
         <GlobalCartProvider>
-          <DashboardShellFrame userDisplayName={userDisplayName}>
-            {children}
-          </DashboardShellFrame>
+          <CopilotProvider>
+            <DashboardShellFrame userDisplayName={userDisplayName}>
+              {children}
+            </DashboardShellFrame>
+          </CopilotProvider>
         </GlobalCartProvider>
       </BranchProvider>
     </DashboardNavProvider>
