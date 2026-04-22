@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { useMemo, useState } from "react";
-import { Plus, Search, Filter, ReceiptText, Loader2, Check, X, ChevronDown, Calendar } from "lucide-react";
+import { Plus, Search, Filter, ReceiptText, Loader2, Check, X, Calendar, Trash2 } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { useBranchContext } from "../branch-context";
 import { toast } from "sonner";
@@ -64,6 +64,7 @@ export function ExpensesView() {
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const filteredExpenses = useMemo(() => {
         if (!expenses) return [];
@@ -98,6 +99,28 @@ export function ExpensesView() {
             toast.error("Failed to update status");
         } finally {
             setUpdatingId(null);
+        }
+    }
+
+    async function removeExpense(expense: { id: string; description: string }) {
+        if (deletingId) return;
+        const ok = window.confirm(
+            `Delete this expense?\n\n${expense.description}\n\nThis cannot be undone.`,
+        );
+        if (!ok) return;
+
+        setDeletingId(expense.id);
+        try {
+            const res = await fetch(`/api/finance/expenses/${expense.id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error("Failed to delete");
+            await mutate();
+            toast.success("Expense deleted");
+        } catch {
+            toast.error("Could not delete expense");
+        } finally {
+            setDeletingId(null);
         }
     }
 
@@ -245,7 +268,7 @@ export function ExpensesView() {
                                         </button>
                                     </div>
                                     
-                                    <div className="flex items-end justify-between pt-4 border-t dark:border-white/5">
+                                    <div className="flex items-end justify-between gap-3 pt-4 border-t dark:border-white/5">
                                         <div className="space-y-0.5">
                                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground opacity-60">Date</p>
                                             <p className="text-[13px] font-medium text-foreground">{formatDate(exp.date)}</p>
@@ -254,6 +277,21 @@ export function ExpensesView() {
                                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground opacity-60">Amount</p>
                                             <p className="text-[18px] font-bold text-foreground font-[family-name:var(--font-display)]">{formatGhs(exp.amount)}</p>
                                         </div>
+                                    </div>
+                                    <div className="mt-3 flex justify-end border-t border-dashed pt-3 dark:border-white/10">
+                                        <button
+                                            type="button"
+                                            onClick={() => removeExpense(exp)}
+                                            disabled={deletingId === exp.id}
+                                            className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+                                        >
+                                            {deletingId === exp.id ? (
+                                                <Loader2 className="size-3.5 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="size-3.5" />
+                                            )}
+                                            Delete
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -269,6 +307,7 @@ export function ExpensesView() {
                                         <th className="px-6 py-4">Category</th>
                                         <th className="px-6 py-4 text-right">Amount</th>
                                         <th className="px-6 py-4 text-center">Status</th>
+                                        <th className="px-6 py-4 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#f0f2f4] dark:divide-white/[0.04]">
@@ -315,6 +354,21 @@ export function ExpensesView() {
                                                         exp.status === "Paid" ? <Check className="size-3" /> : <X className="size-3" />
                                                     )}
                                                     {exp.status}
+                                                </button>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeExpense(exp)}
+                                                    disabled={deletingId === exp.id}
+                                                    title="Delete expense"
+                                                    className="inline-flex size-9 items-center justify-center rounded-xl border border-red-200 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/40"
+                                                >
+                                                    {deletingId === exp.id ? (
+                                                        <Loader2 className="size-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="size-4" />
+                                                    )}
                                                 </button>
                                             </td>
                                         </tr>

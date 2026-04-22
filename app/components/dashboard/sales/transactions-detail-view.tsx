@@ -1,9 +1,10 @@
 "use client";
 
 import useSWR from "swr";
+import Link from "next/link";
 import { SalesDetailLayout } from "./sales-detail-layout";
-import { Search, Download, Loader2, Users, User, X, ChevronDown, Check, Printer, FileText, Table as TableIcon, Package } from "lucide-react";
-import { useState } from "react";
+import { Search, Download, Loader2, Users, User, X, ChevronDown, Check, Printer, FileText, Table as TableIcon, Package, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useSession } from "../../auth/use-session";
 import { exportToExcel, exportToCSV } from "@/app/utils/export-utils";
 import {
@@ -38,9 +39,11 @@ type TransactionDetailLine = {
     variationId: string | null;
     productName: string;
     quantity: number;
+    quantityReturned: number;
     unitPriceGhs: string;
     lineTotalGhs: string;
     sku: string | null;
+    barcode: string | null;
     imageSrc: string | null;
 };
 
@@ -89,10 +92,23 @@ export function TransactionsDetailView() {
     const [staffOpen, setStaffOpen] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
     const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
     // Fetch transactions with staff filter
     const { data, isLoading } = useSWR(`/api/sales/transactions${staffId ? `?staffId=${staffId}` : ""}`, fetcher);
     const transactions: Transaction[] = Array.isArray(data) ? data : [];
+
+    const filteredTransactions = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return transactions;
+        return transactions.filter(
+            (t) =>
+                t.invoiceId.toLowerCase().includes(q) ||
+                t.paymentMethod.toLowerCase().includes(q) ||
+                (t.staffName || "").toLowerCase().includes(q) ||
+                t.status.toLowerCase().includes(q),
+        );
+    }, [transactions, searchQuery]);
 
     const {
         data: detailData,
@@ -122,7 +138,7 @@ export function TransactionsDetailView() {
             { header: "Status", key: "status", width: 15 },
         ];
 
-        const exportData = transactions.map(t => ({
+        const exportData = filteredTransactions.map(t => ({
             invoiceId: t.invoiceId,
             date: formatDate(t.createdAt),
             staff: t.staffName || "System",
@@ -152,7 +168,7 @@ export function TransactionsDetailView() {
             { header: "Status", key: "status" },
         ];
 
-        const exportData = transactions.map(t => ({
+        const exportData = filteredTransactions.map(t => ({
             invoiceId: t.invoiceId,
             date: formatDate(t.createdAt),
             staff: t.staffName || "System",
@@ -171,22 +187,24 @@ export function TransactionsDetailView() {
             title="Total Transactions"
             description="A complete log of every transaction processed through the system. Click a row to see items sold."
             actions={
-                <div className="flex items-center gap-3">
+                <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                     <button
+                        type="button"
                         onClick={() => window.print()}
-                        className="flex items-center gap-2 rounded-xl border border-[#eef0f2] bg-white px-4 py-2 text-[13px] font-semibold text-foreground hover:bg-muted/50 dark:border-white/[0.08] dark:bg-[#111]"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#eef0f2] bg-white px-4 text-[13px] font-semibold text-foreground hover:bg-muted/50 sm:w-auto dark:border-white/[0.08] dark:bg-[#111]"
                     >
-                        <Printer className="size-4" />
+                        <Printer className="size-4 shrink-0" />
                         Print
                     </button>
-                    <div className="relative">
+                    <div className="relative w-full sm:w-auto">
                         <button
+                            type="button"
                             onClick={() => setExportOpen(!exportOpen)}
-                            className="flex items-center gap-2 rounded-xl bg-[#006c49] px-4 py-2 text-[13px] font-semibold text-white shadow-lg hover:brightness-110"
+                            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#006c49] px-4 text-[13px] font-semibold text-white shadow-lg hover:brightness-110 sm:w-auto"
                         >
-                            <Download className="size-4" />
+                            <Download className="size-4 shrink-0" />
                             Export Data
-                            <ChevronDown className={`size-3.5 transition-transform ${exportOpen ? "rotate-180" : ""}`} />
+                            <ChevronDown className={`size-3.5 shrink-0 transition-transform ${exportOpen ? "rotate-180" : ""}`} />
                         </button>
 
                         {exportOpen && (
@@ -215,23 +233,28 @@ export function TransactionsDetailView() {
             }
         >
             <div className="flex flex-col gap-4 print-container">
-                {/* FILTERS */}
-                <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                {/* FILTERS — stack on phone, row on tablet+ */}
+                <div className="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-4">
+                    <div className="relative min-w-0 flex-1">
+                        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <input
-                            placeholder="Search by invoice ID or payment method..."
-                            className="h-11 w-full rounded-2xl border border-[#eef0f2] bg-white pl-10 pr-4 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-4 focus:ring-[#006c49]/05 dark:border-white/[0.08] dark:bg-[#111]"
+                            type="search"
+                            enterKeyHint="search"
+                            autoComplete="off"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Invoice, payment method, staff…"
+                            className="h-11 w-full min-w-0 rounded-2xl border border-[#eef0f2] bg-white pl-10 pr-4 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-4 focus:ring-[#006c49]/05 dark:border-white/[0.08] dark:bg-[#111]"
                         />
                     </div>
 
                     {isAdmin && (
-                        <div className="flex items-center gap-3">
-                            <div className="relative">
+                        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center md:w-auto md:shrink-0">
+                            <div className="relative w-full sm:min-w-[200px] md:w-[220px]">
                                 <button
                                     type="button"
                                     onClick={() => setStaffOpen((v) => !v)}
-                                    className="flex h-11 min-w-[200px] items-center gap-2.5 rounded-2xl border border-[#eef0f2] bg-white px-4 text-[14px] font-semibold text-foreground outline-none hover:border-[#006c49]/30 focus:border-[#006c49]/40 focus:ring-4 focus:ring-[#006c49]/05 dark:border-white/[0.08] dark:bg-[#111] cursor-pointer transition-all"
+                                    className="flex h-11 w-full items-center gap-2.5 rounded-2xl border border-[#eef0f2] bg-white px-4 text-[14px] font-semibold text-foreground outline-none hover:border-[#006c49]/30 focus:border-[#006c49]/40 focus:ring-4 focus:ring-[#006c49]/05 dark:border-white/[0.08] dark:bg-[#111] cursor-pointer transition-all"
                                 >
                                     <Users className="size-4 shrink-0 text-[#006c49] dark:text-[#6ffbbe]" />
                                     <span className="flex-1 truncate text-left">
@@ -277,8 +300,9 @@ export function TransactionsDetailView() {
                             </div>
                             {staffId && (
                                 <button
+                                    type="button"
                                     onClick={() => setStaffId("")}
-                                    className="flex size-11 items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 transition-colors dark:border-red-900/30 dark:bg-red-900/20"
+                                    className="flex h-11 w-full shrink-0 items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 transition-colors sm:size-11 sm:w-11 dark:border-red-900/30 dark:bg-red-900/20"
                                     title="Clear filter"
                                 >
                                     <X className="size-4" />
@@ -288,77 +312,131 @@ export function TransactionsDetailView() {
                     )}
                 </div>
 
-                {/* TABLE */}
+                {/* MOBILE + TABLET: cards through md; DESKTOP: table */}
                 <div className="overflow-hidden rounded-2xl border border-[#eef0f2] bg-white dark:border-white/[0.08] dark:bg-[#111]">
                     {isLoading ? (
                         <div className="flex h-64 items-center justify-center">
                             <Loader2 className="size-6 animate-spin text-muted-foreground opacity-30" />
                         </div>
                     ) : transactions.length === 0 ? (
-                        <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+                        <div className="flex h-64 items-center justify-center px-4 text-center text-sm text-muted-foreground">
                             No transactions yet. Complete a sale to see it here.
                         </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-[14px]">
-                                <thead className="border-b border-[#f0f2f4] bg-muted/10 text-[12px] uppercase tracking-wider text-muted-foreground dark:border-white/[0.04]">
-                                    <tr>
-                                        <th className="px-6 py-4 font-semibold text-muted-foreground whitespace-nowrap">Invoice</th>
-                                        <th className="px-6 py-4 font-semibold text-muted-foreground whitespace-nowrap">Date</th>
-                                        <th className="px-6 py-4 font-semibold text-muted-foreground whitespace-nowrap">Staff</th>
-                                        <th className="px-6 py-4 font-semibold text-muted-foreground whitespace-nowrap">Items</th>
-                                        <th className="px-6 py-4 font-semibold text-muted-foreground whitespace-nowrap text-right">Total</th>
-                                        <th className="px-6 py-4 font-semibold text-muted-foreground whitespace-nowrap">Method</th>
-                                        <th className="px-6 py-4 font-semibold text-muted-foreground whitespace-nowrap">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[#f0f2f4] dark:divide-white/[0.04]">
-                                    {transactions.map((trx) => (
-                                        <tr
-                                            key={trx.id}
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={() => setSelectedSaleId(trx.id)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter" || e.key === " ") {
-                                                    e.preventDefault();
-                                                    setSelectedSaleId(trx.id);
-                                                }
-                                            }}
-                                            className="group cursor-pointer transition-colors hover:bg-surface-elevated/50 dark:hover:bg-white/[0.02] focus-visible:bg-surface-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#006c49]/30 dark:focus-visible:ring-[#6ffbbe]/30"
-                                        >
-                                            <td className="px-6 py-4 font-medium text-foreground">{trx.invoiceId}</td>
-                                            <td className="px-6 py-4 text-muted-foreground">{formatDate(trx.createdAt)}</td>
-                                            <td className="px-6 py-4">
-                                                <span className="inline-flex items-center rounded-lg bg-[#006c49]/5 px-2.5 py-1 text-[12px] font-bold text-[#006c49] border border-[#006c49]/10 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe] dark:border-[#6ffbbe]/20">
-                                                    <User className="mr-1.5 size-3 opacity-70" />
-                                                    {trx.staffName || "Owner / System"}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-muted-foreground">{trx.itemCount} items</td>
-                                            <td className="px-6 py-4 text-right font-[family-name:var(--font-display)] font-semibold text-foreground">
-                                                {formatGhs(Number(trx.totalGhs))}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="capitalize text-muted-foreground">
-                                                    {trx.paymentMethod}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${trx.status === "completed"
-                                                    ? "bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
-                                                    : trx.status === "refunded"
-                                                        ? "bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400"
-                                                        : "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
-                                                    }`}>
-                                                    {trx.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                    ) : filteredTransactions.length === 0 ? (
+                        <div className="flex h-48 items-center justify-center px-4 text-center text-sm text-muted-foreground">
+                            No transactions match your search. Try a different invoice or keyword.
                         </div>
+                    ) : (
+                        <>
+                            <ul className="divide-y divide-[#f0f2f4] md:hidden dark:divide-white/[0.06]">
+                                {filteredTransactions.map((trx) => (
+                                    <li key={trx.id}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedSaleId(trx.id)}
+                                            className="flex w-full items-stretch gap-3 p-4 text-left transition-colors hover:bg-muted/30 active:bg-muted/50 dark:hover:bg-white/[0.03]"
+                                        >
+                                            <div className="min-w-0 flex-1 space-y-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-mono text-[13px] font-semibold text-foreground">
+                                                        {trx.invoiceId}
+                                                    </span>
+                                                    <span
+                                                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${trx.status === "completed"
+                                                            ? "bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                                                            : trx.status === "refunded"
+                                                              ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                                              : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                                            }`}
+                                                    >
+                                                        {trx.status}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[12px] text-muted-foreground">
+                                                    {formatDate(trx.createdAt)}
+                                                </p>
+                                                <p className="text-[12px] text-muted-foreground">
+                                                    <span className="capitalize">{trx.paymentMethod}</span>
+                                                    {" · "}
+                                                    {trx.itemCount} items
+                                                </p>
+                                                <p className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#006c49] dark:text-[#6ffbbe]">
+                                                    <User className="size-3.5 opacity-80" />
+                                                    <span className="truncate">{trx.staffName || "Owner / System"}</span>
+                                                </p>
+                                            </div>
+                                            <div className="flex shrink-0 flex-col items-end justify-between gap-2">
+                                                <p className="font-[family-name:var(--font-display)] text-base font-bold tabular-nums text-foreground">
+                                                    {formatGhs(Number(trx.totalGhs))}
+                                                </p>
+                                                <ChevronRight className="size-5 text-muted-foreground opacity-50" aria-hidden />
+                                            </div>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            <div className="hidden md:block md:overflow-x-auto">
+                                <table className="w-full min-w-[720px] text-left text-[14px]">
+                                    <thead className="border-b border-[#f0f2f4] bg-muted/10 text-[11px] uppercase tracking-wider text-muted-foreground dark:border-white/[0.04]">
+                                        <tr>
+                                            <th className="px-4 py-3 font-semibold whitespace-nowrap lg:px-6 lg:py-4">Invoice</th>
+                                            <th className="px-4 py-3 font-semibold whitespace-nowrap lg:px-6 lg:py-4">Date</th>
+                                            <th className="px-4 py-3 font-semibold whitespace-nowrap lg:px-6 lg:py-4">Staff</th>
+                                            <th className="px-4 py-3 font-semibold whitespace-nowrap lg:px-6 lg:py-4">Items</th>
+                                            <th className="px-4 py-3 text-right font-semibold whitespace-nowrap lg:px-6 lg:py-4">Total</th>
+                                            <th className="px-4 py-3 font-semibold whitespace-nowrap lg:px-6 lg:py-4">Method</th>
+                                            <th className="px-4 py-3 font-semibold whitespace-nowrap lg:px-6 lg:py-4">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#f0f2f4] dark:divide-white/[0.04]">
+                                        {filteredTransactions.map((trx) => (
+                                            <tr
+                                                key={trx.id}
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={() => setSelectedSaleId(trx.id)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") {
+                                                        e.preventDefault();
+                                                        setSelectedSaleId(trx.id);
+                                                    }
+                                                }}
+                                                className="group cursor-pointer transition-colors hover:bg-surface-elevated/50 dark:hover:bg-white/[0.02] focus-visible:bg-surface-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#006c49]/30 dark:focus-visible:ring-[#6ffbbe]/30"
+                                            >
+                                                <td className="px-4 py-3 font-medium text-foreground lg:px-6 lg:py-4">{trx.invoiceId}</td>
+                                                <td className="px-4 py-3 text-[13px] text-muted-foreground lg:px-6 lg:py-4">{formatDate(trx.createdAt)}</td>
+                                                <td className="px-4 py-3 lg:px-6 lg:py-4">
+                                                    <span className="inline-flex max-w-[140px] items-center truncate rounded-lg bg-[#006c49]/5 px-2 py-1 text-[11px] font-bold text-[#006c49] border border-[#006c49]/10 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe] dark:border-[#6ffbbe]/20 lg:max-w-[180px] lg:text-[12px]">
+                                                        <User className="mr-1 size-3 shrink-0 opacity-70" />
+                                                        <span className="truncate">{trx.staffName || "Owner / System"}</span>
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-muted-foreground lg:px-6 lg:py-4">{trx.itemCount} items</td>
+                                                <td className="px-4 py-3 text-right font-[family-name:var(--font-display)] text-[13px] font-semibold text-foreground lg:px-6 lg:py-4 lg:text-[14px]">
+                                                    {formatGhs(Number(trx.totalGhs))}
+                                                </td>
+                                                <td className="px-4 py-3 lg:px-6 lg:py-4">
+                                                    <span className="capitalize text-[13px] text-muted-foreground">
+                                                        {trx.paymentMethod}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 lg:px-6 lg:py-4">
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold lg:text-[11px] ${trx.status === "completed"
+                                                        ? "bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                                                        : trx.status === "refunded"
+                                                            ? "bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400"
+                                                            : "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
+                                                        }`}>
+                                                        {trx.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
@@ -426,6 +504,15 @@ export function TransactionsDetailView() {
                             </div>
                         </div>
 
+                        {(saleDetail.sale.status === "completed" || saleDetail.sale.status === "partially_refunded") && (
+                            <Link
+                                href={`/dashboard/sales/refunds?saleId=${saleDetail.sale.id}`}
+                                className="inline-flex w-full items-center justify-center rounded-xl border border-[#006c49]/30 bg-[#006c49]/10 px-4 py-2.5 text-[13px] font-medium text-[#006c49] transition hover:bg-[#006c49]/15 dark:border-[#6ffbbe]/25 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                            >
+                                Process return
+                            </Link>
+                        )}
+
                         <div>
                             <p className="mb-2 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
                                 <Package className="size-3.5" aria-hidden />
@@ -455,8 +542,12 @@ export function TransactionsDetailView() {
                                             {line.sku ? (
                                                 <p className="mt-0.5 text-[12px] text-muted-foreground">SKU {line.sku}</p>
                                             ) : null}
+                                            {line.barcode ? (
+                                                <p className="mt-0.5 text-[12px] text-muted-foreground">Barcode {line.barcode}</p>
+                                            ) : null}
                                             <p className="mt-1 text-[12px] text-muted-foreground">
-                                                {line.quantity} × {formatGhs(Number(line.unitPriceGhs))}
+                                                {line.quantity - (line.quantityReturned ?? 0)} sellable · {line.quantityReturned ?? 0} returned ·{" "}
+                                                {formatGhs(Number(line.unitPriceGhs))} each
                                             </p>
                                         </div>
                                         <div className="shrink-0 text-right">

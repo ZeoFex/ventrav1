@@ -1,7 +1,7 @@
-import { eq, sql, and, gte, lte, desc } from "drizzle-orm";
+import { eq, sql, and, gte, lte, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { products, categories, productVariations } from "../db/schema/products";
-import { sales, saleItems } from "../db/schema/sales";
+import { sales, saleItems, REVENUE_SALE_STATUSES } from "../db/schema/sales";
 import { notifications } from "../db/schema/notifications";
 import { redis } from "../lib/redis";
 
@@ -10,6 +10,18 @@ const CACHE_KEYS = {
     SALES_OVERVIEW: (bizId: string, brn?: string | null) => `sales:biz_${bizId}:brn_${brn || 'all'}:overview`,
     DASHBOARD_HOME: (bizId: string, brn?: string | null) => `dashboard:biz_${bizId}:brn_${brn || 'all'}:home`,
 };
+
+/** Shared with return flow — invalidates product list, sales overview, and dashboard home caches. */
+export async function invalidatePosBusinessCaches(businessId: string, branchId?: string | null) {
+    await Promise.all([
+        redis.del(CACHE_KEYS.PRODUCTS_LIST(businessId, branchId)),
+        redis.del(CACHE_KEYS.SALES_OVERVIEW(businessId, branchId)),
+        redis.del(CACHE_KEYS.DASHBOARD_HOME(businessId, branchId)),
+        redis.del(CACHE_KEYS.PRODUCTS_LIST(businessId)),
+        redis.del(CACHE_KEYS.SALES_OVERVIEW(businessId)),
+        redis.del(CACHE_KEYS.DASHBOARD_HOME(businessId)),
+    ]);
+}
 
 /** Returns an eq() filter for branchId when set, or undefined (skipped by `and()`). */
 function branchFilter(branchId?: string | null) {
@@ -117,16 +129,7 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
         return { saleId: sale.id };
     });
 
-    // Invalidate caches
-    await Promise.all([
-        redis.del(CACHE_KEYS.PRODUCTS_LIST(businessId, branchId)),
-        redis.del(CACHE_KEYS.SALES_OVERVIEW(businessId, branchId)),
-        redis.del(CACHE_KEYS.DASHBOARD_HOME(businessId, branchId)),
-        // Also invalidate "all branches" aggregate caches
-        redis.del(CACHE_KEYS.PRODUCTS_LIST(businessId)),
-        redis.del(CACHE_KEYS.SALES_OVERVIEW(businessId)),
-        redis.del(CACHE_KEYS.DASHBOARD_HOME(businessId)),
-    ]);
+    await invalidatePosBusinessCaches(businessId, branchId);
 
     return result;
 }
@@ -164,7 +167,7 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, sevenDaysAgo),
-                eq(sales.status, "completed"),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
             )),
 
         // 2. Previous period metrics (for trend)
@@ -179,7 +182,7 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
                 branchFilter(branchId),
                 gte(sales.createdAt, fourteenDaysAgo),
                 lte(sales.createdAt, sevenDaysAgo),
-                eq(sales.status, "completed"),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
             )),
 
         // 3. Daily revenue for chart (last 7 days)
@@ -193,7 +196,7 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, sevenDaysAgo),
-                eq(sales.status, "completed"),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
             ))
             .groupBy(
                 sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'Dy')`,
@@ -205,7 +208,7 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
         db.select({
             productId: saleItems.productId,
             productName: saleItems.productName,
-            unitsSold: sql<number>`SUM(${saleItems.quantity})::int`,
+            unitsSold: sql<number>`SUM((${saleItems.quantity} - ${saleItems.quantityReturned})::int)`,
             revenue: sql<string>`SUM(${saleItems.lineTotalGhs}::numeric)`,
             imageSrc: products.imageSrc,
         })
@@ -216,7 +219,7 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, sevenDaysAgo),
-                eq(sales.status, "completed"),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
             ))
             .groupBy(saleItems.productId, saleItems.productName, products.imageSrc)
             .orderBy(desc(sql`SUM(${saleItems.lineTotalGhs}::numeric)`))
@@ -292,7 +295,7 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, todayStart),
-                eq(sales.status, "completed"),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
             )),
 
         // 2. Yesterday's stats (for trend)
@@ -305,7 +308,7 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
                 branchFilter(branchId),
                 gte(sales.createdAt, yesterdayStart),
                 lte(sales.createdAt, todayStart),
-                eq(sales.status, "completed"),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
             )),
 
         // 3. Recent activity (last 10)
@@ -377,7 +380,7 @@ export async function getRevenueDetails(businessId: string, periodDays: number =
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, todayStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             )),
 
         db.select({
@@ -389,7 +392,7 @@ export async function getRevenueDetails(businessId: string, periodDays: number =
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, periodStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             ))
             .groupBy(sales.paymentMethod),
 
@@ -401,7 +404,7 @@ export async function getRevenueDetails(businessId: string, periodDays: number =
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, periodStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             )),
 
         db.select({
@@ -413,7 +416,7 @@ export async function getRevenueDetails(businessId: string, periodDays: number =
                 branchFilter(branchId),
                 gte(sales.createdAt, prevPeriodStart),
                 lte(sales.createdAt, periodStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             )),
     ]);
 
@@ -497,7 +500,7 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, periodStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             )),
 
         db.select({
@@ -509,7 +512,7 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, new Date(now.getFullYear(), now.getMonth(), now.getDate())),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             ))
             .groupBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`)
             .orderBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`),
@@ -523,14 +526,14 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, periodStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             ))
             .groupBy(sales.paymentMethod),
 
         db.select({
             id: saleItems.productId,
             name: saleItems.productName,
-            qty: sql<number>`SUM(${saleItems.quantity})::int`,
+            qty: sql<number>`SUM((${saleItems.quantity} - ${saleItems.quantityReturned})::int)`,
             revenue: sql<number>`COALESCE(SUM(${saleItems.lineTotalGhs}::numeric), 0)`,
         })
             .from(saleItems)
@@ -539,7 +542,7 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, periodStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             ))
             .groupBy(saleItems.productId, saleItems.productName)
             .orderBy(desc(sql`SUM(${saleItems.lineTotalGhs}::numeric)`))
@@ -557,14 +560,14 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, periodStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             ))
             .groupBy(categories.name)
             .orderBy(desc(sql`SUM(${saleItems.lineTotalGhs}::numeric)`)),
 
         // 6. Real COGS Calculation
         db.select({
-            totalCogs: sql<number>`COALESCE(SUM(${saleItems.quantity}::numeric * ${products.costPriceGhs}::numeric), 0)`,
+            totalCogs: sql<number>`COALESCE(SUM((${saleItems.quantity} - ${saleItems.quantityReturned})::numeric * ${products.costPriceGhs}::numeric), 0)`,
         })
             .from(saleItems)
             .innerJoin(sales, eq(saleItems.saleId, sales.id))
@@ -573,7 +576,7 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
                 gte(sales.createdAt, periodStart),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             ))
     ]);
 
@@ -664,7 +667,7 @@ export async function getAverageOrderValueData(businessId: string, branchId?: st
             .where(and(
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             )),
 
         // 2. AOV by Category
@@ -680,7 +683,7 @@ export async function getAverageOrderValueData(businessId: string, branchId?: st
             .where(and(
                 eq(sales.businessId, businessId),
                 branchFilter(branchId),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             ))
             .groupBy(categories.name)
             .orderBy(desc(sql`AVG(${sales.totalGhs}::numeric)`))

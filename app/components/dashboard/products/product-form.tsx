@@ -61,7 +61,9 @@ export function ProductForm({
   const [sku, setSku] = useState(initial.sku);
   const [description, setDescription] = useState(initial.description);
   const [price, setPrice] = useState<number | "">(initial.price);
-  const [stock, setStock] = useState(initial.stock);
+  const [stock, setStock] = useState<number | "">(
+    initial.stock === 0 ? "" : initial.stock,
+  );
   const [reorderAt, setReorderAt] = useState<number | "">(initial.reorderAt);
   const [categoryId, setCategoryId] = useState(initial.categoryId);
   const [tagIds, setTagIds] = useState<string[]>(initial.tagIds);
@@ -84,7 +86,7 @@ export function ProductForm({
   const addVariation = (type: string) => {
     setVariations((prev) => [
       ...prev,
-      { id: Math.random().toString(36).substr(2, 9), name: "", type, priceGhs: price, stock: 0, sku: "", barcode: "" },
+      { id: Math.random().toString(36).substr(2, 9), name: "", type, priceGhs: price, stock: "", sku: "", barcode: "" },
     ]);
   };
 
@@ -196,19 +198,23 @@ export function ProductForm({
     if (isSaving || isUploading) return;
     setIsSaving(true);
 
+    const stockNum = stock === "" ? 0 : Number(stock);
     const productData = {
       name,
       sku,
       description,
       priceGhs: price.toString(),
-      stock,
+      stock: stockNum,
       reorderAt: Number(reorderAt) || 0,
       categoryId: categoryId === "all" ? null : categoryId,
       tagIds,
       status,
       imageSrc: imagePreview,
       slug: name.toLowerCase().replace(/\s+/g, "-"),
-      variations,
+      variations: variations.map((v) => ({
+        ...v,
+        stock: v.stock === "" || v.stock === undefined ? 0 : Number(v.stock),
+      })),
     };
 
     try {
@@ -362,7 +368,18 @@ export function ProductForm({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Stock Quantity</label>
-              <input type="number" value={stock} onChange={(e) => setStock(Number(e.target.value))} className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" />
+              <input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                placeholder="0"
+                value={stock}
+                onChange={(e) =>
+                  setStock(e.target.value === "" ? "" : Number(e.target.value))
+                }
+                className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+              />
             </div>
           </div>
         </section>
@@ -459,8 +476,19 @@ export function ProductForm({
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Stock</label>
                     <input 
                       type="number"
-                      value={v.stock} 
-                      onChange={(e) => updateVariation(v.id, { stock: Number(e.target.value) })}
+                      min={0}
+                      step={1}
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={v.stock === 0 || v.stock === "" ? "" : v.stock}
+                      onChange={(e) =>
+                        updateVariation(v.id, {
+                          stock:
+                            e.target.value === ""
+                              ? ""
+                              : Number(e.target.value),
+                        })
+                      }
                       className="w-full px-3 py-2 rounded-xl border border-border bg-transparent text-[13px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
                     />
                   </div>

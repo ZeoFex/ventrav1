@@ -1,6 +1,6 @@
-import { eq, and, sql, gte, lte } from "drizzle-orm";
+import { eq, and, sql, gte, lte, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { sales, saleItems } from "../db/schema/sales";
+import { sales, saleItems, REVENUE_SALE_STATUSES } from "../db/schema/sales";
 import { products } from "../db/schema/products";
 import { businesses } from "../db/schema/businesses";
 import { reports } from "../db/schema/reports";
@@ -37,7 +37,7 @@ export async function getWeeklyBusinessStats(businessId: string): Promise<Weekly
             and(
                 eq(sales.businessId, businessId),
                 gte(sales.createdAt, sevenDaysAgo),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             )
         );
 
@@ -49,7 +49,7 @@ export async function getWeeklyBusinessStats(businessId: string): Promise<Weekly
     const topProductsRaw = await db
         .select({
             name: saleItems.productName,
-            quantity: sql<number>`sum(${saleItems.quantity})`.as("qty_sum"),
+            quantity: sql<number>`sum(${saleItems.quantity} - ${saleItems.quantityReturned})`.as("qty_sum"),
             revenue: sql<string>`sum(${saleItems.lineTotalGhs})`.as("rev_sum"),
         })
         .from(saleItems)
@@ -58,7 +58,7 @@ export async function getWeeklyBusinessStats(businessId: string): Promise<Weekly
             and(
                 eq(sales.businessId, businessId),
                 gte(sales.createdAt, sevenDaysAgo),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             )
         )
         .groupBy(saleItems.productName)

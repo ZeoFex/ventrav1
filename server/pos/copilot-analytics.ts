@@ -1,7 +1,7 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql, inArray } from "drizzle-orm";
 import { db } from "@/server/db";
 import { products } from "@/server/db/schema/products";
-import { sales, saleItems } from "@/server/db/schema/sales";
+import { sales, saleItems, REVENUE_SALE_STATUSES } from "@/server/db/schema/sales";
 
 function branchFilter(branchId?: string | null) {
   return branchId ? eq(sales.branchId, branchId) : undefined;
@@ -75,7 +75,7 @@ async function fetchAllTimeTopProducts(
       productId: saleItems.productId,
       name: saleItems.productName,
       revenue: sql<string>`COALESCE(SUM(${saleItems.lineTotalGhs}::numeric), 0)`,
-      units: sql<number>`COALESCE(SUM(${saleItems.quantity})::int, 0)`,
+      units: sql<number>`COALESCE(SUM((${saleItems.quantity} - ${saleItems.quantityReturned})::int), 0)`,
     })
     .from(saleItems)
     .innerJoin(sales, eq(saleItems.saleId, sales.id))
@@ -83,7 +83,7 @@ async function fetchAllTimeTopProducts(
       and(
         eq(sales.businessId, businessId),
         branchFilter(branchId),
-        eq(sales.status, "completed"),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
       ),
     )
     .groupBy(saleItems.productId, saleItems.productName)
@@ -116,7 +116,7 @@ async function fetchDailyRevenueTrend90d(
         eq(sales.businessId, businessId),
         branchFilter(branchId),
         gte(sales.createdAt, start),
-        eq(sales.status, "completed"),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
       ),
     )
     .groupBy(dayKeySql)
@@ -143,7 +143,7 @@ async function fetchBestStoreSalesDays(
       and(
         eq(sales.businessId, businessId),
         branchFilter(branchId),
-        eq(sales.status, "completed"),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
       ),
     )
     .groupBy(dayKeySql)
@@ -175,7 +175,7 @@ async function fetchSlowMovingProducts(
         eq(sales.businessId, businessId),
         branchFilter(branchId),
         gte(sales.createdAt, sixtyAgo),
-        eq(sales.status, "completed"),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
       ),
     )
     .groupBy(saleItems.productId);
@@ -232,7 +232,7 @@ async function fetchTopProductPeakDay(
       and(
         eq(sales.businessId, businessId),
         branchFilter(branchId),
-        eq(sales.status, "completed"),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
       ),
     )
     .groupBy(saleItems.productId, saleItems.productName)
@@ -257,7 +257,7 @@ async function fetchTopProductPeakDay(
       and(
         eq(sales.businessId, businessId),
         branchFilter(branchId),
-        eq(sales.status, "completed"),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
         productPredicate,
       ),
     )

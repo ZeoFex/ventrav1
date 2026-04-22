@@ -70,12 +70,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         label: "Overview",
         href: "/dashboard/sales/overview",
       },
-      // {
-      //   id: "sales-refunds",
-      //   label: "Refunds & voids",
-      //   href: "/dashboard/sales/refunds",
-      // },
-      // I will ask an SME on this feature and see how best to implement.
+      {
+        id: "sales-refunds",
+        label: "Returns / refunds",
+        href: "/dashboard/sales/refunds",
+      },
     ],
   },
   {

@@ -17,9 +17,13 @@ import { productVariations } from "./products";
 
 export const saleStatusEnum = pgEnum("sale_status", [
     "completed",
+    "partially_refunded",
     "refunded",
     "voided",
 ]);
+
+/** Sales that still contribute to net revenue (header totals already adjusted after returns). */
+export const REVENUE_SALE_STATUSES = ["completed", "partially_refunded"] as const;
 
 /** Completed POS transactions */
 export const sales = pgTable(
@@ -71,6 +75,7 @@ export const saleItems = pgTable(
         variationId: uuid("variation_id").references(() => productVariations.id, { onDelete: "set null" }),
         productName: varchar("product_name", { length: 255 }).notNull(),
         quantity: integer("quantity").notNull(),
+        quantityReturned: integer("quantity_returned").default(0).notNull(),
         unitPriceGhs: decimal("unit_price_ghs", { precision: 12, scale: 2 }).notNull(),
         lineTotalGhs: decimal("line_total_ghs", { precision: 12, scale: 2 }).notNull(),
     },

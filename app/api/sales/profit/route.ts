@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 import { verifyAccessToken } from "@/server/auth/token-service";
 import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { db } from "@/server/db";
-import { sales, saleItems } from "@/server/db/schema/sales";
+import { sales, saleItems, REVENUE_SALE_STATUSES } from "@/server/db/schema/sales";
 import { products, categories } from "@/server/db/schema/products";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { getActiveBranchId } from "@/server/auth/get-branch-id";
 
 export async function GET(req: NextRequest) {
@@ -17,8 +17,11 @@ export async function GET(req: NextRequest) {
         const payload = await verifyAccessToken(token);
         const branchId = getActiveBranchId(cookieStore);
 
-        // Standard filters
-        const filters = [eq(sales.businessId, payload.bid)];
+        // Standard filters — revenue-bearing sales only (excludes fully refunded / voided)
+        const filters = [
+            eq(sales.businessId, payload.bid),
+            inArray(sales.status, REVENUE_SALE_STATUSES),
+        ];
         if (branchId) filters.push(eq(sales.branchId, branchId));
 
         // 1. Basic Revenue Metrics from Sales Table
@@ -33,7 +36,7 @@ export async function GET(req: NextRequest) {
         // 2. COGS calculation (Sale Items joined with Products for costPrice)
         // Note: This assumes current costPrice as historical is not stored in saleItems yet.
         const cogsResult = await db.select({
-            totalCost: sql<string>`COALESCE(SUM(${saleItems.quantity} * ${products.costPriceGhs}), 0)`,
+            totalCost: sql<string>`COALESCE(SUM((${saleItems.quantity} - ${saleItems.quantityReturned}) * ${products.costPriceGhs}), 0)`,
         })
             .from(saleItems)
             .innerJoin(sales, eq(saleItems.saleId, sales.id))
@@ -48,7 +51,7 @@ export async function GET(req: NextRequest) {
         const categoryStats = await db.select({
             name: categories.name,
             revenue: sql<string>`SUM(${saleItems.lineTotalGhs})`,
-            cost: sql<string>`SUM(${saleItems.quantity} * ${products.costPriceGhs})`,
+            cost: sql<string>`SUM((${saleItems.quantity} - ${saleItems.quantityReturned}) * ${products.costPriceGhs})`,
         })
             .from(saleItems)
             .innerJoin(sales, eq(saleItems.saleId, sales.id))

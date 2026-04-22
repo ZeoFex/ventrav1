@@ -1,6 +1,6 @@
-import { eq, sql, and, gte, lte, desc } from "drizzle-orm";
+import { eq, sql, and, gte, lte, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { sales } from "../db/schema/sales";
+import { sales, REVENUE_SALE_STATUSES } from "../db/schema/sales";
 import { expenses } from "../db/schema/expenses";
 import { redis } from "../lib/redis";
 
@@ -44,7 +44,7 @@ export async function getFinanceOverview(businessId: string, branchId?: string |
             .where(and(
                 eq(sales.businessId, businessId),
                 salesBranchFilter(branchId),
-                eq(sales.status, "completed"),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
                 gte(sales.createdAt, thirtyDaysAgo)
             )),
 
@@ -70,7 +70,7 @@ export async function getFinanceOverview(businessId: string, branchId?: string |
                 eq(sales.businessId, businessId),
                 salesBranchFilter(branchId),
                 gte(sales.createdAt, sevenDaysAgo),
-                eq(sales.status, "completed")
+                inArray(sales.status, REVENUE_SALE_STATUSES)
             ))
             .groupBy(sql`TO_CHAR(${sales.createdAt} AT TIME Zone 'Africa/Accra', 'Dy')`, sql`TO_CHAR(${sales.createdAt} AT TIME Zone 'Africa/Accra', 'YYYY-MM-DD')`)
             .orderBy(sql`TO_CHAR(${sales.createdAt} AT TIME Zone 'Africa/Accra', 'YYYY-MM-DD')`),
@@ -222,4 +222,23 @@ export async function updateExpenseStatus(businessId: string, id: string, status
     ]);
 
     return expense;
+}
+
+export async function deleteExpense(businessId: string, id: string): Promise<boolean> {
+    const deleted = await db
+        .delete(expenses)
+        .where(and(eq(expenses.id, id), eq(expenses.businessId, businessId)))
+        .returning({ branchId: expenses.branchId });
+
+    if (deleted.length === 0) return false;
+
+    const branchId = deleted[0]!.branchId;
+    await Promise.all([
+        redis.del(CACHE_KEYS.FINANCE_OVERVIEW(businessId, branchId)),
+        redis.del(CACHE_KEYS.EXPENSES_LIST(businessId, branchId)),
+        redis.del(CACHE_KEYS.FINANCE_OVERVIEW(businessId)),
+        redis.del(CACHE_KEYS.EXPENSES_LIST(businessId)),
+    ]);
+
+    return true;
 }
