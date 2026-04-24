@@ -2,6 +2,8 @@ import type { MutableRefObject } from "react";
 
 type SignupOtpFormProps = {
   email: string;
+  phone?: string;
+  otpChannel: "email" | "sms";
   otp: string[];
   otpRefs: MutableRefObject<(HTMLInputElement | null)[]>;
   resendSeconds: number;
@@ -12,11 +14,22 @@ type SignupOtpFormProps = {
   onOtpPaste: (e: React.ClipboardEvent<HTMLFormElement>) => void;
   onVerify: (e: React.FormEvent) => void;
   onResend: () => void;
+  onSwitchChannel: (channel: "email" | "sms") => void;
   onBack: () => void;
 };
 
+function maskPhone(phone: string): string {
+  const normalized = phone.trim().startsWith("0")
+    ? `+233${phone.trim().slice(1)}`
+    : phone.trim();
+  if (normalized.length < 8) return normalized;
+  return `${normalized.slice(0, 4)}****${normalized.slice(-4)}`;
+}
+
 export function SignupOtpForm({
   email,
+  phone,
+  otpChannel,
   otp,
   otpRefs,
   resendSeconds,
@@ -27,8 +40,12 @@ export function SignupOtpForm({
   onOtpPaste,
   onVerify,
   onResend,
+  onSwitchChannel,
   onBack,
 }: SignupOtpFormProps) {
+  const isSms = otpChannel === "sms";
+  const hasPhone = !!phone?.trim();
+
   return (
     <div className="flex flex-1 flex-col justify-center bg-background px-6 pb-12 pt-8 sm:px-10 lg:justify-start lg:px-16 lg:pb-16 lg:pt-14 xl:px-24">
       <div className="mx-auto w-full max-w-[420px]">
@@ -47,11 +64,23 @@ export function SignupOtpForm({
           Enter the code
         </h2>
         <p className="mt-2 text-[15px] text-muted-foreground">
-          We sent a 6-digit code to{" "}
-          <span className="font-medium text-foreground">
-            {email || "your email"}
-          </span>
-          . Check your inbox or spam folder.
+          {isSms ? (
+            <>
+              We sent a 6-digit code via SMS to{" "}
+              <span className="font-medium text-foreground">
+                {phone ? maskPhone(phone) : "your phone"}
+              </span>
+              .
+            </>
+          ) : (
+            <>
+              We sent a 6-digit code to{" "}
+              <span className="font-medium text-foreground">
+                {email || "your email"}
+              </span>
+              . Check your inbox or spam folder.
+            </>
+          )}
         </p>
 
         <form
@@ -95,17 +124,41 @@ export function SignupOtpForm({
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="button"
-              onClick={onResend}
-              disabled={resendSeconds > 0}
-              className="text-left text-[14px] font-medium text-[#006c49] transition-opacity hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline dark:text-[#6ffbbe]"
-            >
-              {resendSeconds > 0
-                ? `Resend code in ${resendSeconds}s`
-                : "Resend code"}
-            </button>
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={onResend}
+                disabled={resendSeconds > 0}
+                className="text-left text-[14px] font-medium text-[#006c49] transition-opacity hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline dark:text-[#6ffbbe]"
+              >
+                {resendSeconds > 0
+                  ? `Resend code in ${resendSeconds}s`
+                  : "Resend code"}
+              </button>
+            </div>
+
+            {/* Channel switch */}
+            {isSms ? (
+              <button
+                type="button"
+                onClick={() => onSwitchChannel("email")}
+                disabled={resendSeconds > 0}
+                className="text-left text-[13px] text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Send via email instead
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSwitchChannel("sms")}
+                disabled={!hasPhone || resendSeconds > 0}
+                title={!hasPhone ? "Add a phone number on the sign-up form to use SMS verification" : undefined}
+                className="text-left text-[13px] text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {hasPhone ? "Send via SMS instead" : "Send via SMS (add a phone number to enable)"}
+              </button>
+            )}
           </div>
 
           {apiError && (

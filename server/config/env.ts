@@ -18,6 +18,9 @@ const envSchema = z.object({
 
     RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required"),
 
+    // SMS (optional — only required if SMS OTP is enabled)
+    AGOO_API_KEY: z.string().optional().default(""),
+
     // Cookie
     COOKIE_DOMAIN: z.string().optional().default("localhost"),
 

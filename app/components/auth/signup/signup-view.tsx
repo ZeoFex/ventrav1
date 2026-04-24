@@ -29,11 +29,13 @@ function SignupViewContent() {
   const [businessName, setBusinessName] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [otpChannel, setOtpChannel] = useState<"email" | "sms">("email");
 
   const [otp, setOtp] = useState<string[]>(() => Array(6).fill(""));
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -218,16 +220,44 @@ function SignupViewContent() {
       await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({
+          email: email.trim(),
+          channel: otpChannel,
+          phone: otpChannel === "sms" ? phone.trim() : undefined,
+        }),
       });
     } catch {
       // Silently fail — don't reveal anything
     }
   }
 
+  async function handleSwitchChannel(newChannel: "email" | "sms") {
+    if (newChannel === "sms" && !phone.trim()) return;
+    setOtpChannel(newChannel);
+    setResendSeconds(30);
+    setOtp(Array(6).fill(""));
+    setApiError(null);
+    setTimeout(() => otpRefs.current[0]?.focus(), 100);
+
+    try {
+      await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          channel: newChannel,
+          phone: newChannel === "sms" ? phone.trim() : undefined,
+        }),
+      });
+    } catch {
+      // Silently fail
+    }
+  }
+
   function handleBackToSignup() {
     setStep("signup");
     setOtp(Array(6).fill(""));
+    setOtpChannel("email");
   }
 
   return (
@@ -254,6 +284,8 @@ function SignupViewContent() {
             setFullName={setFullName}
             email={email}
             setEmail={setEmail}
+            phone={phone}
+            setPhone={setPhone}
             password={password}
             setPassword={setPassword}
             confirmPassword={confirmPassword}
@@ -285,6 +317,8 @@ function SignupViewContent() {
           />
           <SignupOtpForm
             email={email}
+            phone={phone}
+            otpChannel={otpChannel}
             otp={otp}
             otpRefs={otpRefs}
             resendSeconds={resendSeconds}
@@ -295,6 +329,7 @@ function SignupViewContent() {
             onOtpPaste={handleOtpPaste}
             onVerify={handleVerifyOtp}
             onResend={handleResend}
+            onSwitchChannel={handleSwitchChannel}
             onBack={handleBackToSignup}
           />
         </section>

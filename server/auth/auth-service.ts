@@ -15,6 +15,7 @@ import { auditLogs } from "../db/schema/audit-logs";
 import { hashPassword, verifyPassword } from "./password-service";
 import { generateOtp, verifyOtp } from "./otp-service";
 import { sendOtpEmail, sendPasswordResetEmail } from "./email-service";
+import { sendOtpSms } from "./sms-service";
 import { OTP_TTL, OTP_MAX_ATTEMPTS, RESET_TOKEN_TTL } from "../config/auth-config";
 import { STARTER_TRIAL_DAYS } from "@/config/plans";
 import crypto from "crypto";
@@ -358,7 +359,11 @@ export async function verifyEmail(
 
 // ─── Resend OTP ────────────────────────────────────────────────
 
-export async function resendOtp(email: string): Promise<{ otpCode: string } | null> {
+export async function resendOtp(
+    email: string,
+    channel: "email" | "sms" = "email",
+    phone?: string
+): Promise<{ otpCode: string } | null> {
     const emailNormalized = email.trim().toLowerCase();
 
     const [user] = await db
@@ -380,13 +385,19 @@ export async function resendOtp(email: string): Promise<{ otpCode: string } | nu
         expiresAt: new Date(Date.now() + OTP_TTL * 1000),
     });
 
-    console.log(`[Resend OTP API] Resending new OTP ${code} to ${emailNormalized}`);
+    console.log(`[Resend OTP API] Resending new OTP ${code} to ${emailNormalized} via ${channel}`);
 
-    sendOtpEmail({
-        to: emailNormalized,
-        firstName: user.firstName,
-        code,
-    }).catch((err) => console.error("[Resend OTP API] Failed to trigger sendOtpEmail:", err));
+    if (channel === "sms" && phone) {
+        sendOtpSms({ to: phone, code }).catch((err) =>
+            console.error("[Resend OTP API] Failed to send SMS OTP:", err)
+        );
+    } else {
+        sendOtpEmail({
+            to: emailNormalized,
+            firstName: user.firstName,
+            code,
+        }).catch((err) => console.error("[Resend OTP API] Failed to trigger sendOtpEmail:", err));
+    }
 
     return { otpCode: code };
 }

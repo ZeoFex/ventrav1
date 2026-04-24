@@ -41,11 +41,13 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "electron/build/app-icon.png"
+    "icon": "electron/build/icon.ico"
   },
   "nsis": {
     "oneClick": false,
     "perMachine": true,
-    "allowToChangeInstallationDirectory": true
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "electron/build/icon.ico",
+    "uninstallerIcon": "electron/build/icon.ico"
   }
 }

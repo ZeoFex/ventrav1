@@ -1,9 +1,26 @@
 const { app, BrowserWindow, ipcMain, Menu, shell } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const { spawn } = require("child_process");
 const net = require("net");
 
-// ── Paths ───────────────────────────────────────────────────────────────
+// ── Single-instance lock ───────────────────────────────────────────────
+// Must run before anything else. A second launch focuses the existing
+// window rather than racing to spawn another server on PORT 3456.
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+  process.exit(0);
+}
+
+// ── App identity & startup switches ────────────────────────────────────
+app.setAppUserModelId("com.ventrapos.desktop");
+// POS workflows must not have timers slowed when minimised/backgrounded.
+app.commandLine.appendSwitch("disable-background-timer-throttling");
+app.commandLine.appendSwitch("disable-renderer-backgrounding");
+app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+
+// ── Paths ──────────────────────────────────────────────────────────────
 const isDev = !app.isPackaged;
 const ROOT = isDev
   ? path.resolve(__dirname, "..")
@@ -12,8 +29,11 @@ const ROOT = isDev
 const STANDALONE = path.join(ROOT, ".next", "standalone");
 const PORT = 3456; // Use a different port to avoid clashing with dev server
 
-// ── Env vars for standalone server ──────────────────────────────────────
-function parseDotEnvFile(fs, filePath) {
+const ICON_PATH = path.join(__dirname, "build", "icon.ico");
+const SPLASH_HTML = path.join(__dirname, "splash.html");
+
+// ── Env vars for standalone server ─────────────────────────────────────
+function parseDotEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
   const text = fs.readFileSync(filePath, "utf8");
   for (const line of text.split("\n")) {
@@ -32,34 +52,51 @@ function parseDotEnvFile(fs, filePath) {
 
 function loadEnv() {
   if (isDev) {
-    // In dev, Next.js dev server is already running — nothing to load
     return;
   }
 
-  const fs = require("fs");
   try {
     // Production values baked in at build time (CI writes .env.local before packaging).
     // Normal users never edit this.
-    parseDotEnvFile(fs, path.join(ROOT, ".env.local"));
+    parseDotEnvFile(path.join(ROOT, ".env.local"));
     // Optional override for IT / debugging only (same keys as .env.local).
-    parseDotEnvFile(fs, path.join(app.getPath("userData"), ".env.local"));
+    parseDotEnvFile(path.join(app.getPath("userData"), ".env.local"));
   } catch {
-    // Env may be set entirely by the OS or parent process
+    /* env may be set entirely by the OS or parent process */
   }
 }
 
-// ── Server management ───────────────────────────────────────────────────
+// ── Logging ────────────────────────────────────────────────────────────
+// A single append-mode stream is massively cheaper than fs.writeFileSync
+// per log line — sync writes hurt cold-start latency on Windows.
+let logStream = null;
+function getLogStream() {
+  if (logStream || isDev) return logStream;
+  try {
+    const logPath = path.join(app.getPath("userData"), "app-debug.log");
+    logStream = fs.createWriteStream(logPath, { flags: "a" });
+  } catch {
+    logStream = null;
+  }
+  return logStream;
+}
+
+function debugLog(msg) {
+  console.log(msg);
+  const stream = getLogStream();
+  if (stream) stream.write(msg + "\n");
+}
+
+// ── Server management ──────────────────────────────────────────────────
 let serverProcess = null;
 
 function startNextServer() {
   return new Promise((resolve, reject) => {
     if (isDev) {
-      // In dev, assume pnpm dev is already running on port 3000
+      // In dev, assume `pnpm dev` is already running on port 3000
       resolve(3000);
       return;
     }
-
-    loadEnv();
 
     const serverEntry = path.join(STANDALONE, "server.js");
     const env = {
@@ -70,14 +107,7 @@ function startNextServer() {
       ELECTRON_RUN_AS_NODE: "1",
     };
 
-    const fs = require("fs");
-    const logPath = path.join(app.getPath("userData"), "app-debug.log");
-    fs.writeFileSync(logPath, "--- RUN INFO ---\n", { flag: "a" });
-    const debugLog = (msg) => {
-      console.log(msg);
-      fs.writeFileSync(logPath, msg + "\n", { flag: "a" });
-    };
-
+    debugLog("--- RUN INFO ---");
     const bundledEnv = path.join(ROOT, ".env.local");
     const userEnv = path.join(app.getPath("userData"), ".env.local");
     debugLog(`[debug] Bundled env (release): ${bundledEnv} exists=${fs.existsSync(bundledEnv)}`);
@@ -89,13 +119,29 @@ function startNextServer() {
       cwd: STANDALONE,
       env,
       stdio: "pipe",
+      // Suppresses a transient cmd.exe window flash on Windows.
+      windowsHide: true,
     });
+
+    let settled = false;
+    const settleResolve = (port) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(interval);
+      resolve(port);
+    };
+    const settleReject = (err) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(interval);
+      reject(err);
+    };
 
     serverProcess.stdout.on("data", (data) => {
       const msg = data.toString();
       debugLog("[next] " + msg);
       if (msg.includes("Ready") || msg.includes("started") || msg.includes("localhost")) {
-        resolve(PORT);
+        settleResolve(PORT);
       }
     });
 
@@ -105,31 +151,85 @@ function startNextServer() {
 
     serverProcess.on("error", (err) => {
       debugLog(`[next:spawn-error] ${err.message}`);
-      reject(err);
+      settleReject(err);
     });
 
     serverProcess.on("exit", (code) => {
       debugLog(`[next] server exited with code ${code}`);
       if (code !== 0 && code !== null) {
-        reject(new Error(`Server exited with code ${code}`));
+        settleReject(new Error(`Server exited with code ${code}`));
       }
     });
 
-    // Fallback: poll the port
+    // Fallback: poll the port. 100ms keeps the median attach delay tight.
     const interval = setInterval(() => {
       const sock = new net.Socket();
       sock
         .connect(PORT, "localhost", () => {
           sock.destroy();
-          clearInterval(interval);
-          resolve(PORT);
+          settleResolve(PORT);
         })
         .on("error", () => sock.destroy());
-    }, 300);
+    }, 100);
   });
 }
 
-// ── Custom Menu ─────────────────────────────────────────────────────────
+// ── Splash window ──────────────────────────────────────────────────────
+let splashWindow = null;
+
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 380,
+    height: 440,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: true,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    show: false,
+    backgroundColor: "#00000000",
+    icon: ICON_PATH,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  splashWindow.removeMenu();
+  splashWindow.loadFile(SPLASH_HTML).catch((err) => {
+    debugLog(`[splash] loadFile failed: ${err.message}`);
+  });
+
+  splashWindow.once("ready-to-show", () => {
+    splashWindow?.show();
+    setSplashStatus(`Version ${app.getVersion()}`, "__splashVersion");
+  });
+
+  splashWindow.on("closed", () => {
+    splashWindow = null;
+  });
+}
+
+function setSplashStatus(text, fn = "__splashStatus") {
+  if (!splashWindow || splashWindow.isDestroyed()) return;
+  const safe = String(text).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  splashWindow.webContents
+    .executeJavaScript(`window.${fn} && window.${fn}("${safe}");`, true)
+    .catch(() => {
+      /* splash may be closing — fine */
+    });
+}
+
+function closeSplashWindow() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close();
+  }
+  splashWindow = null;
+}
+
+// ── Custom Menu ────────────────────────────────────────────────────────
 function buildMenu() {
   const template = [
     {
@@ -144,7 +244,7 @@ function buildMenu() {
               title: "About VentraPOS",
               message: "VentraPOS",
               detail: `Version ${app.getVersion()}\n\nRun your store from one place.\nCloud POS for supermarkets, pharmacies, restaurants, and growing retailers.\n\n© ${new Date().getFullYear()} VentraPOS`,
-              icon: path.join(__dirname, "..", "public", "favicon.ico"),
+              icon: ICON_PATH,
             });
           },
         },
@@ -311,17 +411,17 @@ function navigateTo(route) {
   }
 }
 
-// ── Window ──────────────────────────────────────────────────────────────
+// ── Main window ────────────────────────────────────────────────────────
 let mainWindow = null;
 
-async function createWindow() {
+function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1024,
     minHeight: 700,
     title: "VentraPOS",
-    icon: path.join(__dirname, "..", "public", "favicon.ico"),
+    icon: ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -332,21 +432,39 @@ async function createWindow() {
     backgroundColor: "#003527",
   });
 
-  // Set custom menu
   Menu.setApplicationMenu(buildMenu());
 
-  // Graceful show
   mainWindow.once("ready-to-show", () => {
+    closeSplashWindow();
     mainWindow.show();
     mainWindow.focus();
   });
 
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+}
+
+async function boot() {
+  loadEnv();
+  createSplashWindow();
+  setSplashStatus("Loading settings…");
+
+  // Construct the heavy BrowserWindow in parallel with server startup.
+  // The window renders blank until we hand it a URL, but GPU/preload/IPC
+  // wiring all happen concurrently with the Next.js boot.
+  createMainWindow();
+
+  setSplashStatus("Starting local server…");
+
   try {
     const port = await startNextServer();
+    setSplashStatus("Almost ready…");
     // Skip the landing page - go straight to dashboard.
     // The proxy middleware redirects to /login if no auth cookie exists.
     await mainWindow.loadURL(`http://localhost:${port}/dashboard`);
   } catch (err) {
+    closeSplashWindow();
     const { dialog } = require("electron");
     dialog.showErrorBox(
       "Failed to Start VentraPOS",
@@ -360,7 +478,7 @@ async function createWindow() {
   }
 }
 
-// ── IPC handlers (window controls) ──────────────────────────────────────
+// ── IPC handlers (window controls) ─────────────────────────────────────
 ipcMain.handle("window:minimize", () => mainWindow?.minimize());
 ipcMain.handle("window:maximize", () => {
   if (mainWindow?.isMaximized()) {
@@ -371,19 +489,31 @@ ipcMain.handle("window:maximize", () => {
 });
 ipcMain.handle("window:close", () => mainWindow?.close());
 
-// ── App lifecycle ───────────────────────────────────────────────────────
-app.whenReady().then(createWindow);
+// ── App lifecycle ──────────────────────────────────────────────────────
+app.on("second-instance", () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
+app.whenReady().then(boot);
 
 app.on("window-all-closed", () => {
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;
   }
+  if (logStream) {
+    logStream.end();
+    logStream = null;
+  }
   app.quit();
 });
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    boot();
   }
 });

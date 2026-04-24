@@ -23,6 +23,8 @@ type OS = "windows" | "macos" | "linux";
 
 type Props = {
   downloadMatrix: DownloadMatrix;
+  /** Current desktop app version (read from package.json). */
+  appVersion: string;
 };
 
 function osHasDownload(m: DownloadMatrix, os: OS): boolean {
@@ -31,7 +33,7 @@ function osHasDownload(m: DownloadMatrix, os: OS): boolean {
   return Boolean(m.linux.x64);
 }
 
-export function DownloadPageContent({ downloadMatrix }: Props) {
+export function DownloadPageContent({ downloadMatrix, appVersion }: Props) {
   const [os, setOs] = useState<OS>(() => {
     if (osHasDownload(downloadMatrix, "windows")) return "windows";
     if (osHasDownload(downloadMatrix, "macos")) return "macos";
@@ -208,6 +210,21 @@ export function DownloadPageContent({ downloadMatrix }: Props) {
             </div>
           </motion.div>
 
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.06 }}
+            className="mb-4 flex justify-center"
+          >
+            <span
+              className="inline-flex items-center gap-2 rounded-full border border-[#003527]/15 bg-[#003527]/5 px-3 py-1 text-[12px] font-medium text-[#003527] dark:border-white/15 dark:bg-white/5 dark:text-white/85"
+              aria-label={`Latest version v${appVersion}`}
+            >
+              <span className="inline-block size-1.5 rounded-full bg-[#006c49]" aria-hidden />
+              Latest · v{appVersion}
+            </span>
+          </motion.div>
+
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -274,6 +291,17 @@ export function DownloadPageContent({ downloadMatrix }: Props) {
               <ArrowRight className="size-4" aria-hidden />
             </Link>
           </motion.div>
+
+          {currentUrl && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.22 }}
+              className="mt-5 text-center text-[12px] text-muted-foreground"
+            >
+              Version {appVersion} · {headlineOs} {archLabels[variant] ?? variant} installer
+            </motion.p>
+          )}
         </div>
       </section>
 

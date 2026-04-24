@@ -1,6 +1,6 @@
 {
   "name": "ventrapos",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cloud POS for supermarkets, pharmacies, restaurants, and growing retailers.",
   "author": "VentraPOS",
   "private": true,
@@ -16,7 +16,8 @@
     "db:studio": "drizzle-kit studio",
     "db:check": "drizzle-kit check",
     "electron:dev": "concurrently --kill-others \"pnpm dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "pnpm build && electron-builder --config electron-builder.json --win"
+    "icons:prepare": "node electron/build/prepare-icons.js",
+    "electron:build": "pnpm icons:prepare && pnpm build && electron-builder --config electron-builder.json --win"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.64",
@@ -89,6 +90,8 @@
     "electron-builder": "^26.0.12",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.1",

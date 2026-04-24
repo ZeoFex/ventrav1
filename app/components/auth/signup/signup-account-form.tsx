@@ -9,7 +9,7 @@ import {
   IconUser,
 } from "@/app/components/auth/auth-icons";
 import { inputBase, inputPassword } from "@/app/components/auth/auth-input-classes";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Phone } from "lucide-react";
 
 export type PasswordChecks = {
   minLen: boolean;
@@ -26,6 +26,8 @@ type SignupAccountFormProps = {
   setFullName: (v: string) => void;
   email: string;
   setEmail: (v: string) => void;
+  phone: string;
+  setPhone: (v: string) => void;
   password: string;
   setPassword: (v: string) => void;
   confirmPassword: string;
@@ -62,6 +64,8 @@ export function SignupAccountForm({
   setFullName,
   email,
   setEmail,
+  phone,
+  setPhone,
   password,
   setPassword,
   confirmPassword,
@@ -175,6 +179,25 @@ export function SignupAccountForm({
               onChange={(e) => setEmail(e.target.value)}
               className={inputBase}
               required
+            />
+          </div>
+
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <Phone className="size-[1.125rem]" />
+            </span>
+            <label htmlFor="phone" className="sr-only">
+              Phone number
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              placeholder="Phone number (optional)"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={inputBase}
             />
           </div>
 

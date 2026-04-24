@@ -10,6 +10,8 @@ import { resendOtp } from "@/server/auth/auth-service";
 
 const resendSchema = z.object({
     email: z.string().trim().email().max(320),
+    channel: z.enum(["email", "sms"]).optional().default("email"),
+    phone: z.string().trim().max(20).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -24,7 +26,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const result = await resendOtp(parsed.data.email);
+        const { email, channel, phone } = parsed.data;
+        const result = await resendOtp(email, channel, phone);
 
         // Always return success — enumeration protection
         const isDev = process.env.NODE_ENV === "development";

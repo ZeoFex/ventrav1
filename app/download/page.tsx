@@ -4,6 +4,9 @@ import { cookies } from "next/headers";
 import { verifyAccessToken } from "@/server/auth/token-service";
 import { Metadata } from "next";
 import { DownloadMatrix, DownloadPageContent } from "./download-page-content";
+// Single source of truth for the desktop app version. Bumping
+// package.json version automatically updates the badge below.
+import pkg from "@/package.json";
 
 export const metadata: Metadata = {
   title: "Download",
@@ -49,12 +52,13 @@ export default async function DownloadPage() {
   }
 
   const downloadMatrix = buildDownloadMatrix();
+  const appVersion = pkg.version;
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <SiteHeader isAuthenticated={isAuthenticated} displayName={userFirstName} />
       <main className="flex-1 pt-20">
-        <DownloadPageContent downloadMatrix={downloadMatrix} />
+        <DownloadPageContent downloadMatrix={downloadMatrix} appVersion={appVersion} />
       </main>
       <SiteFooter />
     </div>
