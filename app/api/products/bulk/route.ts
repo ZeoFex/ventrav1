@@ -35,6 +35,9 @@ export async function POST(req: Request) {
             priceGhs: item.priceGhs?.toString() || "0",
             stock: parseInt(item.stock) || 0,
             reorderAt: parseInt(item.reorderAt) || 0,
+            unit: (typeof item.unit === "string" && item.unit.trim().length > 0
+                ? item.unit.trim().toLowerCase().slice(0, 20)
+                : "piece"),
         }));
 
         const result = await saveProductsBulk(payload.bid, branchId, preparedItems);

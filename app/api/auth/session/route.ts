@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
                 currentPeriodEnd: businesses.currentPeriodEnd,
                 createdAt: businesses.createdAt,
                 businessType: businesses.businessType,
+                onboardingCompleted: businesses.onboardingCompleted,
             })
             .from(users)
             .innerJoin(businesses, eq(users.businessId, businesses.id))
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest) {
                 subscriptionStatus: (userDb?.subscriptionStatus === "past_due" && isEpoch) ? "active" : (userDb?.subscriptionStatus || "active"),
                 currentPeriodEnd: computedPeriodEnd,
                 businessType: userDb?.businessType || null,
+                onboardingCompleted: !!userDb?.onboardingCompleted,
             }
         });
 

@@ -56,6 +56,7 @@ export interface VerifyEmailResult {
     branchId?: string;
     permissions: string[];
     plan: string;
+    onboardingCompleted: boolean;
 }
 
 // ─── Signup ─────────────────────────────────────────────────────
@@ -229,6 +230,7 @@ export async function verifyEmail(
             firstName: users.firstName,
             status: users.status,
             plan: businesses.plan,
+            onboardingCompleted: businesses.onboardingCompleted,
         })
         .from(users)
         .innerJoin(businesses, eq(users.businessId, businesses.id))
@@ -350,6 +352,7 @@ export async function verifyEmail(
         branchId: roleData[0]?.branchId || undefined,
         permissions: roleData.map(r => r.permissionKey).filter((p): p is string => !!p),
         plan: user.plan,
+        onboardingCompleted: !!user.onboardingCompleted,
     };
 }
 
@@ -407,6 +410,7 @@ export interface LoginResult {
     permissions: string[];
     plan: string;
     status: typeof users.$inferSelect.status;
+    onboardingCompleted: boolean;
 }
 
 /**
@@ -430,6 +434,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
             firstName: users.firstName,
             status: users.status,
             plan: businesses.plan,
+            onboardingCompleted: businesses.onboardingCompleted,
         })
         .from(users)
         .innerJoin(businesses, eq(users.businessId, businesses.id))
@@ -506,6 +511,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
         permissions: roleData.map(r => r.permissionKey).filter((p): p is string => !!p),
         plan: user.plan,
         status: user.status,
+        onboardingCompleted: !!user.onboardingCompleted,
     };
 }
 

@@ -81,6 +81,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
                     ),
                 } : {}),
                 onboardingCompleted: true,
+                onboardingProgress: null,
                 updatedAt: now,
             })
             .where(eq(businesses.id, input.businessId));

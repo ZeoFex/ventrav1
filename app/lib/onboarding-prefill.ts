@@ -19,3 +19,19 @@ export function writeOnboardingPrefill(payload: OnboardingPrefillPayload): void 
     /* private mode / quota */
   }
 }
+
+/**
+ * Read and consume the prefill payload. Returns null if none is present.
+ * Safe to call in non-browser contexts — returns null on the server.
+ */
+export function consumeOnboardingPrefill(): OnboardingPrefillPayload | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(ONBOARDING_PREFILL_KEY);
+    if (!raw) return null;
+    window.sessionStorage.removeItem(ONBOARDING_PREFILL_KEY);
+    return JSON.parse(raw) as OnboardingPrefillPayload;
+  } catch {
+    return null;
+  }
+}

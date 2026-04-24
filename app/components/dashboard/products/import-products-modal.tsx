@@ -141,6 +141,7 @@ export function ImportProductsModal({ isOpen, onClose, onImport }: ImportProduct
         { key: "sku", label: "SKU", required: true },
         { key: "priceGhs", label: "Price (GHS)", required: true },
         { key: "stock", label: "Stock Level", required: false },
+        { key: "unit", label: "Unit (kg, g, lb, piece…)", required: false },
         { key: "reorderAt", label: "Reorder Alert Level", required: false },
         { key: "categoryId", label: "Category ID", required: false },
         { key: "description", label: "Description", required: false },

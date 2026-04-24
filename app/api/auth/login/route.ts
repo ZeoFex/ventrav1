@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
                     role: result.role,
                     branchId: result.branchId,
                     plan: result.plan,
+                    onboardingCompleted: result.onboardingCompleted,
                 },
             },
             { status: 200 }

@@ -15,6 +15,7 @@ export type SessionUser = {
     subscriptionStatus: "active" | "past_due" | "canceled";
     currentPeriodEnd: string | null;
     businessType?: string | null;
+    onboardingCompleted?: boolean;
 };
 
 export function useSession() {

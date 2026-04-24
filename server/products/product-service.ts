@@ -47,6 +47,8 @@ export interface ProductInput {
     costPriceGhs?: string | null;
     stock: number;
     reorderAt: number;
+    /** Unit of measure (e.g. "piece", "kg", "g", "lb", "ml"). */
+    unit?: string;
     status?: "active" | "archived" | "out_of_stock";
     tagIds?: string[];
     variations?: ProductVariationInput[];
@@ -90,6 +92,7 @@ export async function getProducts(businessId: string, branchId?: string | null) 
             barcode: products.barcode,
             priceGhs: products.priceGhs,
             stock: products.stock,
+            unit: products.unit,
             status: products.status,
             description: products.description,
             imageSrc: products.imageSrc,
@@ -166,6 +169,7 @@ export async function saveProduct(input: ProductInput) {
                 costPriceGhs: input.costPriceGhs,
                 stock: input.stock,
                 reorderAt: input.reorderAt,
+                unit: input.unit || "piece",
                 status: input.status || "active",
             })
             .returning({ id: products.id });

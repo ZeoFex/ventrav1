@@ -6,6 +6,7 @@ export type BusinessTypeId =
   | "mini_mart"
   | "boutique"
   | "electronics"
+  | "cold_store"
   | "other";
 
 export type StoreStructure = "single" | "multi" | null;

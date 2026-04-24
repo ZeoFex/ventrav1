@@ -31,6 +31,7 @@ export const BUSINESS_TYPES: {
     { id: "mini_mart", label: "Mini mart", hint: "Neighbourhood shop" },
     { id: "boutique", label: "Boutique", hint: "Fashion & specialty" },
     { id: "electronics", label: "Electronics", hint: "Phones & gadgets" },
+    { id: "cold_store", label: "Cold store", hint: "Meat, fish & frozen goods" },
     { id: "other", label: "Other", hint: "We’ll adapt defaults" },
   ];
 

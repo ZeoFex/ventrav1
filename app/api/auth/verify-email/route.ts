@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
                     firstName: result.firstName,
                     role: result.role,
                     plan: result.plan,
+                    onboardingCompleted: result.onboardingCompleted,
                 },
             },
             { status: 200 }

@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
+import { formatQuantity, unitShort } from "@/app/lib/product-units";
 
 export function PosProductCard({
   product,
@@ -21,7 +22,7 @@ export function PosProductCard({
     <article className={`group flex flex-col overflow-hidden rounded-[1.25rem] border border-[#eef0f2] bg-white transition-all hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-[#111] dark:hover:border-white/[0.15] ${isOutOfStock ? "opacity-60 grayscale-[0.5]" : ""}`}>
       <div className="relative aspect-[4/3] bg-[#f8f9fa] dark:bg-[#1a1a1a] overflow-hidden flex items-center justify-center">
         <span className={`absolute left-3 top-3 z-[1] rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white backdrop-blur-md ${isOutOfStock ? "bg-red-500/80" : "bg-black/70"}`}>
-          {isOutOfStock ? "Out of Stock" : `${stockToDisplay} Stock`}
+          {isOutOfStock ? "Out of Stock" : `${formatQuantity(stockToDisplay, product.unit)} in stock`}
         </span>
         {product.imageSrc ? (
           <CatalogProductImage
@@ -54,6 +55,9 @@ export function PosProductCard({
           </div>
           <p className="shrink-0 text-[14px] font-bold tabular-nums text-foreground sm:text-[15px]">
             {formatGhs(Number(product.priceGhs))}
+            {unitShort(product.unit) && (
+              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground">/{unitShort(product.unit)}</span>
+            )}
           </p>
         </div>
 

@@ -15,6 +15,7 @@ import { computePosTotals } from "./pos-cart-totals";
 import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
+import { unitShort } from "@/app/lib/product-units";
 import { PosCustomerSelector } from "./pos-customer-selector";
 import type { Discount } from "../../marketing/discounts-data-hooks";
 
@@ -205,6 +206,11 @@ export function PosCartPanelContent({
                     </p>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">
                       SKU: {p.sku}
+                      {unitShort(p.unit) && (
+                        <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                          {unitShort(p.unit)}
+                        </span>
+                      )}
                     </p>
                   </div>
                   <button

@@ -13,6 +13,8 @@ export interface ProductRow {
     description?: string;
     imageSrc?: string | null;
     slug?: string;
+    /** Unit of measure (e.g. "piece", "kg", "g", "lb"). Defaults to "piece". */
+    unit?: string | null;
     variations?: ProductVariation[];
 }
 

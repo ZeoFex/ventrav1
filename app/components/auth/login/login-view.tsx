@@ -54,8 +54,9 @@ export function LoginView() {
         description: "You are now logged in",
       });
 
-      // Redirect shortly after toast
-      router.push("/dashboard");
+      // Resume onboarding if the user never finished it; dashboard otherwise.
+      const onboardingDone = data?.user?.onboardingCompleted !== false;
+      router.push(onboardingDone ? "/dashboard" : "/onboarding");
     } catch {
       setApiError("Network error. Please check your connection.");
     } finally {

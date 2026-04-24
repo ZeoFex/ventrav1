@@ -34,6 +34,8 @@ export interface Product {
   tagIds?: string[] | null;
   imageSrc?: string | null;
   status: "active" | "archived" | "out_of_stock" | string;
+  /** Unit of measure (e.g. "piece", "kg", "g"). Defaults to "piece". */
+  unit?: string | null;
   variations?: any[] | null;
   _offline?: boolean;
 }

@@ -19,6 +19,7 @@ import { CatalogProductImage } from "./catalog-product-image";
 import { type ProductRow } from "./types";
 import { useProducts, useCategories, useTags } from "./products-data-hooks";
 import { formatGhs, getCategoryName, getTagNames } from "@/app/lib/catalog-utils";
+import { formatQuantity, unitShort } from "@/app/lib/product-units";
 import { useBranchContext } from "../branch-context";
 import { useBranches } from "../branches/branches-data-hooks";
 
@@ -146,6 +147,7 @@ export function ProductsListView() {
       Tags: getTagNames(tags, p.tagIds || []).join(", "),
       Price: p.priceGhs,
       Stock: p.stock,
+      Unit: p.unit || "piece",
       Status: p.status,
     }));
     const csv = Papa.unparse(exportData);
@@ -166,6 +168,7 @@ export function ProductsListView() {
       Tags: getTagNames(tags, p.tagIds || []).join(", "),
       Price: p.priceGhs,
       Stock: p.stock,
+      Unit: p.unit || "piece",
       Status: p.status,
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -350,8 +353,13 @@ export function ProductsListView() {
                       </div>
                       <p className="text-[12px] text-muted-foreground mt-1 font-mono truncate">{p.sku}</p>
                       <div className="mt-auto pt-2 flex items-center justify-between">
-                        <p className="font-bold text-[#006c49] dark:text-[#6ffbbe]">{formatGhs(p.priceGhs)}</p>
-                        <p className="text-[12px] text-muted-foreground">Stock: <span className="font-semibold text-foreground">{p.stock}</span></p>
+                        <p className="font-bold text-[#006c49] dark:text-[#6ffbbe]">
+                          {formatGhs(p.priceGhs)}
+                          {unitShort(p.unit) && (
+                            <span className="ml-1 text-[11px] font-medium text-muted-foreground">/ {unitShort(p.unit)}</span>
+                          )}
+                        </p>
+                        <p className="text-[12px] text-muted-foreground">Stock: <span className="font-semibold text-foreground">{formatQuantity(p.stock, p.unit)}</span></p>
                       </div>
                     </div>
                   </div>
@@ -409,8 +417,13 @@ export function ProductsListView() {
                     </td>
                     <td className="px-4 py-3 font-mono text-muted-foreground">{p.sku}</td>
                     <td className="px-4 py-3">{getCategoryName(categories, p.categoryId)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatGhs(p.priceGhs)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{p.stock}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {formatGhs(p.priceGhs)}
+                      {unitShort(p.unit) && (
+                        <span className="ml-1 text-[11px] font-medium text-muted-foreground">/ {unitShort(p.unit)}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatQuantity(p.stock, p.unit)}</td>
                     <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <Link href={`/dashboard/products/${p.id}/edit`} className="text-[#006c49] font-medium mr-4">Edit</Link>

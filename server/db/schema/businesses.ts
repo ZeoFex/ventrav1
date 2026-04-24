@@ -55,6 +55,12 @@ export const businesses = pgTable("businesses", {
     schedule: jsonb("schedule"),
     structure: varchar("structure", { length: 20 }),
     onboardingCompleted: boolean("onboarding_completed").default(false),
+    /**
+     * Partial onboarding state persisted between sessions. Lets a user
+     * resume the wizard from where they left off after closing the tab
+     * or switching devices. Cleared when onboarding completes.
+     */
+    onboardingProgress: jsonb("onboarding_progress"),
     status: businessStatusEnum("status").default("active").notNull(),
     plan: businessPlanEnum("plan").default("starter").notNull(),
     subscriptionStatus: subscriptionStatusEnum("subscription_status").default("past_due").notNull(),

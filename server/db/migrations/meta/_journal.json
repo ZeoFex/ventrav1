@@ -29,6 +29,20 @@
       "when": 1776288000000,
       "tag": "0003_sale_returns",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776326400000,
+      "tag": "0004_product_unit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776340800000,
+      "tag": "0005_onboarding_progress",
+      "breakpoints": true
     }
   ]
 }

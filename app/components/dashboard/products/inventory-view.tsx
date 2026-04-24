@@ -6,6 +6,7 @@ import { Package, Loader2, AlertCircle } from "lucide-react";
 import { ProductsPageShell } from "./products-page-shell";
 import { useProducts, useCategories } from "./products-data-hooks";
 import { formatGhs, getCategoryName } from "@/app/lib/catalog-utils";
+import { formatQuantity } from "@/app/lib/product-units";
 import { useBranchContext } from "../branch-context";
 
 function StockBadge({ stock, reorderAt }: { stock: number; reorderAt: number }) {
@@ -101,11 +102,11 @@ export function InventoryView() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">In Stock</p>
-                    <p className="text-[15px] font-bold tabular-nums">{p.stock}</p>
+                    <p className="text-[15px] font-bold tabular-nums">{formatQuantity(p.stock, p.unit)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">Reorder Point</p>
-                    <p className="text-[15px] font-bold tabular-nums text-muted-foreground">{p.reorderAt}</p>
+                    <p className="text-[15px] font-bold tabular-nums text-muted-foreground">{formatQuantity(p.reorderAt, p.unit)}</p>
                   </div>
                 </div>
                 
@@ -139,8 +140,8 @@ export function InventoryView() {
                   <tr key={p.id} className="hover:bg-muted/30">
                     <td className="px-4 py-3 font-semibold">{p.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{getCategoryName(categories, p.categoryId)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{p.stock}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{p.reorderAt}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatQuantity(p.stock, p.unit)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{formatQuantity(p.reorderAt, p.unit)}</td>
                     <td className="px-4 py-3"><StockBadge stock={p.stock} reorderAt={p.reorderAt} /></td>
                     <td className="px-4 py-3 text-right">
                       <Link href={`/dashboard/products/${p.id}/edit`} className="text-[#006c49] font-bold">Adjust</Link>

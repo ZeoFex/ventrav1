@@ -148,6 +148,7 @@ export async function PUT(req: Request) {
                     costPriceGhs: data.costPriceGhs,
                     stock: data.stock,
                     reorderAt: data.reorderAt,
+                    unit: data.unit || "piece",
                     status: data.status,
                     updatedAt: new Date(),
                 })

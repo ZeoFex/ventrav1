@@ -2,6 +2,7 @@
 
 import { generateClientProductId, generateProductSku } from "./product-catalog-codes";
 import { ProductForm, type ProductFormInitialValues } from "./product-form";
+import { DEFAULT_PRODUCT_UNIT } from "@/app/lib/product-units";
 
 function buildInitial(): ProductFormInitialValues {
   return {
@@ -15,6 +16,7 @@ function buildInitial(): ProductFormInitialValues {
     tagIds: [],
     status: "active",
     imageSrc: null,
+    unit: DEFAULT_PRODUCT_UNIT,
     variations: [],
   };
 }

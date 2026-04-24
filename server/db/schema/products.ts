@@ -97,6 +97,12 @@ export const products = pgTable(
         stock: integer("stock").default(0).notNull(),
         reorderAt: integer("reorder_at").default(5),
         trackInventory: boolean("track_inventory").default(true).notNull(),
+        /**
+         * Unit of measure (e.g. "piece", "kg", "g", "lb", "oz", "l", "ml",
+         * "pack", "box"). Lets cold-stores, bakeries, pharmacies and any
+         * other business sell by weight/volume as well as by count.
+         */
+        unit: varchar("unit", { length: 20 }).default("piece").notNull(),
 
         status: productStatusEnum("status").default("active").notNull(),
 

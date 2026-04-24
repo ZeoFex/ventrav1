@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ONBOARDING_PREFILL_KEY } from "@/app/lib/onboarding-prefill";
+import {
+  ONBOARDING_PREFILL_KEY,
+  consumeOnboardingPrefill,
+  type OnboardingPrefillPayload,
+} from "@/app/lib/onboarding-prefill";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import {
   BRANCH_STEP_IDS,
@@ -18,15 +22,84 @@ import { defaultOnboardingData, type OnboardingData } from "./types";
 
 const branchIdSet = new Set<string>(BRANCH_STEP_IDS);
 
+/** Per-device cache so a user's half-filled wizard survives a browser crash
+ *  even if the server save didn't complete. Cleared on success. */
+const LOCAL_PROGRESS_KEY = "ventrapos.onboarding.progress";
+
+/** How long to wait after the last edit before syncing to the server. */
+const SERVER_SAVE_DEBOUNCE_MS = 1_000;
+
+type StoredProgress = {
+  stepIndex?: number;
+  data?: Partial<OnboardingData>;
+  updatedAt?: string;
+};
+
+function readLocalProgress(): StoredProgress | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LOCAL_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as StoredProgress) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalProgress(snap: StoredProgress): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LOCAL_PROGRESS_KEY, JSON.stringify(snap));
+  } catch {
+    /* quota / private mode — ignore */
+  }
+}
+
+function clearLocalProgress(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LOCAL_PROGRESS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Merge a saved snapshot over the defaults, tolerating missing/extra keys. */
+function mergeProgress(
+  base: OnboardingData,
+  stored: Partial<OnboardingData> | undefined,
+): OnboardingData {
+  if (!stored || typeof stored !== "object") return base;
+  return { ...base, ...stored };
+}
+
+/** Apply signup-handoff prefill to a partially-filled snapshot, only
+ *  filling blanks so we never clobber what the user typed after signup. */
+function applyPrefill(
+  snapshot: OnboardingData,
+  prefill: OnboardingPrefillPayload | null,
+): OnboardingData {
+  if (!prefill) return snapshot;
+  const next: OnboardingData = { ...snapshot };
+  if (prefill.email && !next.email) next.email = prefill.email;
+  if (prefill.storeName && !next.storeName) next.storeName = prefill.storeName;
+  if (prefill.legalName && !next.legalName) next.legalName = prefill.legalName;
+  if (prefill.plan) {
+    next.plan = prefill.plan as OnboardingData["plan"];
+    next.billingComplete = next.billingComplete || !!prefill.paid;
+  }
+  if (prefill.cycle) next.cycle = prefill.cycle as OnboardingData["cycle"];
+  return next;
+}
+
 export function OnboardingView() {
   const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
   const [data, setData] = useState<OnboardingData>(defaultOnboardingData);
   const prevStructureRef = useRef(data.structure);
 
-  // Auth context from signup → prefill handoff
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -36,48 +109,99 @@ export function OnboardingView() {
   );
 
   const currentStepId = steps[stepIndex];
+  const isCompleteStep = currentStepId === "complete";
 
+  // ─── Hydrate: server → local cache → signup prefill ────────────
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(ONBOARDING_PREFILL_KEY);
-      if (!raw) return;
-      sessionStorage.removeItem(ONBOARDING_PREFILL_KEY);
-      const p = JSON.parse(raw) as {
-        businessId?: string;
-        userId?: string;
-        email?: string;
-        storeName?: string;
-        legalName?: string;
-        plan?: string;
-        cycle?: string;
-        paid?: boolean;
-      };
-      if (p.businessId) setBusinessId(p.businessId);
-      if (p.userId) setUserId(p.userId);
-      setData((d) => ({
-        ...d,
-        ...(typeof p.email === "string" && p.email ? { email: p.email } : {}),
-        ...(typeof p.storeName === "string" && p.storeName
-          ? { storeName: p.storeName }
-          : {}),
-        ...(typeof p.legalName === "string" && p.legalName
-          ? { legalName: p.legalName }
-          : {}),
-        ...(typeof p.plan === "string" && p.plan
-          ? { 
-              plan: p.plan as OnboardingData["plan"], 
-              billingComplete: !!p.paid 
-            }
-          : {}),
-        ...(typeof p.cycle === "string" && p.cycle
-          ? { cycle: p.cycle as OnboardingData["cycle"] }
-          : {}),
-      }));
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    let cancelled = false;
 
+    (async () => {
+      const prefill = consumeOnboardingPrefill();
+      let hydrated = false;
+
+      try {
+        const res = await fetch("/api/onboarding/progress", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (res.ok) {
+          const json = (await res.json()) as {
+            onboardingCompleted: boolean;
+            progress: StoredProgress | null;
+          };
+          if (cancelled) return;
+
+          // Already finished — no reason to be on the wizard.
+          if (json.onboardingCompleted) {
+            clearLocalProgress();
+            router.replace("/dashboard");
+            return;
+          }
+
+          if (json.progress) {
+            const saved = json.progress;
+            setData((d) => applyPrefill(mergeProgress(d, saved.data), prefill));
+            if (typeof saved.stepIndex === "number") {
+              setStepIndex(Math.max(0, saved.stepIndex));
+            }
+            hydrated = true;
+          }
+        }
+      } catch {
+        /* offline or server error — fall back to local cache */
+      }
+
+      if (!hydrated) {
+        const local = readLocalProgress();
+        if (local) {
+          setData((d) => applyPrefill(mergeProgress(d, local.data), prefill));
+          if (typeof local.stepIndex === "number") {
+            setStepIndex(Math.max(0, local.stepIndex));
+          }
+          hydrated = true;
+        }
+      }
+
+      if (!hydrated && prefill) {
+        setData((d) => applyPrefill(d, prefill));
+      }
+
+      if (!cancelled) setIsHydrated(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  // ─── Persist on every edit (localStorage instantly, server debounced) ──
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (isCompleteStep) return; // don't over-write the server after finish
+
+    const snap: StoredProgress = {
+      stepIndex,
+      data,
+      updatedAt: new Date().toISOString(),
+    };
+    writeLocalProgress(snap);
+
+    const timeout = window.setTimeout(() => {
+      void fetch("/api/onboarding/progress", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(snap),
+        credentials: "same-origin",
+        keepalive: true,
+      }).catch(() => {
+        /* swallow — local cache is still authoritative for recovery */
+      });
+    }, SERVER_SAVE_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [isHydrated, isCompleteStep, stepIndex, data]);
+
+  // ─── Structure change resets branch-only steps back to a sane index ────
   useEffect(() => {
     const prev = prevStructureRef.current;
     prevStructureRef.current = data.structure;
@@ -92,7 +216,7 @@ export function OnboardingView() {
         return Math.min(i, nextSteps.length - 1);
       });
     }
-  }, [data.structure]);
+  }, [data.structure, data.plan]);
 
   useEffect(() => {
     setStepIndex((i) => Math.min(i, Math.max(0, steps.length - 1)));
@@ -121,7 +245,6 @@ export function OnboardingView() {
     });
   }, [currentStepId]);
 
-  const isCompleteStep = currentStepId === "complete";
   const contentMax =
     stepIndex === 0 && !isCompleteStep ? "max-w-6xl" : "max-w-2xl";
 
@@ -193,7 +316,7 @@ export function OnboardingView() {
         return;
       }
 
-      // Cleanup prefill only on success
+      clearLocalProgress();
       sessionStorage.removeItem(ONBOARDING_PREFILL_KEY);
       router.push("/dashboard");
     } catch {
@@ -202,6 +325,40 @@ export function OnboardingView() {
       setIsSaving(false);
     }
   }, [data, router]);
+
+  if (!isHydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div
+          className="flex items-center gap-3 text-sm text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          <svg
+            className="size-5 animate-spin text-[#006c49]"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+          Picking up where you left off…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-background">
@@ -301,4 +458,3 @@ export function OnboardingView() {
     </div>
   );
 }
-

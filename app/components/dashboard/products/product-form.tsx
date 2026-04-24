@@ -20,6 +20,12 @@ import { BarcodeGridModal } from "./barcode-grid-modal";
 import { useCategories, useTags } from "./products-data-hooks";
 import { useUploadThing } from "@/app/lib/uploadthing";
 import { useSWRConfig } from "swr";
+import {
+  PRODUCT_UNITS,
+  DEFAULT_PRODUCT_UNIT,
+  getUnit,
+  isDecimalUnit,
+} from "@/app/lib/product-units";
 
 export type ProductFormInitialValues = {
   name: string;
@@ -32,6 +38,8 @@ export type ProductFormInitialValues = {
   tagIds: string[];
   status: string;
   imageSrc: string | null;
+  /** Unit of measure; omit to default to "piece". */
+  unit?: string;
   variations: any[];
 };
 
@@ -69,6 +77,23 @@ export function ProductForm({
   const [tagIds, setTagIds] = useState<string[]>(initial.tagIds);
   const [status, setStatus] = useState<string>(initial.status);
   const [variations, setVariations] = useState<any[]>(initial.variations || []);
+
+  // Unit of measure. If the saved value isn't one of our presets (i.e. the
+  // user typed a custom unit last time), surface it via the "Other" path.
+  const initialUnit = (initial.unit || DEFAULT_PRODUCT_UNIT).toLowerCase();
+  const initialUnitIsPreset = PRODUCT_UNITS.some((u) => u.value === initialUnit);
+  const [unitSelect, setUnitSelect] = useState<string>(
+    initialUnitIsPreset ? initialUnit : "other",
+  );
+  const [unitCustom, setUnitCustom] = useState<string>(
+    initialUnitIsPreset ? "" : initial.unit || "",
+  );
+  const unit = unitSelect === "other" ? unitCustom.trim().toLowerCase() : unitSelect;
+  const unitMeta = getUnit(unit);
+  // Stock is an integer in the database. For weight/volume units, we still
+  // keep step=1 to avoid silent truncation and instead tip the user to stock
+  // in a smaller unit (grams, mL) when they need fractional precision.
+  const needsSmallerUnitTip = isDecimalUnit(unit);
   const [isScanningMode, setIsScanningMode] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
 
@@ -80,6 +105,7 @@ export function ProductForm({
     if (bType === "restaurant") return ["Extras", "Size", "Options"];
     if (bType === "pharmacy") return ["Dosage", "Pack Size"];
     if (bType === "electronics") return ["Storage", "Color", "Model"];
+    if (bType === "cold_store") return ["Cut", "Weight", "Pack Size"];
     return ["Size", "Color", "Material", "Style"];
   }, [user?.businessType]);
 
@@ -198,7 +224,8 @@ export function ProductForm({
     if (isSaving || isUploading) return;
     setIsSaving(true);
 
-    const stockNum = stock === "" ? 0 : Number(stock);
+    const stockNum = stock === "" ? 0 : Math.max(0, Math.round(Number(stock)));
+    const cleanUnit = unit && unit.length > 0 ? unit : DEFAULT_PRODUCT_UNIT;
     const productData = {
       name,
       sku,
@@ -206,6 +233,7 @@ export function ProductForm({
       priceGhs: price.toString(),
       stock: stockNum,
       reorderAt: Number(reorderAt) || 0,
+      unit: cleanUnit,
       categoryId: categoryId === "all" ? null : categoryId,
       tagIds,
       status,
@@ -358,16 +386,28 @@ export function ProductForm({
         </section>
 
         <section className="space-y-4 border-t pt-8 dark:border-white/5">
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Price (GHS) *</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₵</span>
                 <input type="number" required step="0.01" value={price} onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))} className="w-full p-3 pl-8 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" />
+                {unitMeta && unitSelect !== DEFAULT_PRODUCT_UNIT && (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
+                    per {unitMeta.short}
+                  </span>
+                )}
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">Stock Quantity</label>
+              <label className="text-sm font-semibold ml-1">
+                Stock Quantity
+                {unitMeta && unitMeta.value !== DEFAULT_PRODUCT_UNIT && (
+                  <span className="ml-1 text-muted-foreground font-normal">
+                    ({unitMeta.short})
+                  </span>
+                )}
+              </label>
               <input
                 type="number"
                 min={0}
@@ -380,6 +420,69 @@ export function ProductForm({
                 }
                 className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
               />
+              {needsSmallerUnitTip && (
+                <p className="ml-1 text-[11px] text-muted-foreground">
+                  Need fractions? Stock in a smaller unit like{" "}
+                  <span className="font-semibold">
+                    {unit === "kg" ? "grams" : unit === "l" ? "mL" : unit === "lb" ? "oz" : "a smaller unit"}
+                  </span>
+                  .
+                </p>
+              )}
+            </div>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <label className="text-sm font-semibold ml-1">
+                Unit of Measure
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={unitSelect}
+                  onChange={(e) => {
+                    setUnitSelect(e.target.value);
+                    if (e.target.value !== "other") setUnitCustom("");
+                  }}
+                  className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 appearance-none"
+                >
+                  <optgroup label="Count">
+                    {PRODUCT_UNITS.filter((u) => u.group === "count").map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Weight">
+                    {PRODUCT_UNITS.filter((u) => u.group === "weight").map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Volume">
+                    {PRODUCT_UNITS.filter((u) => u.group === "volume").map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Length">
+                    {PRODUCT_UNITS.filter((u) => u.group === "length").map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Packaging">
+                    {PRODUCT_UNITS.filter((u) => u.group === "pack").map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </optgroup>
+                  <option value="other">Other (custom)…</option>
+                </select>
+              </div>
+              {unitSelect === "other" && (
+                <input
+                  value={unitCustom}
+                  onChange={(e) => setUnitCustom(e.target.value)}
+                  placeholder="e.g. tray, sachet, basket"
+                  maxLength={20}
+                  className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                />
+              )}
+              <p className="ml-1 text-[12px] text-muted-foreground">
+                Ideal for cold stores, bakeries and markets — sell by weight, volume or pack.
+              </p>
             </div>
           </div>
         </section>
