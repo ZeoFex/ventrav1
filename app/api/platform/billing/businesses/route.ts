@@ -6,43 +6,49 @@ import { businesses } from "@/server/db/schema/businesses";
 
 export const dynamic = "force-dynamic";
 
-const businessSelect = {
+/**
+ * Per-tenant subscription and referral fields (all businesses, paginated).
+ * For POS catalog etc. use /api/platform/businesses; this route is billing-focused.
+ */
+const row = {
     id: businesses.id,
     name: businesses.name,
     slug: businesses.slug,
-    plan: businesses.plan,
     contactEmail: businesses.contactEmail,
     status: businesses.status,
+    plan: businesses.plan,
     subscriptionStatus: businesses.subscriptionStatus,
+    currentPeriodEnd: businesses.currentPeriodEnd,
+    referralCode: businesses.referralCode,
+    referredByBusinessId: businesses.referredByBusinessId,
+    referralRewardBps: businesses.referralRewardBps,
+    referralDiscountReservedBps: businesses.referralDiscountReservedBps,
     createdAt: businesses.createdAt,
+    updatedAt: businesses.updatedAt,
 } as const;
 
-/**
- * List all businesses (paginated). Requires `X-Ventra-Platform-Key` only.
- * Optional query: `businessId` — narrows to the row with that id.
- */
 export async function GET(req: NextRequest) {
     const g = parsePlatformListRequest(req);
     if (!g.ok) {
         return g.response;
     }
     const { limit, offset, businessId } = g.params;
-
     const idCond = businessId ? eq(businesses.id, businessId) : undefined;
+
     const [countRow] = idCond
         ? await db.select({ n: count() }).from(businesses).where(idCond)
         : await db.select({ n: count() }).from(businesses);
 
-    const rows = idCond
+    const items = idCond
         ? await db
-              .select(businessSelect)
+              .select(row)
               .from(businesses)
               .where(idCond)
               .orderBy(desc(businesses.createdAt))
               .limit(limit)
               .offset(offset)
         : await db
-              .select(businessSelect)
+              .select(row)
               .from(businesses)
               .orderBy(desc(businesses.createdAt))
               .limit(limit)
@@ -50,7 +56,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
         total: countRow?.n ?? 0,
-        items: rows,
+        items,
         limit,
         offset,
     });

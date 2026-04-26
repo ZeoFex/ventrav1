@@ -7,7 +7,12 @@
   },
   "servers": [
     {
-      "url": "https://www.ventrapos.com"
+      "url": "http://localhost:3000",
+      "description": "Local (pnpm dev) — use this in API reference to Try it"
+    },
+    {
+      "url": "https://www.ventrapos.com",
+      "description": "Production"
     }
   ],
   "tags": [
@@ -1720,6 +1725,114 @@
         }
       }
     },
+    "/api/platform/audit-logs": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/audit-logs",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/billing/businesses": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/billing/businesses",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/billing/summary": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/billing/summary",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/branches": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/branches",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
     "/api/platform/businesses": {
       "get": {
         "tags": [
@@ -1731,6 +1844,781 @@
           }
         ],
         "summary": "GET /api/platform/businesses",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/businesses/{id}": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/businesses/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "PATCH /api/platform/businesses/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/categories": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/categories",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/customers": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/customers",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/discounts": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/discounts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/email-verifications": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/email-verifications",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/expenses": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/expenses",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/notifications": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/notifications",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/overview": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/overview",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/password-resets": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/password-resets",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/pending-subscriptions": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/pending-subscriptions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/permissions": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/permissions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/product-tags": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/product-tags",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/product-variations": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/product-variations",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/products": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/products",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/referral-qualifications": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/referral-qualifications",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/reports": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/reports",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/role-permissions": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/role-permissions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/roles": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/roles",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/sale-items": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/sale-items",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/sales": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/sales",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/stats": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/stats",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/tags": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/tags",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/user-roles": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/user-roles",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/users": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/users",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "POST /api/platform/users",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/users/{id}": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/users/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "PATCH /api/platform/users/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "DELETE /api/platform/users/{id}",
         "responses": {
           "200": {
             "description": "OK"

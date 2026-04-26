@@ -89,7 +89,10 @@ const spec = {
     description:
       "HTTP API for VentraPOS. Authenticated calls support `Authorization: Bearer <access_token>` (JSON from POST /api/auth/login when enabled) and/or the `__ventra_at` access cookie. Send `X-Branch-Id` to scope a branch. See docs/API-SECURITY.md.",
   },
-  servers: [{ url: "https://www.ventrapos.com" }],
+  servers: [
+    { url: "http://localhost:3000", description: "Local (pnpm dev) — use this in API reference to Try it" },
+    { url: "https://www.ventrapos.com", description: "Production" },
+  ],
   tags: [
     { name: "auth", description: "Authentication" },
     { name: "billing", description: "Billing, payments, subscriptions" },

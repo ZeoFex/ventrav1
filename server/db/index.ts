@@ -9,9 +9,10 @@ import * as schema from "./schema";
 
 const connectionString = process.env.DATABASE_URL!;
 
-// Use max 1 connection for serverless environments (Next.js API routes)
+// Serverless: keep pool tiny. Local dev: allow concurrent API routes (sandbox + scalar + tabs).
+const isDev = process.env.NODE_ENV === "development";
 const client = postgres(connectionString, {
-    max: 1,
+    max: isDev ? 10 : 1,
     idle_timeout: 20,
     connect_timeout: 10,
 });

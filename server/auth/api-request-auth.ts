@@ -74,7 +74,8 @@ async function tryPlatformOrJwt(
         if (!actAs) {
             return NextResponse.json(
                 {
-                    error: "X-Act-As-Business-Id is required when using a platform key on this route",
+                    error:
+                        "X-Act-As-Business-Id is required when using a platform key on tenant routes (e.g. /api/branches). Send a business UUID to impersonate that tenant, or use GET /api/platform/* for cross-tenant lists (e.g. GET /api/platform/branches) with the platform key only.",
                 },
                 { status: 400 }
             );
