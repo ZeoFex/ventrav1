@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
+import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { db } from "@/server/db";
 import { discounts } from "@/server/db/schema/discounts";
 import { eq, and, or, isNull } from "drizzle-orm";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 
 export async function GET() {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuthFromContext();
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
 
         let query;
         if (branchId && branchId !== "all") {
@@ -42,12 +38,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
 
         // If created in global view, branchId is null (applies to all branches)
         const finalBranchId = branchId === "all" ? null : branchId;

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
+import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { getProducts, saveProduct } from "@/server/products/product-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
 
 /**
  * GET /api/products
@@ -12,15 +10,10 @@ import { getActiveBranchId } from "@/server/auth/get-branch-id";
  */
 export async function GET() {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuthFromContext();
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
         const products = await getProducts(payload.bid, branchId);
 
         // No browser caching — Redis handles server-side speed.
@@ -42,15 +35,10 @@ export async function GET() {
  */
 export async function POST(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
         if (branchId === "all") {
             return NextResponse.json({ error: "Cannot create product in Global View." }, { status: 400 });
         }
@@ -80,12 +68,10 @@ export async function DELETE(req: Request) {
 
         if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
 
         // Delete from DB and Invalidate cache
         const { redis } = await import("@/server/lib/redis");
@@ -117,12 +103,10 @@ export async function DELETE(req: Request) {
  */
 export async function PUT(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
         const { id, ...data } = await req.json();
 
         if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

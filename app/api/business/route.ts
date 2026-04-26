@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { hasMinRole, requireOwner, requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getBusinessConfig, updateBusinessConfig } from "@/server/businesses/business-service";
 
 /**
@@ -10,14 +8,12 @@ import { getBusinessConfig, updateBusinessConfig } from "@/server/businesses/bus
  */
 export async function GET() {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const auth = await requireUserAuthFromContext();
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        if (!hasMinRole(payload, "manager")) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-
-        const payload = await verifyAccessToken(token);
         if (!payload.bid) {
             return NextResponse.json({ error: "No business associated" }, { status: 400 });
         }
@@ -35,21 +31,19 @@ export async function GET() {
  */
 export async function PATCH(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const denied = requireOwner(payload);
+        if (denied !== true) {
+            return denied;
         }
-
-        const payload = await verifyAccessToken(token);
         if (!payload.bid) {
             return NextResponse.json({ error: "No business associated" }, { status: 400 });
         }
 
         const body = await req.json();
 
-        // Simple update - in production, add Zod validation here
         await updateBusinessConfig(payload.bid, body);
 
         return NextResponse.json({ success: true });

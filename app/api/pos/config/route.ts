@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getBusinessConfig } from "@/server/businesses/business-service";
 
 /**
@@ -10,14 +8,9 @@ import { getBusinessConfig } from "@/server/businesses/business-service";
  */
 export async function GET() {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(token);
+        const auth = await requireUserAuthFromContext();
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
         if (!payload.bid) {
             return NextResponse.json({ error: "No business associated" }, { status: 400 });
         }

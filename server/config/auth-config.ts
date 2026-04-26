@@ -38,3 +38,6 @@ export const COOKIE_NAMES = {
     REFRESH: "__ventra_rt",
     BRANCH: "__ventra_branch",
 } as const;
+
+/** Optional branch for API clients (CORS + Bearer), takes precedence over branch cookie. */
+export const BRANCH_ID_HEADER = "X-Branch-Id";

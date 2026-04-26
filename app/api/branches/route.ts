@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
+import { hasMinRole, requireOwner, requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getBranches, saveBranch } from "@/server/branches/branch-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
 
 /**
  * GET /api/branches
@@ -10,14 +8,12 @@ import { COOKIE_NAMES } from "@/server/config/auth-config";
  */
 export async function GET() {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const auth = await requireUserAuthFromContext();
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        if (!hasMinRole(payload, "manager")) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-
-        const payload = await verifyAccessToken(token);
         const branches = await getBranches(payload.bid);
 
         return NextResponse.json(branches, {
@@ -35,14 +31,13 @@ export async function GET() {
  */
 export async function POST(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const denied = requireOwner(payload);
+        if (denied !== true) {
+            return denied;
         }
-
-        const payload = await verifyAccessToken(token);
         const body = await req.json();
 
         const result = await saveBranch({

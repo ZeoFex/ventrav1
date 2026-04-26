@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
+import { NextResponse } from "next/server";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { buildCopilotScope } from "@/app/lib/copilot/scope";
 import { isCopilotRateLimited } from "@/app/lib/copilot/rate-limit";
 import { orchestrateCopilotChat } from "@/app/lib/copilot/executor/orchestrate";
@@ -15,17 +14,10 @@ export const maxDuration = 120;
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const payload = await verifyAccessToken(token);
-    const branchCookie = getActiveBranchId(cookieStore);
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const { payload } = auth;
+    const branchCookie = await getActiveBranchIdFromContext();
 
     const planDenied = await copilotAccessDeniedResponse(payload.bid);
     if (planDenied) return planDenied;

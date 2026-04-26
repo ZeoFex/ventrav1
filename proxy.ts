@@ -6,9 +6,68 @@ import { jwtVerify } from "jose";
 // Matches server/config/auth-config.ts: COOKIE_NAMES.ACCESS
 const ACCESS_TOKEN_COOKIE = "__ventra_at";
 
+const DEV_ORIGIN_RE =
+  /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|172\.\d+\.\d+\.\d+|admin\.localhost)(:\d+)?$/i;
+
+function parseAdminOrigins(): string[] {
+  return (process.env.ADMIN_DASHBOARD_ORIGINS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function matchCorsOrigin(request: NextRequest): string | null {
+  const o = request.headers.get("origin");
+  if (!o) {
+    return null;
+  }
+  const list = parseAdminOrigins();
+  if (list.includes(o)) {
+    return o;
+  }
+  if (process.env.NODE_ENV === "development" && DEV_ORIGIN_RE.test(o)) {
+    return o;
+  }
+  return null;
+}
+
+function applyApiCors(request: NextRequest) {
+  const allow = matchCorsOrigin(request);
+  if (request.method === "OPTIONS") {
+    if (!request.headers.get("origin") || !allow) {
+      return new NextResponse(null, { status: 204 });
+    }
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": allow,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Authorization, Content-Type, X-Branch-Id, X-Requested-With, Cookie",
+        "Access-Control-Max-Age": "86400",
+        Vary: "Origin",
+      },
+    });
+  }
+  if (!allow) {
+    return NextResponse.next();
+  }
+  const res = NextResponse.next();
+  res.headers.set("Access-Control-Allow-Origin", allow);
+  res.headers.set("Access-Control-Allow-Credentials", "true");
+  res.headers.set("Vary", "Origin");
+  return res;
+}
+
 export async function proxy(request: NextRequest) {
-    const { pathname } = request.nextUrl;
-    const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/api")) {
+    return applyApiCors(request);
+  }
+
+  const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
     // 1. If hitting auth pages while logged in -> Redirect to Dashboard
     const isAuthPage = pathname.startsWith("/login") ||
@@ -61,14 +120,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - api (API routes)
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public (public files)
-         */
-        "/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|workbox-|manifest\\.webmanifest|public|.*\\.png|.*\\.jpg).*)",
+        "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|workbox-|manifest\\.webmanifest|public|.*\\.png|.*\\.jpg).*)",
     ],
 };

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chargeMomo } from "@/lib/paystack";
 import { z } from "zod";
+import { getAccessTokenStringFromRequest } from "@/server/auth/api-request-auth";
 import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 import { eq } from "drizzle-orm";
@@ -18,9 +18,9 @@ const chargeSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
+    const token = getAccessTokenStringFromRequest(req);
     let payload: any = null;
-    
+
     if (token) {
         try {
             payload = await verifyAccessToken(token);

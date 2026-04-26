@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { processSaleReturn, SaleReturnError } from "@/server/pos/return-service";
 
 type BodyLine = { saleItemId?: string; quantity?: number };
@@ -13,15 +11,11 @@ type BodyLine = { saleItemId?: string; quantity?: number };
  */
 export async function POST(req: NextRequest) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(token);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
         const isOwner = payload.role === "owner";
-        const branchId = getActiveBranchId(cookieStore);
+        const branchId = await getActiveBranchIdFromContext();
 
         let body: { saleId?: string; lines?: BodyLine[]; reason?: string };
         try {

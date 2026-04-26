@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { getRevenueDetails } from "@/server/pos/pos-service";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
 
 /**
  * GET /api/sales/revenue
@@ -15,15 +13,10 @@ export async function GET(request: Request) {
         const periodParam = searchParams.get("period");
         const periodDays = periodParam ? parseInt(periodParam, 10) : 7;
 
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(request);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
         const details = await getRevenueDetails(payload.bid, periodDays, branchId);
 
         return NextResponse.json(details, {

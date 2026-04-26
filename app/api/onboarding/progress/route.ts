@@ -17,8 +17,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 
 /** Accepts any JSON object; we don't want to reject a new field from the
  *  wizard before the server code catches up. Kept permissive on purpose. */
@@ -30,22 +29,10 @@ const progressSchema = z.object({
 
 type StoredProgress = z.infer<typeof progressSchema>;
 
-async function getSession(req: NextRequest) {
-    const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) return null;
-    try {
-        const session = await verifyAccessToken(token);
-        return { userId: session.sub, businessId: session.bid };
-    } catch {
-        return null;
-    }
-}
-
 export async function GET(req: NextRequest) {
-    const session = await getSession(req);
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = { userId: auth.payload.sub, businessId: auth.payload.bid };
 
     try {
         const [row] = await db
@@ -75,10 +62,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-    const session = await getSession(req);
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = { userId: auth.payload.sub, businessId: auth.payload.bid };
 
     let raw: unknown;
     try {
@@ -114,10 +100,9 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-    const session = await getSession(req);
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = { userId: auth.payload.sub, businessId: auth.payload.bid };
 
     try {
         await db

@@ -1,21 +1,17 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { db } from "@/server/db";
 import { branches } from "@/server/db/schema/branches";
 import { categories } from "@/server/db/schema/products";
 import { eq, and } from "drizzle-orm";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
 
 export async function POST(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
-        const activeBranchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const activeBranchId = await getActiveBranchIdFromContext();
 
         if (!activeBranchId || activeBranchId === "all") {
             return NextResponse.json({ error: "Please select a specific branch to sync into." }, { status: 400 });

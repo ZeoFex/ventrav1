@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAccessTokenStringFromRequest } from "@/server/auth/api-request-auth";
 import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { getSubscriptionQuoteForBusiness } from "@/server/billing/subscription-quote";
 import type { PlanId } from "@/config/plans";
 
@@ -10,7 +10,7 @@ import type { PlanId } from "@/config/plans";
  */
 export async function GET(req: NextRequest) {
     try {
-        const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
+        const token = getAccessTokenStringFromRequest(req);
         let businessId: string | null = null;
         if (token) {
             try {

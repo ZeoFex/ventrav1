@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { db } from "@/server/db";
 import { sales, saleItems } from "@/server/db/schema/sales";
 import { users } from "@/server/db/schema/users";
@@ -14,20 +12,15 @@ import { eq, and, asc, sql } from "drizzle-orm";
  * Sale header + line items for the authenticated business (same access rules as list).
  */
 export async function GET(
-    _req: NextRequest,
+    req: NextRequest,
     { params }: { params: Promise<{ saleId: string }> },
 ) {
     try {
         const { saleId } = await params;
 
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(token);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
         const isAdmin = payload.role === "owner";
 
         const access = and(

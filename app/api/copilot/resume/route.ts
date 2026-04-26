@@ -1,8 +1,7 @@
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { NextResponse } from "next/server";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { redis } from "@/server/lib/redis";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { buildCopilotScope } from "@/app/lib/copilot/scope";
 import { verifyResumeToken } from "@/app/lib/copilot/resume-token";
 import { logCopilotAudit } from "@/app/lib/copilot/audit";
@@ -16,13 +15,9 @@ export const runtime = "nodejs";
  */
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifyAccessToken(token);
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const { payload } = auth;
     const planDenied = await copilotAccessDeniedResponse(payload.bid);
     if (planDenied) return planDenied;
 
@@ -38,7 +33,7 @@ export async function POST(req: Request) {
 
     const scope = buildCopilotScope(
       payload,
-      getActiveBranchId(cookieStore),
+      await getActiveBranchIdFromContext(),
       null,
     );
     const verified = await verifyResumeToken(body.resumeToken);

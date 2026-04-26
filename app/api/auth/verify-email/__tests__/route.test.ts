@@ -60,6 +60,7 @@ describe("POST /api/auth/verify-email endpoint", () => {
             role: "owner",
             permissions: [],
             plan: "starter",
+            onboardingCompleted: false,
         };
 
         vi.mocked(verifyEmail).mockResolvedValue(mockUserCtx);

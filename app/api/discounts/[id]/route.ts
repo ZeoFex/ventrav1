@@ -1,20 +1,15 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { db } from "@/server/db";
 import { discounts } from "@/server/db/schema/discounts";
 import { eq } from "drizzle-orm";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
 
 export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
     try {
         const params = await props.params;
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
 
-        const payload = await verifyAccessToken(token);
-        
         const {
             name,
             type,
@@ -57,9 +52,8 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
 export async function DELETE(req: Request, props: { params: Promise<{ id: string }> }) {
     try {
         const params = await props.params;
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
 
         const id = params.id;
         if (!id) return NextResponse.json({ error: "Missing discount ID" }, { status: 400 });

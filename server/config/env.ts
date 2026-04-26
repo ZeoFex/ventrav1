@@ -29,6 +29,31 @@ const envSchema = z.object({
         .string()
         .optional()
         .default("http://localhost:3000"),
+
+    /**
+     * Comma-separated CORS allowlist (e.g. `https://admin.ventrapos.com`).
+     * Empty = no CORS for cross-origin (same-origin and server-to-server work as before).
+     */
+    ADMIN_DASHBOARD_ORIGINS: z.string().optional().default(""),
+
+    /** Return JWT in `POST /api/auth/login` JSON (for Bearer from separate origins). */
+    INCLUDE_ACCESS_TOKEN_IN_LOGIN: z
+        .enum(["true", "false"])
+        .optional()
+        .default("true"),
+
+    /** Vercel Cron and manual triggers */
+    CRON_SECRET: z.string().optional().default(""),
+
+    /** Login attempts per IP per 15 min window (public auth hardening) */
+    RATE_LIMIT_LOGIN_PER_IP: z.coerce.number().int().min(1).optional().default(30),
+    RATE_LIMIT_AUTH_EMAIL_WINDOW_SEC: z.coerce
+        .number()
+        .int()
+        .min(60)
+        .optional()
+        .default(900),
+
     NODE_ENV: z
         .enum(["development", "production", "test"])
         .optional()

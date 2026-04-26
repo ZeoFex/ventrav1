@@ -1,4 +1,5 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
+import { getAccessTokenStringFromRequest } from "@/server/auth/api-request-auth";
 
 const f = createUploadthing();
 
@@ -7,7 +8,7 @@ export const ourFileRouter = {
     // Define as many FileRoutes as you like, each with a unique routeSlug
     storeLogo: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
         .middleware(async ({ req }) => {
-            const token = req.cookies.get("__ventra_at")?.value;
+            const token = getAccessTokenStringFromRequest(req as Request);
             if (!token) throw new Error("Unauthorized");
             const { verifyAccessToken } = await import("@/server/auth/token-service");
             const payload = await verifyAccessToken(token);
@@ -23,9 +24,9 @@ export const ourFileRouter = {
             await db.update(businesses)
                 .set({ logoUrl: file.url, updatedAt: new Date() })
                 .where(eq(businesses.id, metadata.businessId));
-            
+
             await invalidateBusinessConfig(metadata.businessId);
-            
+
             console.log("Upload complete for logo:", file.url);
             return { url: file.url };
         }),
@@ -39,7 +40,7 @@ export const ourFileRouter = {
         }),
     userProfile: f({ image: { maxFileSize: "2MB", maxFileCount: 1 } })
         .middleware(async ({ req }) => {
-            const token = req.cookies.get("__ventra_at")?.value;
+            const token = getAccessTokenStringFromRequest(req as Request);
             if (!token) throw new Error("Unauthorized");
             const { verifyAccessToken } = await import("@/server/auth/token-service");
             const payload = await verifyAccessToken(token);

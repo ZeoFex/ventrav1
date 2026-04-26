@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { getBranch, updateBranch } from "@/server/branches/branch-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
 
 /**
  * GET /api/branches/[id]
@@ -11,12 +9,9 @@ import { COOKIE_NAMES } from "@/server/config/auth-config";
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
         const branch = await getBranch(payload.bid, id);
 
         if (!branch) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
@@ -35,12 +30,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
         const body = await req.json();
 
         const result = await updateBranch(payload.bid, id, body);

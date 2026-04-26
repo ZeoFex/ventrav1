@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { db } from "@/server/db";
 import { sales, saleItems, REVENUE_SALE_STATUSES } from "@/server/db/schema/sales";
 import { products, categories } from "@/server/db/schema/products";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
 
 export async function GET(req: NextRequest) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
 
         // Standard filters — revenue-bearing sales only (excludes fully refunded / voided)
         const filters = [

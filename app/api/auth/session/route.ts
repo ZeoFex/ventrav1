@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAccessTokenStringFromRequest } from "@/server/auth/api-request-auth";
 import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { STARTER_TRIAL_DAYS } from "@/config/plans";
 
 export async function GET(req: NextRequest) {
     try {
-        const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
+        const token = getAccessTokenStringFromRequest(req);
         if (!token) {
             return NextResponse.json({ user: null });
         }

@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { NextResponse } from "next/server";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { isCopilotRateLimited } from "@/app/lib/copilot/rate-limit";
 import {
   getKhayaApiKey,
@@ -18,16 +17,9 @@ const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const payload = await verifyAccessToken(token);
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const { payload } = auth;
     const planDenied = await copilotAccessDeniedResponse(payload.bid);
     if (planDenied) return planDenied;
 

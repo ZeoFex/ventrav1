@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 import { referralQualifications } from "@/server/db/schema/referral-qualifications";
@@ -13,13 +11,9 @@ import { desc, eq } from "drizzle-orm";
  */
 export async function GET() {
     try {
-        const cookieStore = await cookies();
-        const t = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!t) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(t);
+        const auth = await requireUserAuthFromContext();
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
         if (payload.role !== "owner") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }

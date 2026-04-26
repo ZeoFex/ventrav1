@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { completeCheckout, type CheckoutInput } from "@/server/pos/pos-service";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
 
 /**
  * POST /api/pos/checkout
@@ -12,15 +10,10 @@ import { getActiveBranchId } from "@/server/auth/get-branch-id";
  */
 export async function POST(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
         const body = await req.json() as CheckoutInput;
 
         if (!body.lines || !Array.isArray(body.lines) || body.lines.length === 0) {

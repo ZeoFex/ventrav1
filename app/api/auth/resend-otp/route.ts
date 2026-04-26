@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { resendOtp } from "@/server/auth/auth-service";
+import { env } from "@/server/config/env";
+import { rateLimitKey } from "@/server/lib/rate-limit";
 
 const resendSchema = z.object({
     email: z.string().trim().email().max(320),
@@ -23,6 +25,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { error: "Please enter a valid email address" },
                 { status: 400 }
+            );
+        }
+
+        const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+        const rl = await rateLimitKey(
+            `auth:resend-otp:${ip}:${parsed.data.email}`,
+            8,
+            env.RATE_LIMIT_AUTH_EMAIL_WINDOW_SEC
+        );
+        if (!rl.ok) {
+            return NextResponse.json(
+                { error: "Too many requests. Please try again later." },
+                { status: 429 }
             );
         }
 

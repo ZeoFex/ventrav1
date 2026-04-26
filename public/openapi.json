@@ -1,0 +1,2764 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VentraPOS API",
+    "version": "1.0.0",
+    "description": "HTTP API for VentraPOS. Authenticated calls support `Authorization: Bearer <access_token>` (JSON from POST /api/auth/login when enabled) and/or the `__ventra_at` access cookie. Send `X-Branch-Id` to scope a branch. See docs/API-SECURITY.md."
+  },
+  "servers": [
+    {
+      "url": "https://www.ventrapos.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth",
+      "description": "Authentication"
+    },
+    {
+      "name": "billing",
+      "description": "Billing, payments, subscriptions"
+    },
+    {
+      "name": "pos",
+      "description": "Point of sale"
+    },
+    {
+      "name": "products",
+      "description": "Catalog"
+    },
+    {
+      "name": "staff",
+      "description": "Staff and roles"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access JWT"
+      },
+      "ventraAccessCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__ventra_at",
+        "description": "HttpOnly access cookie (same-origin and Electron)."
+      },
+      "branchHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Branch-Id",
+        "description": "Active branch id (optional)."
+      },
+      "paystackSignature": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Paystack-Signature"
+      },
+      "cronSecret": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "CRON_SECRET in Authorization header"
+      },
+      "uploadthing": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-uploadthing-version"
+      }
+    }
+  },
+  "security": [],
+  "paths": {
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "summary": "POST /api/auth/forgot-password",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "summary": "POST /api/auth/login",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/auth/logout",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/profile": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/auth/profile",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PATCH /api/auth/profile",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/resend-otp": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "summary": "POST /api/auth/resend-otp",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "summary": "POST /api/auth/reset-password",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/auth/session",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/signup": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "summary": "POST /api/auth/signup",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/verify-email": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "summary": "POST /api/auth/verify-email",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/billing/charge": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/billing/charge",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/billing/otp": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/billing/otp",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/billing/quote": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/billing/quote",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/billing/referrals/activity": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/billing/referrals/activity",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/billing/referrals/claim": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/billing/referrals/claim",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/billing/referrals/summary": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/billing/referrals/summary",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/billing/status": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/billing/status",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/branches": {
+      "get": {
+        "tags": [
+          "branches"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/branches",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "branches"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/branches",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/branches/{id}": {
+      "get": {
+        "tags": [
+          "branches"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/branches/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "branches"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PUT /api/branches/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/business": {
+      "get": {
+        "tags": [
+          "business"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/business",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "business"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PATCH /api/business",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/copilot/chat": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/copilot/chat",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/copilot/insights": {
+      "get": {
+        "tags": [
+          "copilot"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/copilot/insights",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/copilot/resume": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/copilot/resume",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/copilot/transcribe": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/copilot/transcribe",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/copilot/tts": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/copilot/tts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/cron/subscriptions": {
+      "get": {
+        "tags": [
+          "cron"
+        ],
+        "security": [
+          {
+            "cronSecret": []
+          }
+        ],
+        "summary": "GET /api/cron/subscriptions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/customers": {
+      "get": {
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/customers",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/customers",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/customers/{id}": {
+      "get": {
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/customers/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PATCH /api/customers/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/dashboard/home": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/dashboard/home",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/discounts": {
+      "get": {
+        "tags": [
+          "discounts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/discounts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "discounts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/discounts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/discounts/{id}": {
+      "put": {
+        "tags": [
+          "discounts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PUT /api/discounts/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "discounts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "DELETE /api/discounts/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/finance/expenses": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/finance/expenses",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/finance/expenses",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/finance/expenses/{id}": {
+      "patch": {
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PATCH /api/finance/expenses/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "DELETE /api/finance/expenses/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/finance/overview": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/finance/overview",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/notifications",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/notifications",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PATCH /api/notifications",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/notifications/{id}": {
+      "patch": {
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PATCH /api/notifications/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/onboarding/complete": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/onboarding/complete",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/onboarding/progress": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/onboarding/progress",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "onboarding"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PUT /api/onboarding/progress",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "onboarding"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "DELETE /api/onboarding/progress",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/pos/checkout": {
+      "post": {
+        "tags": [
+          "pos"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/pos/checkout",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/pos/config": {
+      "get": {
+        "tags": [
+          "pos"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/pos/config",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/pos/relay": {
+      "post": {
+        "tags": [
+          "pos"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/pos/relay",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/pos/relay/{sessionId}/poll": {
+      "get": {
+        "tags": [
+          "pos"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/pos/relay/{sessionId}/poll",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/pos/relay/{sessionId}/scan": {
+      "post": {
+        "tags": [
+          "pos"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/pos/relay/{sessionId}/scan",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products/bulk": {
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/products/bulk",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products/bulk-delete": {
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/products/bulk-delete",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products/categories": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/products/categories",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/products/categories",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PUT /api/products/categories",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "DELETE /api/products/categories",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products/categories/sync-main": {
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/products/categories/sync-main",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products/lookup": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/products/lookup",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/products",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/products",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PUT /api/products",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "DELETE /api/products",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products/sync-main": {
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/products/sync-main",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products/tags": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/products/tags",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/products/tags",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PUT /api/products/tags",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "DELETE /api/products/tags",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/products/{id}": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/products/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/receipt/verify/{saleId}": {
+      "get": {
+        "tags": [
+          "receipt"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/receipt/verify/{saleId}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/reports/sales-summary": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/reports/sales-summary",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/sales/average-order-value": {
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/sales/average-order-value",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/sales/lookup": {
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/sales/lookup",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/sales/overview": {
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/sales/overview",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/sales/profit": {
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/sales/profit",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/sales/returns": {
+      "post": {
+        "tags": [
+          "sales"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/sales/returns",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/sales/revenue": {
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/sales/revenue",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/sales/transactions": {
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/sales/transactions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/sales/transactions/{saleId}": {
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/sales/transactions/{saleId}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/staff/roles": {
+      "get": {
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/staff/roles",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/staff/roles",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/staff/roles/{id}": {
+      "get": {
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/staff/roles/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/staff": {
+      "get": {
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/staff",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "POST /api/staff",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/staff/{id}": {
+      "get": {
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "GET /api/staff/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "PATCH /api/staff/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          }
+        ],
+        "summary": "DELETE /api/staff/{id}",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/uploadthing": {},
+    "/api/webhooks/paystack": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "security": [
+          {
+            "paystackSignature": []
+          }
+        ],
+        "summary": "POST /api/webhooks/paystack",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    }
+  }
+}

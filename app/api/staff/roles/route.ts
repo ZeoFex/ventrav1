@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { hasMinRole, requireUserAuth } from "@/server/auth/api-request-auth";
 import { getBusinessRoles } from "@/server/staff/staff-service";
 
 export async function GET(req: NextRequest) {
-    try {
-        const payload = await verifyAccessToken(req.cookies.get(COOKIE_NAMES.ACCESS)?.value || "");
-        const roles = await getBusinessRoles(payload.bid);
-        return NextResponse.json(roles);
-    } catch (error) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const { payload } = auth;
+    if (!hasMinRole(payload, "manager")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const roles = await getBusinessRoles(payload.bid);
+    return NextResponse.json(roles);
 }
 
 export async function POST(req: NextRequest) {
     try {
-        const payload = await verifyAccessToken(req.cookies.get(COOKIE_NAMES.ACCESS)?.value || "");
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        if (!hasMinRole(payload, "manager")) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
         const { name, permissionKeys } = await req.json();
 
         if (!name) return NextResponse.json({ error: "Role name is required" }, { status: 400 });

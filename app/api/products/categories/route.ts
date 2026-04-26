@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
+import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { db } from "@/server/db";
 import { categories } from "@/server/db/schema/products";
 import { eq } from "drizzle-orm";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
-import { redis } from "@/server/lib/redis";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
 
 export async function GET() {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuthFromContext();
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
 
         let query = db.select().from(categories).where(eq(categories.businessId, payload.bid));
         if (branchId && branchId !== "all") {
@@ -35,12 +30,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
         if (branchId === "all") {
             return NextResponse.json({ error: "Cannot create category in Global View. Select a branch first." }, { status: 400 });
         }
@@ -66,11 +59,8 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
         const { id, name, slug, description } = await req.json();
 
         if (!id) return NextResponse.json({ error: "Missing category ID" }, { status: 400 });
@@ -96,9 +86,8 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const authRes = await requireUserAuth(req);
+        if (authRes instanceof NextResponse) return authRes;
 
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");

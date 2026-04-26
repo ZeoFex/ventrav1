@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import {
+    hasMinRole,
+    requireOwner,
+    requireUserAuth,
+} from "@/server/auth/api-request-auth";
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema/users";
-import { roles, userRoles, permissions, rolePermissions } from "@/server/db/schema/roles";
-import { eq, and, sql } from "drizzle-orm";
+import { roles, userRoles } from "@/server/db/schema/roles";
+import { eq, and } from "drizzle-orm";
 
 export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const payload = await verifyAccessToken(req.cookies.get(COOKIE_NAMES.ACCESS)?.value || "");
-        const { id: staffId } = await params;
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const { payload } = auth;
+    if (!hasMinRole(payload, "manager")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const { id: staffId } = await params;
 
-        const result = await db.select({
+    const result = await db
+        .select({
             id: users.id,
             firstName: users.firstName,
             lastName: users.lastName,
@@ -24,20 +32,17 @@ export async function GET(
             roleName: roles.name,
             branchId: userRoles.branchId,
         })
-            .from(users)
-            .innerJoin(userRoles, eq(users.id, userRoles.userId))
-            .innerJoin(roles, eq(userRoles.roleId, roles.id))
-            .where(and(eq(users.id, staffId), eq(users.businessId, payload.bid)))
-            .limit(1);
+        .from(users)
+        .innerJoin(userRoles, eq(users.id, userRoles.userId))
+        .innerJoin(roles, eq(userRoles.roleId, roles.id))
+        .where(and(eq(users.id, staffId), eq(users.businessId, payload.bid)))
+        .limit(1);
 
-        if (result.length === 0) {
-            return NextResponse.json({ error: "Staff not found" }, { status: 404 });
-        }
-
-        return NextResponse.json(result[0]);
-    } catch (error) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (result.length === 0) {
+        return NextResponse.json({ error: "Staff not found" }, { status: 404 });
     }
+
+    return NextResponse.json(result[0]);
 }
 
 export async function PATCH(
@@ -45,7 +50,13 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const payload = await verifyAccessToken(req.cookies.get(COOKIE_NAMES.ACCESS)?.value || "");
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const denied = requireOwner(payload);
+        if (denied !== true) {
+            return denied;
+        }
         const { id: staffId } = await params;
         const body = await req.json();
 
@@ -64,10 +75,15 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const payload = await verifyAccessToken(req.cookies.get(COOKIE_NAMES.ACCESS)?.value || "");
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const denied = requireOwner(payload);
+        if (denied !== true) {
+            return denied;
+        }
         const { id: staffId } = await params;
 
-        // Ensure user belongs to this business before deleting
         await db.delete(users).where(and(eq(users.id, staffId), eq(users.businessId, payload.bid)));
 
         return NextResponse.json({ success: true });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkPendingCharge } from "@/lib/paystack";
+import { getAccessTokenStringFromRequest } from "@/server/auth/api-request-auth";
 import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { db } from "@/server/db";
 import { pendingSubscriptions } from "@/server/db/schema/pending-subscriptions";
 import { sendSubscriptionEmail } from "@/server/auth/email-service";
@@ -17,9 +17,9 @@ import { applySuccessfulAuthenticatedSubscriptionPayment } from "@/server/billin
  */
 export async function GET(req: NextRequest) {
   try {
-    const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
+    const token = getAccessTokenStringFromRequest(req);
     let payload: any = null;
-    
+
     if (token) {
         try {
             payload = await verifyAccessToken(token);

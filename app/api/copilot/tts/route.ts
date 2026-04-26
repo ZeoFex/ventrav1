@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { NextResponse } from "next/server";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { isCopilotRateLimited } from "@/app/lib/copilot/rate-limit";
 import { copilotAccessDeniedResponse } from "@/app/lib/copilot/plan-access";
 import {
@@ -38,16 +37,9 @@ function hexPreview(u8: Uint8Array, maxBytes = 32): string {
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const payload = await verifyAccessToken(token);
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const { payload } = auth;
     const planDenied = await copilotAccessDeniedResponse(payload.bid);
     if (planDenied) return planDenied;
 
@@ -191,7 +183,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const audio = Buffer.from(audioBuf);
     const u8 = new Uint8Array(audioBuf);
     const contentType = normalizeKhayaAudioContentType(upstreamCt, u8);
 
@@ -203,7 +194,7 @@ export async function POST(req: Request) {
       headHex: hexPreview(u8),
     });
 
-    return new Response(audio, {
+    return new Response(Buffer.from(audioBuf), {
       status: 200,
       headers: {
         "Content-Type": contentType,

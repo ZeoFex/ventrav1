@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { db } from "@/server/db";
 import { products, productTags, productVariations } from "@/server/db/schema/products";
 import { eq, and } from "drizzle-orm";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
 
 export async function GET(
     req: Request,
@@ -12,11 +10,9 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const payload = await verifyAccessToken(token);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
 
         const data = await db.query.products.findFirst({
             where: and(eq(products.id, id), eq(products.businessId, payload.bid)),

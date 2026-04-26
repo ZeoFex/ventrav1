@@ -3,8 +3,7 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema/users";
 import { eq } from "drizzle-orm";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(100),
@@ -15,12 +14,9 @@ const profileSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifyAccessToken(token);
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const { payload } = auth;
     const userId = payload.sub;
 
     const [user] = await db
@@ -50,12 +46,9 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifyAccessToken(token);
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
+    const { payload } = auth;
     const userId = payload.sub;
 
     const body = await req.json();

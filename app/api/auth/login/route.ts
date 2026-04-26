@@ -3,6 +3,8 @@ import { z } from "zod";
 import { login, AuthError } from "@/server/auth/auth-service";
 import { signAccessToken } from "@/server/auth/token-service";
 import { ACCESS_TOKEN_TTL, COOKIE_NAMES } from "@/server/config/auth-config";
+import { env } from "@/server/config/env";
+import { rateLimitKey } from "@/server/lib/rate-limit";
 
 const loginSchema = z.object({
     email: z.string().trim().email(),
@@ -18,6 +20,19 @@ export async function POST(req: NextRequest) {
             return NextResponse.json(
                 { error: "Invalid email or password" },
                 { status: 400 }
+            );
+        }
+
+        const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+        const rate = await rateLimitKey(
+            `auth:login:${ip}`,
+            env.RATE_LIMIT_LOGIN_PER_IP,
+            env.RATE_LIMIT_AUTH_EMAIL_WINDOW_SEC
+        );
+        if (!rate.ok) {
+            return NextResponse.json(
+                { error: "Too many sign-in attempts. Please try again later." },
+                { status: 429 }
             );
         }
 
@@ -46,21 +61,34 @@ export async function POST(req: NextRequest) {
 
         const isProduction = process.env.NODE_ENV === "production";
 
-        const response = NextResponse.json(
-            {
-                message: "Logged in successfully",
-                user: {
-                    id: result.userId,
-                    businessId: result.businessId,
-                    firstName: result.firstName,
-                    role: result.role,
-                    branchId: result.branchId,
-                    plan: result.plan,
-                    onboardingCompleted: result.onboardingCompleted,
-                },
+        const bodyJson: {
+            message: string;
+            user: {
+                id: string;
+                businessId: string;
+                firstName: string;
+                role: string;
+                branchId: string | null | undefined;
+                plan: string;
+                onboardingCompleted: boolean;
+            };
+            accessToken?: string;
+        } = {
+            message: "Logged in successfully",
+            user: {
+                id: result.userId,
+                businessId: result.businessId,
+                firstName: result.firstName,
+                role: result.role,
+                branchId: result.branchId,
+                plan: result.plan,
+                onboardingCompleted: result.onboardingCompleted,
             },
-            { status: 200 }
-        );
+        };
+        if (env.INCLUDE_ACCESS_TOKEN_IN_LOGIN === "true") {
+            bodyJson.accessToken = accessToken;
+        }
+        const response = NextResponse.json(bodyJson, { status: 200 });
 
         // Set HttpOnly Cookie for access token
         response.cookies.set(COOKIE_NAMES.ACCESS, accessToken, {

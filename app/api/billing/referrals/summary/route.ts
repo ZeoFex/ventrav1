@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireOwner, requireUserAuth } from "@/server/auth/api-request-auth";
+import { getPublicBaseUrl } from "@/config/public-site";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 import { referralQualifications } from "@/server/db/schema/referral-qualifications";
@@ -11,15 +10,12 @@ import { ensureReferralCodeForBusiness } from "@/server/referrals/referral-servi
 
 export async function GET(req: NextRequest) {
     try {
-        const cookieStore = await cookies();
-        const t = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!t) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(t);
-        if (payload.role !== "owner") {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const denied = requireOwner(payload);
+        if (denied !== true) {
+            return denied;
         }
 
         const businessId = payload.bid;
@@ -39,9 +35,7 @@ export async function GET(req: NextRequest) {
             .from(referralQualifications)
             .where(eq(referralQualifications.referrerBusinessId, businessId));
 
-        const origin =
-            process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-            req.nextUrl.origin;
+        const origin = getPublicBaseUrl();
 
         return NextResponse.json({
             referralCode: code,

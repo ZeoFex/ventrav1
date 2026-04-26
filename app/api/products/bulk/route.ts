@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyAccessToken } from "@/server/auth/token-service";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { saveProductsBulk } from "@/server/products/product-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
-import { getActiveBranchId } from "@/server/auth/get-branch-id";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { generateSlug } from "@/app/lib/catalog-utils";
 
 export async function POST(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get(COOKIE_NAMES.ACCESS)?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const payload = await verifyAccessToken(token);
-        const branchId = getActiveBranchId(cookieStore);
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        const branchId = await getActiveBranchIdFromContext();
 
         if (!branchId) {
             return NextResponse.json({ error: "Select a specific branch to import products." }, { status: 400 });

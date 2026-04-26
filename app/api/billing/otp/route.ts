@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { submitOTP } from "@/lib/paystack";
 import { z } from "zod";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 
 const otpSchema = z.object({
   otp: z.string().min(4),
@@ -11,12 +10,12 @@ const otpSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireUserAuth(req);
+    if (auth instanceof NextResponse) return auth;
 
     const body = await req.json();
     const parsed = otpSchema.safeParse(body);
-    
+
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid OTP details" }, { status: 400 });
     }

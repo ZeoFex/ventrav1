@@ -7,8 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { completeOnboarding } from "@/server/onboarding/onboarding-service";
-import { verifyAccessToken } from "@/server/auth/token-service";
-import { COOKIE_NAMES } from "@/server/config/auth-config";
+import { requireUserAuth } from "@/server/auth/api-request-auth";
 
 const branchSchema = z.object({
     name: z.string().min(1, "Branch name required"),
@@ -43,24 +42,9 @@ const bodySchema = z.object({
 
 export async function POST(req: NextRequest) {
     try {
-        // 1. Authenticate via JWT Cookie
-        const token = req.cookies.get(COOKIE_NAMES.ACCESS)?.value;
-        if (!token) {
-            return NextResponse.json(
-                { error: "Unauthorized. Please log in." },
-                { status: 401 }
-            );
-        }
-
-        let session;
-        try {
-            session = await verifyAccessToken(token);
-        } catch (err) {
-            return NextResponse.json(
-                { error: "Session expired or invalid. Please log in again." },
-                { status: 401 }
-            );
-        }
+        const auth = await requireUserAuth(req);
+        if (auth instanceof NextResponse) return auth;
+        const session = auth.payload;
 
         const userId = session.sub;
         const businessId = session.bid;
@@ -97,4 +81,3 @@ export async function POST(req: NextRequest) {
         );
     }
 }
-
