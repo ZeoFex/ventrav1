@@ -41,3 +41,9 @@ export const COOKIE_NAMES = {
 
 /** Optional branch for API clients (CORS + Bearer), takes precedence over branch cookie. */
 export const BRANCH_ID_HEADER = "X-Branch-Id";
+
+/** Superadmin: high-entropy key from `VENTRA_PLATFORM_API_KEYS` (use header, not Bearer JWT). */
+export const PLATFORM_KEY_HEADER = "X-Ventra-Platform-Key";
+
+/** With platform key, required for tenant-scoped routes: target business id. */
+export const ACT_AS_BUSINESS_HEADER = "X-Act-As-Business-Id";

@@ -10,10 +10,15 @@ const DEV_ORIGIN_RE =
   /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|172\.\d+\.\d+\.\d+|admin\.localhost)(:\d+)?$/i;
 
 function parseAdminOrigins(): string[] {
-  return (process.env.ADMIN_DASHBOARD_ORIGINS ?? "")
+  const a = (process.env.ADMIN_DASHBOARD_ORIGINS ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+  const b = (process.env.SUPERADMIN_DASHBOARD_ORIGINS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [...new Set([...a, ...b])];
 }
 
 function matchCorsOrigin(request: NextRequest): string | null {
@@ -44,7 +49,7 @@ function applyApiCors(request: NextRequest) {
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
         "Access-Control-Allow-Headers":
-          "Authorization, Content-Type, X-Branch-Id, X-Requested-With, Cookie",
+          "Authorization, Content-Type, X-Branch-Id, X-Requested-With, X-Ventra-Platform-Key, X-Act-As-Business-Id, Cookie",
         "Access-Control-Max-Age": "86400",
         Vary: "Origin",
       },

@@ -40,7 +40,14 @@ for (const { urlPath, methods, tag } of walkRel(apiRoot)) {
     if (op === "head" || op === "options") continue;
     paths[urlPath][op] = {
       tags: [tag],
-      security: op === "options" ? [] : [{ bearer: [] }, { ventraAccessCookie: [] }],
+      security:
+        op === "options"
+          ? []
+          : [
+              { bearer: [] },
+              { ventraAccessCookie: [] },
+              { platformKey: [], actAsBusiness: [] },
+            ],
       summary: `${op.toUpperCase()} ${urlPath}`,
       responses: {
         200: { description: "OK" },
@@ -62,6 +69,8 @@ const overrideSecurity = (p, u) => {
     u.security = [];
   } else if (p.startsWith("/api/uploadthing")) {
     u.security = [{ uploadthing: [] }, { bearer: [] }, { ventraAccessCookie: [] }];
+  } else if (p.startsWith("/api/platform/")) {
+    u.security = [{ platformKey: [] }];
   }
   return u;
 };
@@ -87,6 +96,7 @@ const spec = {
     { name: "pos", description: "Point of sale" },
     { name: "products", description: "Catalog" },
     { name: "staff", description: "Staff and roles" },
+    { name: "platform", description: "Superadmin / platform (VENTRA_PLATFORM_API_KEYS)" },
   ],
   components: {
     securitySchemes: {
@@ -101,6 +111,19 @@ const spec = {
       paystackSignature: { type: "apiKey", in: "header", name: "X-Paystack-Signature" },
       cronSecret: { type: "http", scheme: "bearer", description: "CRON_SECRET in Authorization header" },
       uploadthing: { type: "apiKey", in: "header", name: "x-uploadthing-version" },
+      platformKey: {
+        type: "apiKey",
+        in: "header",
+        name: "X-Ventra-Platform-Key",
+        description:
+          "Platform (superadmin) key from VENTRA_PLATFORM_API_KEYS. Use with X-Act-As-Business-Id on tenant routes, or alone on /api/platform/*.",
+      },
+      actAsBusiness: {
+        type: "apiKey",
+        in: "header",
+        name: "X-Act-As-Business-Id",
+        description: "Target business UUID when authenticating with X-Ventra-Platform-Key on tenant-scoped routes.",
+      },
     },
   },
   security: [],

@@ -30,6 +30,10 @@
     {
       "name": "staff",
       "description": "Staff and roles"
+    },
+    {
+      "name": "platform",
+      "description": "Superadmin / platform (VENTRA_PLATFORM_API_KEYS)"
     }
   ],
   "components": {
@@ -66,6 +70,18 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-uploadthing-version"
+      },
+      "platformKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Ventra-Platform-Key",
+        "description": "Platform (superadmin) key from VENTRA_PLATFORM_API_KEYS. Use with X-Act-As-Business-Id on tenant routes, or alone on /api/platform/*."
+      },
+      "actAsBusiness": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Act-As-Business-Id",
+        "description": "Target business UUID when authenticating with X-Ventra-Platform-Key on tenant-scoped routes."
       }
     }
   },
@@ -128,6 +144,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/auth/logout",
@@ -158,6 +178,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/auth/profile",
@@ -186,6 +210,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PATCH /api/auth/profile",
@@ -262,6 +290,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/auth/session",
@@ -338,6 +370,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/billing/charge",
@@ -368,6 +404,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/billing/otp",
@@ -398,6 +438,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/billing/quote",
@@ -428,6 +472,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/billing/referrals/activity",
@@ -458,6 +506,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/billing/referrals/claim",
@@ -488,6 +540,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/billing/referrals/summary",
@@ -518,6 +574,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/billing/status",
@@ -548,6 +608,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/branches",
@@ -576,6 +640,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/branches",
@@ -606,6 +674,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/branches/{id}",
@@ -634,6 +706,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PUT /api/branches/{id}",
@@ -664,6 +740,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/business",
@@ -692,6 +772,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PATCH /api/business",
@@ -722,6 +806,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/copilot/chat",
@@ -752,6 +840,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/copilot/insights",
@@ -782,6 +874,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/copilot/resume",
@@ -812,6 +908,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/copilot/transcribe",
@@ -842,6 +942,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/copilot/tts",
@@ -899,6 +1003,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/customers",
@@ -927,6 +1035,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/customers",
@@ -957,6 +1069,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/customers/{id}",
@@ -985,6 +1101,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PATCH /api/customers/{id}",
@@ -1015,6 +1135,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/dashboard/home",
@@ -1045,6 +1169,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/discounts",
@@ -1073,6 +1201,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/discounts",
@@ -1103,6 +1235,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PUT /api/discounts/{id}",
@@ -1131,6 +1267,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "DELETE /api/discounts/{id}",
@@ -1161,6 +1301,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/finance/expenses",
@@ -1189,6 +1333,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/finance/expenses",
@@ -1219,6 +1367,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PATCH /api/finance/expenses/{id}",
@@ -1247,6 +1399,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "DELETE /api/finance/expenses/{id}",
@@ -1277,6 +1433,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/finance/overview",
@@ -1307,6 +1467,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/notifications",
@@ -1335,6 +1499,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/notifications",
@@ -1363,6 +1531,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PATCH /api/notifications",
@@ -1393,6 +1565,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PATCH /api/notifications/{id}",
@@ -1423,6 +1599,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/onboarding/complete",
@@ -1453,6 +1633,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/onboarding/progress",
@@ -1481,6 +1665,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PUT /api/onboarding/progress",
@@ -1509,9 +1697,40 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "DELETE /api/onboarding/progress",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/platform/businesses": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "security": [
+          {
+            "platformKey": []
+          }
+        ],
+        "summary": "GET /api/platform/businesses",
         "responses": {
           "200": {
             "description": "OK"
@@ -1539,6 +1758,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/pos/checkout",
@@ -1569,6 +1792,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/pos/config",
@@ -1599,6 +1826,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/pos/relay",
@@ -1629,6 +1860,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/pos/relay/{sessionId}/poll",
@@ -1659,6 +1894,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/pos/relay/{sessionId}/scan",
@@ -1689,6 +1928,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/products/bulk",
@@ -1719,6 +1962,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/products/bulk-delete",
@@ -1749,6 +1996,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/products/categories",
@@ -1777,6 +2028,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/products/categories",
@@ -1805,6 +2060,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PUT /api/products/categories",
@@ -1833,6 +2092,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "DELETE /api/products/categories",
@@ -1863,6 +2126,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/products/categories/sync-main",
@@ -1893,6 +2160,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/products/lookup",
@@ -1923,6 +2194,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/products",
@@ -1951,6 +2226,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/products",
@@ -1979,6 +2258,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PUT /api/products",
@@ -2007,6 +2290,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "DELETE /api/products",
@@ -2037,6 +2324,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/products/sync-main",
@@ -2067,6 +2358,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/products/tags",
@@ -2095,6 +2390,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/products/tags",
@@ -2123,6 +2422,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PUT /api/products/tags",
@@ -2151,6 +2454,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "DELETE /api/products/tags",
@@ -2181,6 +2488,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/products/{id}",
@@ -2211,6 +2522,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/receipt/verify/{saleId}",
@@ -2241,6 +2556,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/reports/sales-summary",
@@ -2271,6 +2590,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/sales/average-order-value",
@@ -2301,6 +2624,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/sales/lookup",
@@ -2331,6 +2658,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/sales/overview",
@@ -2361,6 +2692,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/sales/profit",
@@ -2391,6 +2726,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/sales/returns",
@@ -2421,6 +2760,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/sales/revenue",
@@ -2451,6 +2794,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/sales/transactions",
@@ -2481,6 +2828,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/sales/transactions/{saleId}",
@@ -2511,6 +2862,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/staff/roles",
@@ -2539,6 +2894,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/staff/roles",
@@ -2569,6 +2928,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/staff/roles/{id}",
@@ -2599,6 +2962,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/staff",
@@ -2627,6 +2994,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "POST /api/staff",
@@ -2657,6 +3028,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "GET /api/staff/{id}",
@@ -2685,6 +3060,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "PATCH /api/staff/{id}",
@@ -2713,6 +3092,10 @@
           },
           {
             "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
           }
         ],
         "summary": "DELETE /api/staff/{id}",

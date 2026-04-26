@@ -1,7 +1,8 @@
 import { cookies, headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken, type AuthTokenPayload } from "./token-service";
-import { COOKIE_NAMES } from "../config/auth-config";
+import { ACT_AS_BUSINESS_HEADER, COOKIE_NAMES, PLATFORM_KEY_HEADER } from "../config/auth-config";
+import { buildPlatformActAsPayload, isValidPlatformKey } from "./platform-key";
 
 /** `Authorization: Bearer` or access cookie. Malformed `Bearer` (no token) yields null. */
 function parseAuthorizationBearer(value: string | null): string | null {
@@ -52,8 +53,42 @@ export async function getAccessTokenStringFromContext(): Promise<string | null> 
     return cookieStore.get(COOKIE_NAMES.ACCESS)?.value ?? null;
 }
 
-export async function requireUserAuthFromContext(): Promise<Authed | NextResponse> {
-    const token = await getAccessTokenStringFromContext();
+function getPlatformKeyFromWebHeaders(h: { get: (n: string) => string | null }): string | null {
+    return h.get(PLATFORM_KEY_HEADER) ?? h.get(PLATFORM_KEY_HEADER.toLowerCase());
+}
+
+function getActAsBusinessIdFromWebHeaders(h: { get: (n: string) => string | null }): string | null {
+    return h.get(ACT_AS_BUSINESS_HEADER) ?? h.get(ACT_AS_BUSINESS_HEADER.toLowerCase());
+}
+
+async function tryPlatformOrJwt(
+    h: { get: (n: string) => string | null },
+    getToken: () => Promise<string | null>
+): Promise<Authed | NextResponse> {
+    const pk = getPlatformKeyFromWebHeaders(h);
+    if (pk) {
+        if (!isValidPlatformKey(pk)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const actAs = getActAsBusinessIdFromWebHeaders(h)?.trim() ?? "";
+        if (!actAs) {
+            return NextResponse.json(
+                {
+                    error: "X-Act-As-Business-Id is required when using a platform key on this route",
+                },
+                { status: 400 }
+            );
+        }
+        const payload = await buildPlatformActAsPayload(actAs);
+        if (!payload) {
+            return NextResponse.json(
+                { error: "Unknown business or no users in business" },
+                { status: 404 }
+            );
+        }
+        return { payload, token: "platform" };
+    }
+    const token = await getToken();
     if (!token) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -65,6 +100,11 @@ export async function requireUserAuthFromContext(): Promise<Authed | NextRespons
     }
 }
 
+export async function requireUserAuthFromContext(): Promise<Authed | NextResponse> {
+    const h = await headers();
+    return tryPlatformOrJwt(h, () => getAccessTokenStringFromContext());
+}
+
 export type Authed = { payload: AuthTokenPayload; token: string };
 
 /**
@@ -73,16 +113,21 @@ export type Authed = { payload: AuthTokenPayload; token: string };
 export async function requireUserAuth(
     req: Request | NextRequest
 ): Promise<Authed | NextResponse> {
-    const token = getAccessTokenStringFromRequest(req);
-    if (!token) {
+    return tryPlatformOrJwt(req.headers, async () =>
+        Promise.resolve(getAccessTokenStringFromRequest(req))
+    );
+}
+
+/**
+ * Platform-only: valid `X-Ventra-Platform-Key` (e.g. `GET /api/platform/businesses`).
+ * Does not use act-as or user JWT.
+ */
+export function requireValidPlatformKeyOnly(req: Request | NextRequest): true | NextResponse {
+    const pk = getPlatformKeyFromWebHeaders(req.headers);
+    if (!pk || !isValidPlatformKey(pk)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    try {
-        const payload = await verifyAccessToken(token);
-        return { payload, token };
-    } catch {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    return true;
 }
 
 const ROLE_LEVEL: Record<string, number> = {

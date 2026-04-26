@@ -54,6 +54,18 @@ const envSchema = z.object({
         .optional()
         .default(900),
 
+    /**
+     * Comma-separated **platform (superadmin) API keys** (each ≥ 32 characters).
+     * Used with `X-Ventra-Platform-Key` + `X-Act-As-Business-Id` for tenant API access,
+     * or with only the key for `/api/platform/*`. Empty = feature disabled.
+     */
+    VENTRA_PLATFORM_API_KEYS: z.string().optional().default(""),
+
+    /**
+     * Extra CORS allowlist for the superadmin dashboard (merged with `ADMIN_DASHBOARD_ORIGINS`).
+     */
+    SUPERADMIN_DASHBOARD_ORIGINS: z.string().optional().default(""),
+
     NODE_ENV: z
         .enum(["development", "production", "test"])
         .optional()
