@@ -3,6 +3,7 @@
 import { nanoid } from "nanoid";
 import { useCallback, useState } from "react";
 import type { CopilotPreferredLanguage } from "@/app/lib/copilot/prompts/system";
+import type { CopilotPosCartSnapshot } from "@/app/lib/copilot/scope";
 import type { ChatTurn, ToolRowState } from "../types";
 
 type UiMessage = {
@@ -19,9 +20,27 @@ function turnsToUiMessages(turns: ChatTurn[]): UiMessage[] {
   }));
 }
 
+function buildPosCartFromLines(
+  lines: { productId: string; qty: number; variationId?: string }[],
+): CopilotPosCartSnapshot | null {
+  if (lines.length < 1) return null;
+  const totalUnits = lines.reduce((s, l) => s + l.qty, 0);
+  return {
+    lineCount: lines.length,
+    totalUnits,
+    lines: lines.map((l) => ({
+      productId: l.productId,
+      qty: l.qty,
+      variationId: l.variationId,
+    })),
+  };
+}
+
 export function useCopilotChat(
   pathname: string,
   preferredLanguage: CopilotPreferredLanguage = "en",
+  /** Latest cart lines from GlobalCart; snapshot is attached per send. */
+  cartLines: { productId: string; qty: number; variationId?: string }[] = [],
 ) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [pendingText, setPendingText] = useState("");
@@ -50,6 +69,7 @@ export function useCopilotChat(
       const tools = new Map<string, ToolRowState>();
 
       try {
+        const posCart = buildPosCartFromLines(cartLines);
         const res = await fetch("/api/copilot/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -57,6 +77,7 @@ export function useCopilotChat(
             messages: uiMessages,
             pathname,
             preferredLanguage,
+            ...(posCart ? { posCart } : {}),
           }),
         });
 
@@ -134,7 +155,7 @@ export function useCopilotChat(
         setPendingText("");
       }
     },
-    [turns, streaming, pathname, preferredLanguage],
+    [turns, streaming, pathname, preferredLanguage, cartLines],
   );
 
   return {

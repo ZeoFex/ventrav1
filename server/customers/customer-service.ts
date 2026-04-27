@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, or, isNull, ilike } from "drizzle-orm";
 import { db } from "../db";
 import { customers } from "../db/schema/customers";
 import { redis } from "../lib/redis";
@@ -63,6 +63,87 @@ export async function createCustomer(businessId: string, input: CustomerInput) {
     // Invalidate list cache
     await redis.del(CACHE_KEYS.CUSTOMERS_LIST(businessId));
     return newCustomer;
+}
+
+function branchMatchCustomers(branchId: string | null) {
+  if (!branchId) return undefined;
+  return or(isNull(customers.branchId), eq(customers.branchId, branchId));
+}
+
+/** Escape `%` and `_` for SQL ILIKE patterns. */
+function escapeIlikeFragment(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+export type CopilotCustomerRow = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  status: string;
+  branchId: string | null;
+  createdAt: string;
+};
+
+/**
+ * Search customers by name/phone or list most recently added (Copilot read path; not cached).
+ */
+export async function searchCustomersForCopilot(
+  businessId: string,
+  branchId: string | null,
+  options: { query: string | null; limit: number },
+): Promise<CopilotCustomerRow[]> {
+  const limit = Math.min(25, Math.max(1, Math.floor(options.limit)));
+  const branchCond = branchMatchCustomers(branchId);
+  const byBiz = branchCond
+    ? and(eq(customers.businessId, businessId), branchCond)
+    : eq(customers.businessId, businessId);
+  const q = options.query?.trim() ?? "";
+
+  if (q.length < 1) {
+    const rows = await db
+      .select()
+      .from(customers)
+      .where(byBiz)
+      .orderBy(desc(customers.createdAt))
+      .limit(limit);
+    return rows.map(mapCustomerRow);
+  }
+
+  const frag = escapeIlikeFragment(q.slice(0, 100));
+  const pattern = `%${frag}%`;
+  const rows = await db
+    .select()
+    .from(customers)
+    .where(
+      and(
+        byBiz,
+        or(ilike(customers.name, pattern), ilike(customers.phone, pattern)),
+      ),
+    )
+    .orderBy(desc(customers.createdAt))
+    .limit(limit);
+  return rows.map(mapCustomerRow);
+}
+
+function mapCustomerRow(r: {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  status: string;
+  branchId: string | null;
+  createdAt: Date;
+}): CopilotCustomerRow {
+  return {
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    email: r.email,
+    status: r.status,
+    branchId: r.branchId,
+    createdAt: r.createdAt.toISOString(),
+  };
 }
 
 export async function updateCustomer(businessId: string, id: string, input: Partial<CustomerInput>) {

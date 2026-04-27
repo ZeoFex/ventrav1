@@ -6,9 +6,10 @@ import { COPILOT_FEATURE_ID } from "@/config/plan-feature-access";
 import { UpgradeTooltip } from "@/app/components/dashboard/sidebar/upgrade-tooltip";
 import { useCopilot } from "./copilot-context";
 import { cn } from "@/lib/utils";
+import { COPILOT_MASCOT_SRC } from "./copilot-mascot-avatar";
 
-/** Static poster (instant paint). Same file you already use for the FAB. */
-const COPILOT_FAB_POSTER = "/3d%20fab.png";
+/** Static poster (instant paint). Same as chat mascot + avatar. */
+const COPILOT_FAB_POSTER = COPILOT_MASCOT_SRC;
 /**
  * Drop a seamless loop next to this file under `public/`:
  * - `copilot-fab-loop.webm` (required for animation — VP9, small resolution, ~2–4s loop)

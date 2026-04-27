@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
-import { buildCopilotScope } from "@/app/lib/copilot/scope";
+import {
+  buildCopilotScope,
+  type CopilotPosCartSnapshot,
+} from "@/app/lib/copilot/scope";
 import { isCopilotRateLimited } from "@/app/lib/copilot/rate-limit";
 import { orchestrateCopilotChat } from "@/app/lib/copilot/executor/orchestrate";
 import type { CopilotPreferredLanguage } from "@/app/lib/copilot/prompts/system";
@@ -34,6 +37,7 @@ export async function POST(req: Request) {
       pathname?: string;
       threadId?: string;
       preferredLanguage?: CopilotPreferredLanguage;
+      posCart?: CopilotPosCartSnapshot | null;
     };
 
     if (body.messages === undefined) {
@@ -43,7 +47,13 @@ export async function POST(req: Request) {
       });
     }
 
-    const scope = buildCopilotScope(payload, branchCookie, body.pathname ?? null);
+    const posCart = normalizePosCartSnapshot(body.posCart);
+    const scope = buildCopilotScope(
+      payload,
+      branchCookie,
+      body.pathname ?? null,
+      posCart,
+    );
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -85,4 +95,37 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "application/json" },
     });
   }
+}
+
+const MAX_COPILOT_CART_LINES = 40;
+
+function normalizePosCartSnapshot(
+  raw: CopilotPosCartSnapshot | null | undefined,
+): CopilotPosCartSnapshot | null {
+  if (raw == null) return null;
+  if (typeof raw !== "object") return null;
+  const totalUnitsRaw = Number((raw as CopilotPosCartSnapshot).totalUnits);
+  const linesIn = (raw as CopilotPosCartSnapshot).lines;
+  if (!Array.isArray(linesIn) || linesIn.length < 1) {
+    return null;
+  }
+  const lines = linesIn
+    .slice(0, MAX_COPILOT_CART_LINES)
+    .map((l) => {
+      const productId = typeof l.productId === "string" ? l.productId : "";
+      const qty = Math.min(99_999, Math.max(1, Math.floor(Number(l.qty) || 0)));
+      const variationId =
+        typeof l.variationId === "string" && l.variationId ? l.variationId : undefined;
+      return { productId, qty, variationId };
+    })
+    .filter((l) => l.productId.length > 0);
+  if (lines.length === 0) return null;
+  const units = Number.isFinite(totalUnitsRaw) && totalUnitsRaw > 0
+    ? Math.min(99_999_999, Math.floor(totalUnitsRaw))
+    : lines.reduce((s, l) => s + l.qty, 0);
+  return {
+    lineCount: lines.length,
+    totalUnits: units,
+    lines,
+  };
 }

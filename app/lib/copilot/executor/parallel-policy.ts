@@ -9,6 +9,8 @@ export const READ_TOOL_NAMES = new Set([
   "list_low_stock",
   "get_billing_subscription_status",
   "suggest_dashboard_links",
+  "search_customers",
+  "get_expense_insights",
   "explain_screen",
 ]);
 

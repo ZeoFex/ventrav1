@@ -19,7 +19,7 @@ function flattenNav(): { label: string; href: string }[] {
 export function navSuggestionsTool(_ctx: ToolContext) {
   return tool({
     description:
-      "Suggest relevant dashboard links (href + label) based on a short user intent.",
+      "Suggest relevant dashboard deep links: each item is { label, href } where href is a path the app can navigate to (e.g. /dashboard/finance). Best match is the top suggestion for primary navigation.",
     inputSchema: zodSchema(
       z.object({
         intent: z
@@ -46,7 +46,11 @@ export function navSuggestionsTool(_ctx: ToolContext) {
         .filter((x) => x.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, 8);
-      return { suggestions: scored.map(({ label, href }) => ({ label, href })) };
+      const list = scored.map(({ label, href }) => ({ label, href }));
+      return {
+        best_match: list[0] ?? null,
+        suggestions: list,
+      };
     },
   });
 }

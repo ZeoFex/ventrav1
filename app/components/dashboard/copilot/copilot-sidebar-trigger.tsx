@@ -1,9 +1,9 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
 import { COPILOT_FEATURE_ID } from "@/config/plan-feature-access";
 import { UpgradeTooltip } from "@/app/components/dashboard/sidebar/upgrade-tooltip";
 import { useCopilot } from "./copilot-context";
+import { CopilotMascotAvatar } from "./copilot-mascot-avatar";
 
 export function CopilotSidebarTrigger({ isCollapsed }: { isCollapsed: boolean }) {
   const { toggle, copilotEnabled } = useCopilot();
@@ -21,9 +21,10 @@ export function CopilotSidebarTrigger({ isCollapsed }: { isCollapsed: boolean })
         copilotEnabled ? "Copilot (Ctrl+/)" : "Upgrade to Pro to use Copilot"
       }
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#006c49]/12 text-[#006c49] dark:bg-[#6ffbbe]/12 dark:text-[#6ffbbe]">
-        <Sparkles className="size-5" aria-hidden />
-      </span>
+      <CopilotMascotAvatar
+        size="md"
+        className="shrink-0 shadow-sm ring-1 ring-[#006c49]/15 dark:ring-[#6ffbbe]/20"
+      />
       {!isCollapsed ? <span className="truncate">Copilot</span> : null}
     </button>
   );

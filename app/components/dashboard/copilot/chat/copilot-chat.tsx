@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import type { CopilotPreferredLanguage } from "@/app/lib/copilot/prompts/system";
+import { useGlobalCart } from "@/app/components/dashboard/pos/global-cart-context";
 import { useCopilot } from "../copilot-context";
 import { useCopilotChat } from "../hooks/use-copilot-chat";
 import { CopilotMessageList } from "./copilot-message-list";
 import { CopilotComposer } from "./copilot-composer";
 import type { KhayaPlayTtsLanguage } from "./copilot-khaya-play";
+import { CopilotMascotAvatar } from "../copilot-mascot-avatar";
 import { cn } from "@/lib/utils";
 
 const LANGUAGE_OPTIONS: { id: CopilotPreferredLanguage; label: string }[] = [
@@ -18,9 +20,10 @@ const LANGUAGE_OPTIONS: { id: CopilotPreferredLanguage; label: string }[] = [
 
 export function CopilotChat() {
   const { pathname } = useCopilot();
+  const { lines: cartLines } = useGlobalCart();
   const [speechMode, setSpeechMode] = useState<CopilotPreferredLanguage>("en");
   const { turns, pendingText, pendingTools, streaming, error, sendMessage, clear } =
-    useCopilotChat(pathname, speechMode);
+    useCopilotChat(pathname, speechMode, cartLines);
   const [draft, setDraft] = useState("");
 
   const khayaTtsLanguage: KhayaPlayTtsLanguage | undefined =
@@ -30,6 +33,7 @@ export function CopilotChat() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#bfc9c3]/15 px-3 py-2 dark:border-white/[0.08]">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <CopilotMascotAvatar size="xs" className="shadow-sm" />
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Chat
           </p>
@@ -63,12 +67,19 @@ export function CopilotChat() {
           Clear
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f2f2f7] custom-scrollbar dark:bg-[#0c0c0e]">
         {turns.length === 0 && !streaming ? (
           <div className="px-4 py-8 text-center">
+            <div className="mb-4 flex justify-center">
+              <CopilotMascotAvatar
+                size="xl"
+                className="shadow-md ring-2 ring-[#006c49]/15 dark:ring-[#6ffbbe]/20"
+              />
+            </div>
             <p className="text-[15px] font-medium text-foreground">
               Ask anything about your store
             </p>
+            <p className="text-[13px] text-muted-foreground">I’m your Ventra Copilot</p>
             <p className="mt-2 text-[13px] text-muted-foreground">
               Trends, top products, slow movers, and ideas for promotions — grounded in your
               data when available. Pick a language: English uses browser dictation; Twi, Ga, and

@@ -9,6 +9,8 @@ import { salesSummaryTool } from "./read/sales-summary";
 import { requestSalesExportTool } from "./write/request-export";
 import { saveCopilotFeedbackTool } from "./write/save-feedback";
 import { merchantAnalyticsTool } from "./read/merchant-analytics";
+import { customersInsightsTool } from "./read/customers-insights";
+import { expenseInsightsTool } from "./read/expense-insights";
 
 export function buildCopilotToolSet(ctx: CopilotScope): ToolSet {
   return {
@@ -18,6 +20,8 @@ export function buildCopilotToolSet(ctx: CopilotScope): ToolSet {
     list_low_stock: lowStockTool(ctx),
     get_billing_subscription_status: billingStatusTool(ctx),
     suggest_dashboard_links: navSuggestionsTool(ctx),
+    search_customers: customersInsightsTool(ctx),
+    get_expense_insights: expenseInsightsTool(ctx),
     explain_screen: explainScreenTool(ctx),
     save_copilot_feedback: saveCopilotFeedbackTool(ctx),
     request_sales_export: requestSalesExportTool(ctx),

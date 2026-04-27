@@ -9,6 +9,7 @@ const mockScope: CopilotScope = {
   permissions: [],
   branchId: null,
   pathname: "/dashboard",
+  posCart: null,
 };
 
 describe("buildCopilotToolSet", () => {
@@ -18,11 +19,13 @@ describe("buildCopilotToolSet", () => {
       [
         "explain_screen",
         "get_billing_subscription_status",
+        "get_expense_insights",
         "get_merchant_analytics",
         "get_sales_summary",
         "list_low_stock",
         "request_sales_export",
         "save_copilot_feedback",
+        "search_customers",
         "search_products",
         "suggest_dashboard_links",
       ].sort(),
