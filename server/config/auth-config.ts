@@ -6,6 +6,15 @@
 /** Access token (JWT) lifetime in seconds — 7 days */
 export const ACCESS_TOKEN_TTL = 7 * 24 * 60 * 60;
 
+/** Superadmin human JWT — shorter window than tenant tokens (seconds). Default 4 hours */
+export const SUPERADMIN_ACCESS_TOKEN_TTL = 4 * 60 * 60;
+
+/** HS256 issuer for superadmin-only tokens (tenant tokens use `ventrapos`). */
+export const SUPERADMIN_JWT_ISSUER = "ventrapos-superadmin" as const;
+
+/** Audience claim for superadmin tokens; tenant `verifyAccessToken` rejects this. */
+export const SUPERADMIN_JWT_AUDIENCE = "ventrapos:superadmin" as const;
+
 /** Refresh token lifetime in seconds — 7 days */
 export const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60;
 

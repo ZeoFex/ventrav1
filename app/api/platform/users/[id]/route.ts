@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireValidPlatformKeyOnly } from "@/server/auth/api-request-auth";
+import { requirePlatformAccess } from "@/server/auth/api-request-auth";
 import { assertUserInBusiness, setPlatformUserStatus } from "@/server/platform/platform-user-write";
 import { updateStaff } from "@/server/staff/staff-service";
 import { db } from "@/server/db";
@@ -39,7 +39,7 @@ export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const gate = requireValidPlatformKeyOnly(req);
+    const gate = await requirePlatformAccess(req);
     if (gate !== true) {
         return gate;
     }
@@ -76,7 +76,7 @@ export async function PATCH(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const gate = requireValidPlatformKeyOnly(req);
+    const gate = await requirePlatformAccess(req);
     if (gate !== true) {
         return gate;
     }
@@ -145,7 +145,7 @@ export async function DELETE(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const gate = requireValidPlatformKeyOnly(req);
+    const gate = await requirePlatformAccess(req);
     if (gate !== true) {
         return gate;
     }

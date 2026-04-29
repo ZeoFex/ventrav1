@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Optional `?businessId=` scopes both payloads where each module supports it.
  */
 export async function GET(req: NextRequest) {
-    const g = parsePlatformListRequest(req);
+    const g = await parsePlatformListRequest(req);
     if (!g.ok) {
         return g.response;
     }

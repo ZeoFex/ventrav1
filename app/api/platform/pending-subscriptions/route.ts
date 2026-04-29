@@ -20,7 +20,7 @@ const row = {
 
 /** Pre-signup Paystack handoffs (no per-business id). `businessId` query is ignored. */
 export async function GET(req: NextRequest) {
-    const g = parsePlatformListRequest(req);
+    const g = await parsePlatformListRequest(req);
     if (!g.ok) {
         return g.response;
     }

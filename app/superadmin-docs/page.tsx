@@ -8,7 +8,7 @@ import { SuperadminDocsClient } from "./superadmin-docs-client";
 export const metadata: Metadata = {
     title: "Superadmin platform API",
     description:
-        "Platform key auth, GET /api/platform/overview, read lists, user and business writes, act-as, and a browser GET sandbox for VentraPOS superadmin development.",
+        "Platform key or superadmin Bearer JWT, GET /api/platform/overview, read lists, user and business writes, act-as, POST /api/superadmin/auth/login /accounts, and a browser GET sandbox for VentraPOS superadmin development.",
     robots: { index: false, follow: false },
 };
 

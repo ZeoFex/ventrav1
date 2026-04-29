@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireValidPlatformKeyOnly } from "@/server/auth/api-request-auth";
+import { requirePlatformAccess } from "@/server/auth/api-request-auth";
 
 export const DEFAULT_PLATFORM_LIMIT = 200;
 export const MAX_PLATFORM_LIMIT = 500;
@@ -14,10 +14,10 @@ export type PlatformListParams = {
 export type PlatformListGate = { ok: false; response: NextResponse } | { ok: true; params: PlatformListParams };
 
 /**
- * Valid platform key + pagination. Query: `limit`, `offset`, optional `businessId`.
+ * Valid platform key or superadmin JWT + pagination. Query: `limit`, `offset`, optional `businessId`.
  */
-export function parsePlatformListRequest(req: NextRequest): PlatformListGate {
-    const gate = requireValidPlatformKeyOnly(req);
+export async function parsePlatformListRequest(req: NextRequest): Promise<PlatformListGate> {
+    const gate = await requirePlatformAccess(req);
     if (gate !== true) {
         return { ok: false, response: gate };
     }

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * Cross-tenant row counts for dashboards. Optional `businessId` filters where applicable.
  */
 export async function GET(req: NextRequest) {
-    const g = parsePlatformListRequest(req);
+    const g = await parsePlatformListRequest(req);
     if (!g.ok) {
         return g.response;
     }

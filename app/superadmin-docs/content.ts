@@ -47,13 +47,43 @@ export const platformSections: PlatformSection[] = [
         id: "auth",
         title: "Authentication",
         description:
-            "All routes are under /api/platform/*. Send your secret in the X-Ventra-Platform-Key header (not Bearer). Use HTTPS in production. Never put the key in frontend bundles or public repos.",
+            "Dual auth on /api/platform/*: (1) Send your automation secret as X-Ventra-Platform-Key (not Bearer tenant JWT). (2) Or send Authorization: Bearer <token> using an access token from POST /api/superadmin/auth/login (human superadmins; requires SUPERADMIN_JWT_SECRET in env). Tokens use a distinct HS256 secret and audience from tenant dashboards. If X-Ventra-Platform-Key is non-empty and invalid, the request returns 401 (Bearer fallback is not used). Use HTTPS in production. Never put the platform key in frontend bundles; prefer Bearer for browser SPAs. To provision a new human superadmin, only POST /api/superadmin/accounts with the platform key (no public signup).",
         endpoints: [
             {
-                label: "Header (required on every call)",
+                label: "Header (automation / scripts)",
                 method: "header",
                 path: "X-Ventra-Platform-Key: <one key from VENTRA_PLATFORM_API_KEYS>",
-                note: "Each key is ≥ 32 characters. Comma-separate multiple keys in env. Empty env disables platform auth (401).",
+                note: "Each key is ≥ 32 characters. Comma-separate multiple keys in env. Empty env disables platform key auth (401 when no valid Bearer).",
+            },
+            {
+                label: "Bearer (human superadmin, alternative to platform key)",
+                method: "header",
+                path: "Authorization: Bearer <access token from /api/superadmin/auth/login>",
+                note: "Same access to /api/platform/* list and write routes as a valid platform key. Not the same token as tenant /api/auth/login.",
+            },
+            {
+                label: "Superadmin login",
+                method: "POST",
+                path: "/api/superadmin/auth/login",
+                note: 'Body: { "email", "password" }. Returns { accessToken, user } or 503 if SUPERADMIN_JWT_SECRET is unset.',
+            },
+            {
+                label: "Superadmin session (Bearer only)",
+                method: "GET",
+                path: "/api/superadmin/auth/session",
+                note: "Uses Authorization only; does not read the tenant __ventra_at cookie.",
+            },
+            {
+                label: "Create superadmin (platform key only)",
+                method: "POST",
+                path: "/api/superadmin/accounts",
+                note: 'Body: { email, password (≥12 chars), firstName, lastName? }. 409 if email exists on tenant or superadmin.',
+            },
+            {
+                label: "Superadmin logout (stateless)",
+                method: "POST",
+                path: "/api/superadmin/auth/logout",
+                note: "No server session; discard the access token on the client.",
             },
         ],
     },

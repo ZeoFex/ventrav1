@@ -16,10 +16,33 @@ const envSchema = z.object({
         .string()
         .min(32, "JWT_SECRET must be at least 32 characters"),
 
+    /**
+     * HS256 secret for platform superadmin human JWTs (isolated from tenant `JWT_SECRET`).
+     * Empty = signing/verification disabled (Bearer superadmin off; platform key still works).
+     */
+    SUPERADMIN_JWT_SECRET: z
+        .string()
+        .optional()
+        .default("")
+        .refine(
+            (s) => !s || s.length >= 32,
+            "SUPERADMIN_JWT_SECRET must be empty or at least 32 characters",
+        ),
+
     RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required"),
 
     // SMS (optional — only required if SMS OTP is enabled)
     AGOO_API_KEY: z.string().optional().default(""),
+    /** Approved AgooSMS sender ID (3–11 alphanumeric). Omit to use provider default (“AgooSMS”). */
+    AGOO_SENDER_ID: z
+        .string()
+        .optional()
+        .default("")
+        .transform((s) => s.trim())
+        .refine(
+            (s) => !s || /^[a-zA-Z0-9]{3,11}$/.test(s),
+            "AGOO_SENDER_ID must be empty or 3–11 alphanumeric characters",
+        ),
 
     // Cookie
     COOKIE_DOMAIN: z.string().optional().default("localhost"),
@@ -47,6 +70,14 @@ const envSchema = z.object({
 
     /** Login attempts per IP per 15 min window (public auth hardening) */
     RATE_LIMIT_LOGIN_PER_IP: z.coerce.number().int().min(1).optional().default(30),
+
+    /** `POST /api/superadmin/auth/login` attempts per IP (same window as auth email window) */
+    RATE_LIMIT_SUPERADMIN_LOGIN_PER_IP: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .default(20),
     RATE_LIMIT_AUTH_EMAIL_WINDOW_SEC: z.coerce
         .number()
         .int()

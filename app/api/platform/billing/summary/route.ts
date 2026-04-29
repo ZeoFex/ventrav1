@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * `pendingSubscriptions` remains global (rows are not tied to a business id in the DB).
  */
 export async function GET(req: NextRequest) {
-    const g = parsePlatformListRequest(req);
+    const g = await parsePlatformListRequest(req);
     if (!g.ok) {
         return g.response;
     }

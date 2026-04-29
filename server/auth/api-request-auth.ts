@@ -3,9 +3,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken, type AuthTokenPayload } from "./token-service";
 import { ACT_AS_BUSINESS_HEADER, COOKIE_NAMES, PLATFORM_KEY_HEADER } from "../config/auth-config";
 import { buildPlatformActAsPayload, isValidPlatformKey } from "./platform-key";
+import { verifySuperadminAccessToken } from "./superadmin-token-service";
+import { getSuperadminById } from "./superadmin-service";
 
-/** `Authorization: Bearer` or access cookie. Malformed `Bearer` (no token) yields null. */
-function parseAuthorizationBearer(value: string | null): string | null {
+/** `Authorization: Bearer` token string, or null. Malformed `Bearer` (no token) yields null. */
+export function parseAuthorizationBearer(value: string | null): string | null {
     if (!value) return null;
     const trimmed = value.trim();
     const m = /^Bearer\s+(\S+)$/i.exec(trimmed);
@@ -117,6 +119,36 @@ export async function requireUserAuth(
     return tryPlatformOrJwt(req.headers, async () =>
         Promise.resolve(getAccessTokenStringFromRequest(req))
     );
+}
+
+/**
+ * Platform routes: valid `X-Ventra-Platform-Key` **or** valid superadmin Bearer JWT (active account).
+ * If the platform key header is non-empty and invalid, returns 401 (does not fall back to Bearer).
+ */
+export async function requirePlatformAccess(
+    req: Request | NextRequest
+): Promise<true | NextResponse> {
+    const pk = getPlatformKeyFromWebHeaders(req.headers);
+    if (pk) {
+        if (!isValidPlatformKey(pk)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        return true;
+    }
+    const bearer = parseAuthorizationBearer(req.headers.get("authorization"));
+    if (!bearer) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    try {
+        const payload = await verifySuperadminAccessToken(bearer);
+        const row = await getSuperadminById(payload.sub);
+        if (!row || row.status !== "active") {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        return true;
+    } catch {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 }
 
 /**

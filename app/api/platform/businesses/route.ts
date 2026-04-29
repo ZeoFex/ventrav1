@@ -22,7 +22,7 @@ const businessSelect = {
  * Optional query: `businessId` — narrows to the row with that id.
  */
 export async function GET(req: NextRequest) {
-    const g = parsePlatformListRequest(req);
+    const g = await parsePlatformListRequest(req);
     if (!g.ok) {
         return g.response;
     }

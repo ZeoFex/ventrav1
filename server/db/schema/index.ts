@@ -15,6 +15,11 @@ export {
 } from "./roles";
 export { emailVerifications } from "./email-verifications";
 export { auditLogs } from "./audit-logs";
+export {
+    superadmins,
+    superadminStatusEnum,
+} from "./superadmins";
+export { superadminAuditLogs } from "./superadmin-audit-logs";
 export { passwordResets } from "./password-resets";
 export {
     products,

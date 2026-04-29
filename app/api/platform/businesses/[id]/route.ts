@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireValidPlatformKeyOnly } from "@/server/auth/api-request-auth";
+import { requirePlatformAccess } from "@/server/auth/api-request-auth";
 import { updateBusinessConfig } from "@/server/businesses/business-service";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
@@ -27,7 +27,7 @@ export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const gate = requireValidPlatformKeyOnly(req);
+    const gate = await requirePlatformAccess(req);
     if (gate !== true) {
         return gate;
     }
@@ -46,7 +46,7 @@ export async function PATCH(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const gate = requireValidPlatformKeyOnly(req);
+    const gate = await requirePlatformAccess(req);
     if (gate !== true) {
         return gate;
     }

@@ -23,7 +23,7 @@ const row = {
 const join = eq(productVariations.productId, products.id);
 
 export async function GET(req: NextRequest) {
-    const g = parsePlatformListRequest(req);
+    const g = await parsePlatformListRequest(req);
     if (!g.ok) {
         return g.response;
     }

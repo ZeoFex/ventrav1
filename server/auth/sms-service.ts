@@ -20,17 +20,21 @@ export async function sendOtpSms({ to, code }: SendOtpSmsProps) {
 
   const phone = normalizeGhanaPhone(to);
 
+  const message = `Your VentraPOS verification code is: ${code}. Valid for 10 minutes. Do not share this code.`;
+  const body: { to: string; message: string; senderId?: string } = {
+    to: phone,
+    message,
+  };
+  if (env.AGOO_SENDER_ID) body.senderId = env.AGOO_SENDER_ID;
+
   try {
-    const res = await fetch("https://api.agoosms.app/v1/sms/send", {
+    const res = await fetch("https://api.agoosms.com/v1/sms/send", {
       method: "POST",
       headers: {
         "X-API-Key": env.AGOO_API_KEY,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        to: phone,
-        message: `Your VentraPOS verification code is: ${code}. Valid for 10 minutes. Do not share this code.`,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {

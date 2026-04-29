@@ -640,13 +640,15 @@ function generateSlug(name: string): string {
 
 export type AuthErrorCode =
     | "DUPLICATE_EMAIL"
+    | "EMAIL_IN_USE"
     | "INVALID_OTP"
     | "OTP_EXHAUSTED"
     | "ALREADY_VERIFIED"
     | "INVALID_CREDENTIALS"
     | "ACCOUNT_SUSPENDED"
     | "ACCOUNT_NOT_VERIFIED"
-    | "RATE_LIMITED";
+    | "RATE_LIMITED"
+    | "SUPERADMIN_AUTH_DISABLED";
 
 export class AuthError extends Error {
     code: AuthErrorCode;

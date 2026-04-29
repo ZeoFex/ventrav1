@@ -1,7 +1,7 @@
 import { count, desc, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireValidPlatformKeyOnly } from "@/server/auth/api-request-auth";
+import { requirePlatformAccess } from "@/server/auth/api-request-auth";
 import { parsePlatformListRequest } from "@/server/platform/platform-list";
 import { createStaff } from "@/server/staff/staff-service";
 import { db } from "@/server/db";
@@ -42,7 +42,7 @@ const row = {
  * All users (no password hash). Optional `businessId` filter.
  */
 export async function GET(req: NextRequest) {
-    const g = parsePlatformListRequest(req);
+    const g = await parsePlatformListRequest(req);
     if (!g.ok) {
         return g.response;
     }
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
  * Create a user in any business (same rules as owner POST /api/staff).
  */
 export async function POST(req: NextRequest) {
-    const gate = requireValidPlatformKeyOnly(req);
+    const gate = await requirePlatformAccess(req);
     if (gate !== true) {
         return gate;
     }

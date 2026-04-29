@@ -4003,6 +4003,176 @@
         }
       }
     },
+    "/api/superadmin/accounts": {
+      "post": {
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
+          }
+        ],
+        "summary": "POST /api/superadmin/accounts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/superadmin/auth/login": {
+      "post": {
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
+          }
+        ],
+        "summary": "POST /api/superadmin/auth/login",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/superadmin/auth/logout": {
+      "post": {
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
+          }
+        ],
+        "summary": "POST /api/superadmin/auth/logout",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/superadmin/auth/session": {
+      "get": {
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
+          }
+        ],
+        "summary": "GET /api/superadmin/auth/session",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/superadmin-docs/try": {
+      "post": {
+        "tags": [
+          "superadmin-docs"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
+          }
+        ],
+        "summary": "POST /api/superadmin-docs/try",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
     "/api/uploadthing": {},
     "/api/webhooks/paystack": {
       "post": {
