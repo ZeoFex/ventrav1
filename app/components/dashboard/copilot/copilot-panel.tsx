@@ -25,7 +25,18 @@ export function CopilotPanel() {
       return;
     }
     const sync = () => {
-      setVvBox({ top: vv.offsetTop, height: vv.height });
+      const top = vv.offsetTop;
+      const innerH = window.innerHeight;
+      const gapBelowVv = Math.round(innerH - top - vv.height);
+      // iOS Safari: visualViewport height can briefly sit above the hardware bottom (~10–15% gap).
+      // Fill only modest gaps when the keyboard likely isn't replacing most of the screen.
+      const snapGap =
+        gapBelowVv > 0 &&
+        gapBelowVv <= 160 &&
+        vv.height >= innerH * 0.72
+          ? gapBelowVv
+          : 0;
+      setVvBox({ top, height: vv.height + snapGap });
     };
     sync();
     vv.addEventListener("resize", sync);
@@ -85,7 +96,6 @@ export function CopilotPanel() {
           ...(vvBox != null
             ? { top: vvBox.top, height: vvBox.height }
             : undefined),
-          paddingBottom: "max(0px, env(safe-area-inset-bottom))",
           paddingRight: "max(0px, env(safe-area-inset-right))",
         }}
       >
