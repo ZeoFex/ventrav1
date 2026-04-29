@@ -27,16 +27,11 @@ export function CopilotPanel() {
     const sync = () => {
       const top = vv.offsetTop;
       const innerH = window.innerHeight;
-      const gapBelowVv = Math.round(innerH - top - vv.height);
-      // iOS Safari: visualViewport height can briefly sit above the hardware bottom (~10–15% gap).
-      // Fill only modest gaps when the keyboard likely isn't replacing most of the screen.
-      const snapGap =
-        gapBelowVv > 0 &&
-        gapBelowVv <= 160 &&
-        vv.height >= innerH * 0.72
-          ? gapBelowVv
-          : 0;
-      setVvBox({ top, height: vv.height + snapGap });
+      // Soft keyboard steals most of the screen — rely on vv.height only.
+      // Otherwise anchor the drawer flush to the layout viewport bottom so no strip of body/bg shows below.
+      const keyboardLikelyOpen = vv.height < innerH * 0.5;
+      const height = keyboardLikelyOpen ? vv.height : Math.max(vv.height, innerH - top);
+      setVvBox({ top, height });
     };
     sync();
     vv.addEventListener("resize", sync);
@@ -89,8 +84,8 @@ export function CopilotPanel() {
         aria-labelledby="copilot-panel-title"
         className={
           vvBox != null
-            ? "fixed right-0 top-0 z-[70] flex w-full max-w-lg flex-col border-l border-[#bfc9c3]/15 bg-surface-card shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right-4 dark:border-white/[0.08] dark:bg-[#0a0a0a] max-lg:max-w-full"
-            : "fixed inset-y-0 right-0 z-[70] flex w-full max-w-lg flex-col border-l border-[#bfc9c3]/15 bg-surface-card shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right-4 dark:border-white/[0.08] dark:bg-[#0a0a0a] max-lg:max-w-full"
+            ? "fixed right-0 top-0 z-[70] flex w-full max-w-lg flex-col border-l border-[#bfc9c3]/15 shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right-4 max-lg:max-w-full dark:border-white/[0.08]"
+            : "fixed inset-y-0 right-0 z-[70] flex w-full max-w-lg flex-col border-l border-[#bfc9c3]/15 shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right-4 dark:border-white/[0.08]"
         }
         style={{
           ...(vvBox != null
@@ -99,7 +94,7 @@ export function CopilotPanel() {
           paddingRight: "max(0px, env(safe-area-inset-right))",
         }}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-[#bfc9c3]/15 px-4 py-3 dark:border-white/[0.08]">
+        <header className="flex shrink-0 items-center justify-between border-b border-[#bfc9c3]/15 bg-surface-card px-4 py-3 dark:border-white/[0.08] dark:bg-[#0a0a0a]">
           <div className="flex min-w-0 items-center gap-3">
             <CopilotMascotAvatar
               size="lg"
@@ -126,8 +121,10 @@ export function CopilotPanel() {
             <X className="size-5" />
           </button>
         </header>
-        <CopilotInsightsStrip />
-        <CopilotChat />
+        <div className="flex min-h-0 flex-1 flex-col bg-[#f2f2f7] dark:bg-[#0c0c0e]">
+          <CopilotInsightsStrip />
+          <CopilotChat />
+        </div>
         <CopilotConfirmDrawer />
       </div>
     </>

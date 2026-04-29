@@ -247,7 +247,7 @@ export function CopilotComposer({
       ref={shellRef}
       onFocusCapture={() => setFocusWithin(true)}
       onBlurCapture={onShellBlurCapture}
-      className="relative bg-[#f2f2f7] px-3 pt-2 pb-[env(safe-area-inset-bottom)] dark:bg-[#0c0c0e] sm:px-4"
+      className="relative bg-[#f2f2f7] px-3 pb-0 pt-2 dark:bg-[#0c0c0e] sm:px-4"
     >
       {listening && !expanded ? (
         <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-[#006c49] dark:text-[#6ffbbe]">
