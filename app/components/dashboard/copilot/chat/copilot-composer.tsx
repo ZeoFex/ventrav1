@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+} from "react";
 import type { CopilotPreferredLanguage } from "@/app/lib/copilot/prompts/system";
-import { Mic, Send, Square } from "lucide-react";
+import { Mic, Plus, Send, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useCopilotKhayaSpeech } from "../hooks/use-copilot-khaya-speech";
 import {
@@ -16,6 +22,9 @@ const KHAYA_MODE_LABEL: Record<Exclude<CopilotPreferredLanguage, "en">, string> 
   gaa: "Ga",
   ee: "Ewe",
 };
+
+const cardStyle =
+  "border border-black/[0.04] bg-[#fafafa] shadow-[0_4px_15px_rgba(0,0,0,0.06)] dark:border-white/[0.06] dark:bg-[#1a1a1c] dark:shadow-[0_4px_24px_rgba(0,0,0,0.45)]";
 
 export function CopilotComposer({
   value,
@@ -35,6 +44,8 @@ export function CopilotComposer({
   speechMode?: CopilotPreferredLanguage;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [focusWithin, setFocusWithin] = useState(false);
   const khayaAsrLang =
     speechMode === "en" ? "tw" : speechMode;
 
@@ -77,13 +88,6 @@ export function CopilotComposer({
     khayaSpeech.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run on speechMode only
   }, [speechMode]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "0px";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  }, [value]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -129,51 +133,146 @@ export function CopilotComposer({
     browserSpeech.start();
   };
 
+  const hasDraft = value.trim().length > 0;
+  const expanded = focusWithin || hasDraft || listening;
+
+  const onShellBlurCapture = (e: FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget as Node | null;
+    if (next && shellRef.current?.contains(next)) return;
+    queueMicrotask(() => {
+      if (!shellRef.current?.contains(document.activeElement)) {
+        setFocusWithin(false);
+      }
+    });
+  };
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!expanded) {
+      el.style.height = "44px";
+      return;
+    }
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value, expanded]);
+
+  const micBtn = (
+    <div className="relative shrink-0">
+      {listening ? (
+        <span
+          className="pointer-events-none absolute inset-0 motion-safe:animate-ping rounded-full bg-[#006c49]/25 dark:bg-[#6ffbbe]/20"
+          aria-hidden
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={onMicClick}
+        disabled={disabled}
+        aria-pressed={listening}
+        aria-label={listening ? "Stop recording" : "Speak your question"}
+        title={
+          useKhaya
+            ? listening
+              ? uploading
+                ? "Sending audio…"
+                : "Tap to stop"
+              : `Speak in ${khayaLabel} (Khaya)`
+            : !speechRecognitionAvailable()
+              ? "Voice input unavailable in this browser"
+              : listening
+                ? "Tap to stop"
+                : "Speak your question"
+        }
+        className={cn(
+          "tap-target relative flex size-10 shrink-0 items-center justify-center rounded-full transition-all disabled:pointer-events-none disabled:opacity-40",
+          listening
+            ? "bg-[#006c49]/15 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]"
+            : "bg-black/[0.07] text-muted-foreground hover:bg-black/[0.1] hover:text-[#006c49] dark:bg-white/[0.1] dark:hover:bg-white/[0.14] dark:hover:text-[#6ffbbe]",
+        )}
+      >
+        {listening ? (
+          <Square className="size-4 fill-current" aria-hidden />
+        ) : (
+          <Mic className="size-[18px]" strokeWidth={2} aria-hidden />
+        )}
+      </button>
+    </div>
+  );
+
+  const sendBtn = (
+    <button
+      type="button"
+      onClick={() => {
+        if (listening) {
+          if (useKhaya) khayaSpeech.stop();
+          else browserSpeech.stop();
+        }
+        onSubmit();
+      }}
+      disabled={disabled || !value.trim() || listening}
+      className={cn(
+        "tap-target flex size-10 shrink-0 items-center justify-center rounded-full transition-colors",
+        disabled || !value.trim() || listening
+          ? "bg-black/[0.07] text-muted-foreground opacity-70 dark:bg-white/[0.1]"
+          : "bg-[#006c49] text-white shadow-sm hover:bg-[#003527] dark:bg-[#6ffbbe] dark:text-[#0a0a0a] dark:hover:bg-white",
+      )}
+      aria-label="Send message"
+      title={!value.trim() ? "Enter a message to send" : undefined}
+    >
+      <Send className="size-[18px]" />
+    </button>
+  );
+
+  const placeholder =
+    listening
+      ? uploading
+        ? "Transcribing your voice…"
+        : useKhaya
+          ? `Speak ${khayaLabel} — tap stop when finished`
+          : "Speak now — text appears as you talk"
+      : expanded
+        ? "Ask Zuri anything"
+        : "Ask Zuri anything…";
+
+  const textareaClass = cn(
+    "w-full min-h-[44px] resize-none bg-transparent border-0 text-[15px] outline-none placeholder:text-muted-foreground/85 focus-visible:ring-0 disabled:opacity-60 dark:placeholder:text-muted-foreground/70",
+    expanded
+      ? "overflow-hidden px-px py-px leading-relaxed"
+      : "max-h-[44px] overflow-hidden leading-snug",
+  );
+
   return (
-    <div className="flex items-end gap-2 border-t border-[#bfc9c3]/15 p-3 dark:border-white/[0.08]">
-      <div className="relative shrink-0">
-        {listening ? (
-          <span
-            className="pointer-events-none absolute inset-0 motion-safe:animate-ping rounded-xl bg-[#006c49]/25 dark:bg-[#6ffbbe]/20"
-            aria-hidden
-          />
-        ) : null}
-        <button
-          type="button"
-          onClick={onMicClick}
-          disabled={disabled}
-          aria-pressed={listening}
-          aria-label={listening ? "Stop recording" : "Speak your question"}
-          title={
-            useKhaya
-              ? listening
-                ? uploading
-                  ? "Sending audio…"
-                  : "Tap to stop"
-                : `Speak in ${khayaLabel} (Khaya)`
-              : !speechRecognitionAvailable()
-                ? "Voice input unavailable in this browser"
-                : listening
-                  ? "Tap to stop"
-                  : "Speak your question"
-          }
-          className={cn(
-            "tap-target relative flex size-11 items-center justify-center rounded-xl border shadow-sm transition-all",
-            listening
-              ? "border-[#006c49]/50 bg-[#006c49]/12 text-[#006c49] dark:border-[#6ffbbe]/40 dark:bg-[#6ffbbe]/12 dark:text-[#6ffbbe]"
-              : "border-[#bfc9c3]/25 bg-surface-elevated text-muted-foreground hover:border-[#006c49]/35 hover:text-[#006c49] dark:border-white/[0.1] dark:hover:border-[#6ffbbe]/35 dark:hover:text-[#6ffbbe]",
-          )}
-        >
-          {listening ? (
-            <Square className="size-4 fill-current" aria-hidden />
-          ) : (
-            <Mic className="size-5" strokeWidth={2} aria-hidden />
-          )}
-        </button>
-      </div>
-      <div className="relative min-w-0 flex-1">
-        {listening ? (
-          <div className="pointer-events-none absolute -top-6 left-0 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-[#006c49] dark:text-[#6ffbbe]">
+    <div
+      ref={shellRef}
+      onFocusCapture={() => setFocusWithin(true)}
+      onBlurCapture={onShellBlurCapture}
+      className="relative bg-[#f2f2f7] px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:bg-[#0c0c0e] sm:px-4"
+    >
+      {listening && !expanded ? (
+        <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-[#006c49] dark:text-[#6ffbbe]">
+          <span className="relative flex size-2 shrink-0">
+            <span className="absolute inline-flex size-full motion-safe:animate-ping rounded-full bg-[#006c49] opacity-60 dark:bg-[#6ffbbe]" />
+            <span className="relative inline-flex size-2 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" />
+          </span>
+          {uploading
+            ? "Sending…"
+            : useKhaya
+              ? `${khayaLabel} — recording…`
+              : "Listening…"}
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          "flex gap-2 transition-[border-radius] duration-200 ease-out",
+          expanded
+            ? "flex-col overflow-hidden rounded-[28px]"
+            : "flex-row items-end overflow-hidden rounded-full px-2 py-1.5",
+          cardStyle,
+        )}
+      >
+        {expanded && listening ? (
+          <div className="pointer-events-none flex shrink-0 items-center gap-1.5 border-b border-[#bfc9c3]/10 px-4 pb-2 pt-3 text-[11px] font-medium uppercase tracking-wide text-[#006c49] dark:border-white/[0.06] dark:text-[#6ffbbe]">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-full motion-safe:animate-ping rounded-full bg-[#006c49] opacity-60 dark:bg-[#6ffbbe]" />
               <span className="relative inline-flex size-2 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" />
@@ -185,41 +284,45 @@ export function CopilotComposer({
                 : "Listening…"}
           </div>
         ) : null}
-        <textarea
-          ref={ref}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={
-            listening
-              ? uploading
-                ? "Transcribing your voice…"
-                : useKhaya
-                  ? `Speak ${khayaLabel} — tap stop when finished`
-                  : "Speak now — text appears as you talk"
-              : "Type or tap the mic to speak…"
-          }
-          disabled={disabled || listening}
-          rows={1}
-          className="max-h-40 min-h-[44px] w-full resize-none rounded-xl border border-[#bfc9c3]/20 bg-background px-3 py-2.5 text-[15px] outline-none ring-[#006c49]/30 placeholder:text-muted-foreground focus-visible:ring-2 disabled:opacity-60 dark:border-white/[0.1]"
-          aria-label="Message Copilot"
-        />
+        {!expanded ? micBtn : null}
+        <div
+          className={cn(
+            "min-h-0 min-w-0",
+            expanded ? "w-full px-4 pt-3" : "min-w-0 flex-1",
+          )}
+        >
+          <textarea
+            ref={ref}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={placeholder}
+            disabled={disabled || listening}
+            rows={1}
+            className={textareaClass}
+            aria-label="Message Copilot"
+          />
+        </div>
+        {!expanded ? sendBtn : null}
+        {expanded ? (
+          <div className="flex shrink-0 items-center justify-between gap-3 px-3 pb-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => ref.current?.focus()}
+              disabled={disabled}
+              className="tap-target flex size-10 shrink-0 items-center justify-center rounded-full bg-black/[0.07] text-muted-foreground transition-colors hover:bg-black/[0.11] hover:text-foreground disabled:pointer-events-none disabled:opacity-40 dark:bg-white/[0.1] dark:hover:bg-white/[0.14]"
+              aria-label="Focus message field"
+              title="Focus message field"
+            >
+              <Plus className="size-[18px]" strokeWidth={2} aria-hidden />
+            </button>
+            <div className="flex items-center gap-2">
+              {micBtn}
+              {sendBtn}
+            </div>
+          </div>
+        ) : null}
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          if (listening) {
-            if (useKhaya) khayaSpeech.stop();
-            else browserSpeech.stop();
-          }
-          onSubmit();
-        }}
-        disabled={disabled || !value.trim() || listening}
-        className="tap-target flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#006c49] text-white shadow-sm transition-colors hover:bg-[#003527] disabled:opacity-40 dark:bg-[#6ffbbe] dark:text-[#0a0a0a] dark:hover:bg-white"
-        aria-label="Send message"
-      >
-        <Send className="size-5" />
-      </button>
     </div>
   );
 }

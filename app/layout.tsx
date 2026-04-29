@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans, Geist } from "next/font/google";
 import { ThemeProvider } from "./components/theme-provider";
 import NextTopLoader from "nextjs-toploader";
@@ -7,6 +7,15 @@ import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { PwaInstallBanner } from "./components/pwa-install-banner";
+import { Toaster } from "sonner";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  /** Android Chrome: resize layout viewport when the virtual keyboard opens (reduces overlap) */
+  interactiveWidget: "resizes-content",
+};
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -121,8 +130,6 @@ export const metadata: Metadata = {
     "platform-admin-url": ADMIN_URL,
   },
 };
-
-import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
