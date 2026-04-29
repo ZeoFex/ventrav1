@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useCopilot } from "./copilot-context";
 import { CopilotMascotAvatar } from "./copilot-mascot-avatar";
@@ -11,38 +11,6 @@ import { CopilotConfirmDrawer } from "./gates/copilot-confirm-drawer";
 export function CopilotPanel() {
   const { open, setOpen, copilotEnabled } = useCopilot();
   const panelRef = useRef<HTMLDivElement>(null);
-  /** Pin the drawer to VisualViewport so it stays above the mobile keyboard */
-  const [vvBox, setVvBox] = useState<null | { top: number; height: number }>(null);
-
-  useLayoutEffect(() => {
-    if (!copilotEnabled || !open) {
-      setVvBox(null);
-      return;
-    }
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    if (!vv) {
-      setVvBox(null);
-      return;
-    }
-    const sync = () => {
-      const top = vv.offsetTop;
-      const innerH = window.innerHeight;
-      // Soft keyboard steals most of the screen — rely on vv.height only.
-      // Otherwise anchor the drawer flush to the layout viewport bottom so no strip of body/bg shows below.
-      const keyboardLikelyOpen = vv.height < innerH * 0.5;
-      const height = keyboardLikelyOpen ? vv.height : Math.max(vv.height, innerH - top);
-      setVvBox({ top, height });
-    };
-    sync();
-    vv.addEventListener("resize", sync);
-    vv.addEventListener("scroll", sync);
-    window.addEventListener("resize", sync);
-    return () => {
-      vv.removeEventListener("resize", sync);
-      vv.removeEventListener("scroll", sync);
-      window.removeEventListener("resize", sync);
-    };
-  }, [open, copilotEnabled]);
 
   useEffect(() => {
     if (!copilotEnabled || !open) return;
@@ -82,19 +50,13 @@ export function CopilotPanel() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="copilot-panel-title"
-        className={
-          vvBox != null
-            ? "fixed right-0 top-0 z-[70] flex w-full max-w-lg flex-col border-l border-[#bfc9c3]/15 shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right-4 max-lg:max-w-full dark:border-white/[0.08]"
-            : "fixed inset-y-0 right-0 z-[70] flex w-full max-w-lg flex-col border-l border-[#bfc9c3]/15 shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right-4 dark:border-white/[0.08]"
-        }
+        className="fixed inset-y-0 right-0 z-[70] flex w-full max-w-lg flex-col border-l border-[#bfc9c3]/15 bg-surface-card shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right-4 dark:border-white/[0.08] dark:bg-[#0a0a0a] max-lg:max-w-full"
         style={{
-          ...(vvBox != null
-            ? { top: vvBox.top, height: vvBox.height }
-            : undefined),
+          paddingBottom: "max(0px, env(safe-area-inset-bottom))",
           paddingRight: "max(0px, env(safe-area-inset-right))",
         }}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-[#bfc9c3]/15 bg-surface-card px-4 py-3 dark:border-white/[0.08] dark:bg-[#0a0a0a]">
+        <header className="flex shrink-0 items-center justify-between border-b border-[#bfc9c3]/15 px-4 py-3 dark:border-white/[0.08]">
           <div className="flex min-w-0 items-center gap-3">
             <CopilotMascotAvatar
               size="lg"
@@ -121,10 +83,8 @@ export function CopilotPanel() {
             <X className="size-5" />
           </button>
         </header>
-        <div className="flex min-h-0 flex-1 flex-col bg-[#f2f2f7] dark:bg-[#0c0c0e]">
-          <CopilotInsightsStrip />
-          <CopilotChat />
-        </div>
+        <CopilotInsightsStrip />
+        <CopilotChat />
         <CopilotConfirmDrawer />
       </div>
     </>
