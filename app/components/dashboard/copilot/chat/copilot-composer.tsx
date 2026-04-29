@@ -150,7 +150,7 @@ export function CopilotComposer({
     const el = ref.current;
     if (!el) return;
     if (!expanded) {
-      el.style.height = "44px";
+      el.style.height = "";
       return;
     }
     el.style.height = "auto";
@@ -236,10 +236,10 @@ export function CopilotComposer({
         : "Ask Zuri anything…";
 
   const textareaClass = cn(
-    "w-full min-h-[44px] resize-none bg-transparent border-0 text-[15px] outline-none placeholder:text-muted-foreground/85 focus-visible:ring-0 disabled:opacity-60 dark:placeholder:text-muted-foreground/70",
+    "box-border w-full resize-none bg-transparent border-0 text-[15px] outline-none placeholder:text-muted-foreground/85 focus-visible:ring-0 disabled:opacity-60 dark:placeholder:text-muted-foreground/70",
     expanded
-      ? "overflow-hidden px-px py-px leading-relaxed"
-      : "max-h-[44px] overflow-hidden leading-snug",
+      ? "min-h-[2.75rem] overflow-hidden px-0 py-0 leading-snug"
+      : "h-11 min-h-[2.75rem] max-h-[2.75rem] overflow-hidden px-2 py-0 leading-snug",
   );
 
   return (
@@ -247,7 +247,7 @@ export function CopilotComposer({
       ref={shellRef}
       onFocusCapture={() => setFocusWithin(true)}
       onBlurCapture={onShellBlurCapture}
-      className="relative bg-[#f2f2f7] px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:bg-[#0c0c0e] sm:px-4"
+      className="relative bg-[#f2f2f7] px-3 pt-2 pb-[env(safe-area-inset-bottom)] dark:bg-[#0c0c0e] sm:px-4"
     >
       {listening && !expanded ? (
         <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-[#006c49] dark:text-[#6ffbbe]">
@@ -288,7 +288,7 @@ export function CopilotComposer({
         <div
           className={cn(
             "min-h-0 min-w-0",
-            expanded ? "w-full px-4 pt-3" : "min-w-0 flex-1",
+            expanded ? "w-full px-4 pt-2.5" : "min-w-0 flex-1",
           )}
         >
           <textarea
@@ -305,7 +305,7 @@ export function CopilotComposer({
         </div>
         {!expanded ? sendBtn : null}
         {expanded ? (
-          <div className="flex shrink-0 items-center justify-between gap-3 px-3 pb-2.5 pt-1">
+          <div className="flex shrink-0 items-center justify-between gap-3 px-3 pb-2 pt-1">
             <button
               type="button"
               onClick={() => ref.current?.focus()}
