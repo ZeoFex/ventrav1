@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** Same static art as the mobile Copilot FAB; lightweight for chat (no video). */
+/** Same static art as the mobile Zuri FAB; lightweight for chat (no video). */
 export const COPILOT_MASCOT_SRC = "/3d%20fab.png";
 
 const SIZE_PX = { xs: 24, sm: 28, md: 36, lg: 48, xl: 64 } as const;

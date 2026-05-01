@@ -110,7 +110,7 @@ pnpm install
 # 3. Configure environment variables
 cp .env.example .env.local
 # Fill in: DATABASE_URL, UPSTASH_REDIS_URL, RESEND_API_KEY,
-#          UPLOADTHING_TOKEN, JWT_SECRET, GOOGLE_GENERATIVE_AI_API_KEY (Copilot), etc.
+#          UPLOADTHING_TOKEN, JWT_SECRET, GOOGLE_GENERATIVE_AI_API_KEY (Zuri / Gemini), etc.
 
 # 4. Push database schema
 pnpm drizzle-kit push
@@ -257,8 +257,8 @@ flowchart LR
 - **Quick Actions** — Global shortcuts and recent activity feed.
 - **Server Prefetching** — Analytics are prefetched on the server and cached via Redis for instant loading.
 
-### Copilot (AI assistant)
-- **Entry** — “Copilot” control in the **sidebar footer** (above theme/collapse); opens a slide-over panel (not in the header). Shortcut: **Ctrl+/** (or **Cmd+/** on macOS).
+### Zuri (in-dashboard assistant)
+- **Entry** — “Zuri” control in the **sidebar footer** (above theme/collapse); opens a slide-over panel (not in the header). Shortcut: **Ctrl+/** (or **Cmd+/** on macOS). **Pro plan only.** (Support page includes a separate **Ask Zuri** Help-only chat.)
 - **Model** — **Google Gemini** via the Vercel AI SDK (`@ai-sdk/google`). Streaming NDJSON responses from `POST /api/copilot/chat`.
 - **Tools** — Server-side tool calling (sales summaries, product search, low stock, billing snapshot, dashboard link suggestions, screen help, feedback, export requests). Scoped to the signed-in business and active branch.
 - **Insights** — Dismissible insight cards at the top of the panel (`GET /api/copilot/insights`), aligned with the same business data as tools.
@@ -267,13 +267,13 @@ flowchart LR
 
 | Path | Purpose |
 |------|---------|
-| `app/components/dashboard/copilot/` | Panel UI, chat, insights strip, speech hooks |
+| `app/components/dashboard/copilot/` | Zuri panel UI, chat, insights strip, speech hooks |
 | `app/lib/copilot/` | Config, executor, tools registry, stream protocol, Khaya helpers |
 | `app/api/copilot/chat` | Authenticated streaming chat |
 | `app/api/copilot/transcribe` | Khaya ASR proxy (e.g. Twi) |
 | `app/api/copilot/tts` | Khaya TTS proxy (e.g. Twi) |
 | `app/api/copilot/insights` | Insight payloads for the strip |
-| `app/api/copilot/resume` | Confirm gated copilot actions (e.g. export approval) |
+| `app/api/copilot/resume` | Confirm gated Zuri actions (e.g. export approval) |
 
 ### 💳 POS — Point of Sale
 - **Product Grid** with category chips and morphing search bar.
@@ -615,7 +615,7 @@ ventrapos/
 │   │   ├── finance/                  # Expense management
 │   │   ├── branches/                 # Branch CRUD
 │   │   ├── staff/                    # Staff management
-│   │   ├── copilot/                  # AI Copilot API (chat, insights, resume)
+│   │   ├── copilot/                  # Zuri API routes (URLs still /api/copilot/*)
 │   │   ├── dashboard/                # Dashboard KPIs
 │   │   ├── business/                 # Business profile
 │   │   ├── reports/                  # Report generation
@@ -625,7 +625,7 @@ ventrapos/
 │   │   ├── auth/                     # Auth form components
 │   │   ├── onboarding/               # Onboarding step components
 │   │   └── dashboard/                # Dashboard components
-│   │       ├── copilot/              # Copilot panel, chat, voice, insights UI
+│   │       ├── copilot/              # Zuri panel: chat, voice, insights UI
 │   │       ├── header/               # Search, branch selector, notifications, user menu
 │   │       ├── home/                 # Dashboard home widgets
 │   │       ├── pos/                  # POS sale, cart, payment, receipt
@@ -636,7 +636,7 @@ ventrapos/
 │   │       ├── settings/             # Settings views
 │   │       └── branches/             # Branch management views
 │   └── lib/                          # Utilities and helpers
-│       └── copilot/                  # AI Copilot — executor, Gemini tools, stream protocol
+│       └── copilot/                  # Zuri executor, Gemini tools, stream protocol
 ├── server/                           # Backend service layer
 │   ├── db/                           # Database connection & schema
 │   │   └── schema/                   # Drizzle ORM table definitions
@@ -681,11 +681,11 @@ ventrapos/
 | `/api/pos/checkout` | POST | Process sale atomically |
 | `/api/sales/*` | GET | Sales analytics (overview, revenue, profit, etc.) |
 | `/api/dashboard/home` | GET | Dashboard KPIs with Redis caching |
-| `/api/copilot/chat` | POST | AI Copilot — streaming chat (Gemini + tools) |
+| `/api/copilot/chat` | POST | Zuri — streaming chat (Gemini + tools) |
 | `/api/copilot/transcribe` | POST | Khaya ASR proxy (e.g. Twi voice input) |
 | `/api/copilot/tts` | POST | Khaya TTS proxy (e.g. Twi playback) |
-| `/api/copilot/insights` | GET | Copilot insight cards (sales, stock, billing hints) |
-| `/api/copilot/resume` | POST | Resume / confirm gated copilot actions |
+| `/api/copilot/insights` | GET | Zuri insight cards (sales, stock, billing hints) |
+| `/api/copilot/resume` | POST | Resume / confirm gated Zuri actions |
 | `/api/finance/expenses` | GET, POST | List/create expenses |
 | `/api/branches` | GET, POST | Branch management |
 | `/api/staff` | GET, POST | Staff management |
@@ -735,12 +735,12 @@ See `DESIGN.md` and `.cursor/rules/design-system.mdc` for full details.
 | `REDIS_URL` | Redis connection (queues / cache; see `.env` for Upstash variants) |
 | `RESEND_API_KEY` | Email service API key |
 | `JWT_SECRET` | Secret for signing JWTs (min 32 chars in production) |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | **Copilot:** Google AI Studio / Gemini API key ([Google AI Studio](https://aistudio.google.com/apikey)) |
-| `KHAYA_API_KEY` | **Copilot Twi voice / TTS:** subscription key from [Ghana NLP / Khaya](https://translation.ghananlp.org) (`Ocp-Apim-Subscription-Key`); required for Twi mic and optional listen-back |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | **Zuri (Gemini):** Google AI Studio / Gemini API key ([Google AI Studio](https://aistudio.google.com/apikey)) |
+| `KHAYA_API_KEY` | **Zuri Twi voice / TTS:** subscription key from [Ghana NLP / Khaya](https://translation.ghananlp.org) (`Ocp-Apim-Subscription-Key`); required for Twi mic and optional listen-back |
 | `KHAYA_API_BASE_URL` | Optional — override Khaya API base (default `https://translation-api.ghananlp.org`) |
 | `COPILOT_GEMINI_MODEL` | Optional — Gemini model id (default `gemini-2.5-flash`) |
 | `COPILOT_MAX_STEPS` | Optional — max agent steps per request (default `12`) |
-| `COPILOT_DAILY_CAP_PER_USER` | Optional — max Copilot chat requests per user per day (default `200`) |
+| `COPILOT_DAILY_CAP_PER_USER` | Optional — max Zuri dashboard chat requests per user per day (default `200`) |
 | `UPLOADTHING_*` | File upload (see `server/config/env.ts` for full list) |
 | `NEXT_PUBLIC_WINDOWS_DESKTOP_DOWNLOAD_URL` | Public HTTPS URL to the **Windows installer** `.exe` (download page) |
 | `NEXT_PUBLIC_DESKTOP_INSTALLER_URL` | Optional; takes precedence over the Windows URL if set |

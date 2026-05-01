@@ -7,7 +7,7 @@ function dayKey(d = new Date()): string {
 }
 
 /**
- * Per-user daily request budget for copilot chat. Returns false if allowed, true if blocked.
+ * Per-user daily request budget for Zuri in-dashboard assistant. Returns false if allowed, true if blocked.
  */
 export async function isCopilotRateLimited(userId: string): Promise<boolean> {
   const dailyCap = Number(process.env.COPILOT_DAILY_CAP_PER_USER ?? 200);

@@ -22,7 +22,7 @@ type CopilotContextValue = {
   setOpen: (v: boolean) => void;
   toggle: () => void;
   pathname: string;
-  /** Ventra Copilot is limited to the Pro plan (server enforces the same). */
+  /** Zuri (in-dashboard assistant) is limited to the Pro plan (server enforces the same). */
   copilotEnabled: boolean;
 };
 

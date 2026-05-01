@@ -225,7 +225,7 @@
   touch-action: manipulation;
 }
 
-/* Copilot: iMessage-style typing dots (staggered vertical wave) */
+/* Zuri chat: iMessage-style typing dots (staggered vertical wave) */
 @keyframes copilot-imessage-dot-wave {
   0%,
   100% {

@@ -202,7 +202,7 @@ export function CopilotComposer({
           disabled={disabled || listening}
           rows={1}
           className="max-h-40 min-h-[44px] w-full resize-none rounded-xl border border-[#bfc9c3]/20 bg-background px-3 py-2.5 text-[15px] outline-none ring-[#006c49]/30 placeholder:text-muted-foreground focus-visible:ring-2 disabled:opacity-60 dark:border-white/[0.1]"
-          aria-label="Message Copilot"
+          aria-label="Message Zuri"
         />
       </div>
       <button

@@ -43,7 +43,7 @@ export type TopProductPeakDay = {
 };
 
 /**
- * Deeper sales analytics for Ventra Copilot (trends, hero SKUs, slow movers).
+ * Deeper sales analytics for Zuri in-dashboard assistant (trends, hero SKUs, slow movers).
  */
 export async function getMerchantAnalytics(
   businessId: string,

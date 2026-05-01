@@ -9,7 +9,7 @@ type CopilotInsight = {
   tone: "info" | "warning" | "positive";
 };
 
-const STORAGE_PREFIX = "ventra_copilot_insight_dismissed:";
+const STORAGE_PREFIX = "ventra_zuri_insights_dismissed:";
 
 export function CopilotInsightsStrip() {
   const [insights, setInsights] = useState<CopilotInsight[]>([]);

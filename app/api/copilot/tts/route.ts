@@ -22,7 +22,7 @@ export const maxDuration = 60;
 
 const MAX_TTS_CHARS = 4000;
 
-const LOG = "[Copilot TTS proxy]";
+const LOG = "[Zuri TTS proxy]";
 
 function hexPreview(u8: Uint8Array, maxBytes = 32): string {
   const n = Math.min(u8.length, maxBytes);
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
     if (await isCopilotRateLimited(payload.sub)) {
       return new Response(
-        JSON.stringify({ error: "Copilot rate limit exceeded. Try again tomorrow." }),
+        JSON.stringify({ error: "Zuri rate limit exceeded. Try again tomorrow." }),
         { status: 429, headers: { "Content-Type": "application/json" } },
       );
     }

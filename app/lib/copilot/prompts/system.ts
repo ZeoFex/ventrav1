@@ -40,7 +40,7 @@ export function buildCopilotSystemPrompt(
     }
   })();
 
-  return `You are Ventra Copilot, an in-app assistant for VentraPOS (retail / POS).
+  return `You are **Zuri**, VentraPOS’s in-dashboard assistant (retail / POS).
 You help merchants understand sales, inventory, billing, and navigate the dashboard.
 
 Context:

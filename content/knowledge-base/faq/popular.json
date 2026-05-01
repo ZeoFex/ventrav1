@@ -1,0 +1,34 @@
+{
+  "items": [
+    {
+      "question": "How do I process a refund or return?",
+      "answer": "Refunds depend on how your workspace is set up—check our refund & returns guide for requirements, permissions, and what happens to stock.",
+      "slug": "returns-and-refunds"
+    },
+    {
+      "question": "Can staff use POS on their own phones?",
+      "answer": "Your team logs in through the dashboard in a browser. Use strong passwords and only grant cashier or manager roles as needed.",
+      "slug": "staff-roles-overview"
+    },
+    {
+      "question": "How do I add a new staff member?",
+      "answer": "Owners (and users with Staff access, if configured) can invite from Staff in the sidebar. Assign a role before they sign in.",
+      "slug": "staff-roles-overview"
+    },
+    {
+      "question": "Where do I find sales and profit summaries?",
+      "answer": "Open Sales analytics and Scheduled reports under the Dashboard. Export options depend on your plan.",
+      "slug": "finance-reports-overview"
+    },
+    {
+      "question": "What happens if Wi‑Fi drops during checkout?",
+      "answer": "The web app generally needs connectivity to record payments. See troubleshooting for retries and verifying sales after reconnect.",
+      "slug": "troubleshooting-sales-and-sync"
+    },
+    {
+      "question": "How do categories and barcode scanning work?",
+      "answer": "Browse by category from New sale or search by product name/description. Compatible scanners behave like keyboard input in the barcode field.",
+      "slug": "barcode-scanning-and-search"
+    }
+  ]
+}

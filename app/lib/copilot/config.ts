@@ -1,5 +1,5 @@
 /**
- * Gemini model + tunables for the dashboard copilot.
+ * Gemini model + tunables for Zuri in-dashboard assistant (`app/lib/copilot`).
  * Uses GOOGLE_GENERATIVE_AI_API_KEY (see @ai-sdk/google).
  */
 export const COPILOT_DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";

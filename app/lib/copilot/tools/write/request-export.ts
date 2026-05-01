@@ -11,7 +11,7 @@ import type { ToolContext } from "../types";
 export function requestSalesExportTool(ctx: ToolContext) {
   return tool({
     description:
-      "Request a sensitive sales data export. This schedules a confirmation step — the user must approve in the Copilot UI before any export runs.",
+      "Request a sensitive sales data export. This schedules a confirmation step — the user must approve in the Zuri panel before any export runs.",
     inputSchema: zodSchema(
       z.object({
         reason: z.string().min(1).max(500),
@@ -43,7 +43,7 @@ export function requestSalesExportTool(ctx: ToolContext) {
       return {
         status: "pending_confirmation" as const,
         message:
-          "Export request recorded. The user should confirm in Copilot to proceed.",
+          "Export request recorded. The user should confirm in Zuri to proceed.",
         resumeToken,
         pendingId,
       };

@@ -75,7 +75,7 @@ function CopilotFabMascot() {
 }
 
 /**
- * Floating Copilot entry for small screens (sidebar trigger is easy to miss on mobile).
+ * Floating Zuri entry for small screens (sidebar trigger is easy to miss on mobile).
  * Placed bottom-left so it does not overlap the quick cart FAB (bottom-right).
  */
 export function CopilotMobileFab() {
@@ -98,9 +98,9 @@ export function CopilotMobileFab() {
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         !copilotEnabled && "cursor-not-allowed opacity-75",
       )}
-      aria-label={copilotEnabled ? "Open Copilot" : "Copilot (Pro plan)"}
+      aria-label={copilotEnabled ? "Open Zuri" : "Zuri (Pro plan)"}
       title={
-        copilotEnabled ? "Copilot (Ctrl+/)" : "Upgrade to Pro to use Copilot"
+        copilotEnabled ? "Zuri (Ctrl+/)" : "Upgrade to Pro to use Zuri"
       }
     >
       <CopilotFabMascot />

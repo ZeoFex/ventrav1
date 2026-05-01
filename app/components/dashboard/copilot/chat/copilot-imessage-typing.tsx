@@ -19,7 +19,7 @@ export function CopilotImessageTyping({ className }: CopilotImessageTypingProps)
       )}
       role="status"
       aria-live="polite"
-      aria-label="Copilot is typing"
+      aria-label="Zuri is typing"
     >
       <span
         className="copilot-imessage-dot size-2.5 rounded-full bg-[#8e8e93] dark:bg-[#a1a1a6]"

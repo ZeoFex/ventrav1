@@ -9,7 +9,7 @@ import { normalizeKhayaAudioContentType } from "@/app/lib/copilot/khaya";
 
 export type KhayaPlayTtsLanguage = Exclude<CopilotPreferredLanguage, "en">;
 
-const LOG = "[Copilot Khaya TTS]";
+const LOG = "[Zuri Khaya TTS]";
 
 function hexPreview(u8: Uint8Array, maxBytes = 32): string {
   const n = Math.min(u8.length, maxBytes);

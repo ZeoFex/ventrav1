@@ -40,7 +40,7 @@ export function CopilotPanel() {
     <>
       <button
         type="button"
-        aria-label="Close Copilot"
+        aria-label="Close Zuri"
         className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px] motion-safe:animate-in motion-safe:fade-in-0"
         onClick={() => setOpen(false)}
       />
@@ -67,10 +67,10 @@ export function CopilotPanel() {
                 id="copilot-panel-title"
                 className="text-lg font-semibold tracking-tight text-foreground"
               >
-                Copilot
+                Zuri
               </h2>
               <p className="text-[12px] text-muted-foreground">
-                Your Ventra assistant · Gemini, grounded in your data
+                Your store assistant · Gemini, grounded in your data
               </p>
             </div>
           </div>

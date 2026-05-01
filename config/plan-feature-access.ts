@@ -7,7 +7,7 @@
 
 export type PlanId = "starter" | "growth" | "pro";
 
-/** Feature id for Ventra Copilot (Pro-only). */
+/** Feature id for Zuri in-dashboard assistant (`copilot` key; Pro-only). */
 export const COPILOT_FEATURE_ID = "copilot" as const;
 
 export const PLAN_LIMITS = {

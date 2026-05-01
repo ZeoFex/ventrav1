@@ -79,11 +79,13 @@ export function CopilotChat() {
             <p className="text-[15px] font-medium text-foreground">
               Ask anything about your store
             </p>
-            <p className="text-[13px] text-muted-foreground">I’m your Ventra Copilot</p>
+            <p className="text-[13px] text-muted-foreground">
+              I&apos;m <strong className="font-medium text-foreground">Zuri</strong> — ask about your shop; I use your
+              data when the tools can reach it.
+            </p>
             <p className="mt-2 text-[13px] text-muted-foreground">
-              Trends, top products, slow movers, and ideas for promotions — grounded in your
-              data when available. Pick a language: English uses browser dictation; Twi, Ga, and
-              Ewe use Khaya for voice when configured.
+              Trends, top products, slow movers, and ideas for promotions grounded in your
+              data when available.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {[

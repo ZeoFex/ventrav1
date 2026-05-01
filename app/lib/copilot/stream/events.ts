@@ -1,4 +1,4 @@
-/** NDJSON line protocol for the copilot panel (one JSON object per line). */
+/** NDJSON line protocol for the Zuri panel (one JSON object per line). */
 export type CopilotStreamEvent =
   | { type: "text-delta"; delta: string }
   | { type: "tool-start"; id: string; name: string }

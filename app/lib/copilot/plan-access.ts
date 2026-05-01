@@ -8,7 +8,7 @@ import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 
 /**
- * Whether this business may use Ventra Copilot (Pro-only; checked from DB, not JWT).
+ * Whether this business may use Zuri in-dashboard assistant (Pro-only; feature id `copilot`).
  */
 export async function businessHasCopilotAccess(
   businessId: string,
@@ -28,7 +28,7 @@ export function copilotProRequiredResponse(): Response {
   return new Response(
     JSON.stringify({
       error:
-        "Ventra Copilot is included with the Pro plan. Upgrade in Settings → Billing.",
+        "Zuri (in-dashboard assistant) is included with the Pro plan. Upgrade in Settings → Billing.",
     }),
     { status: 403, headers: { "Content-Type": "application/json" } },
   );

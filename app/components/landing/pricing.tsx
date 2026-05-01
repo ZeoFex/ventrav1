@@ -47,7 +47,7 @@ const comparisonFeatures = [
     {
         category: "AI",
         items: [
-            { name: "Ventra Copilot (in-dashboard assistant)", starter: false, growth: false, pro: true },
+            { name: "Zuri (in-dashboard assistant, Pro)", starter: false, growth: false, pro: true },
         ],
     },
 ];

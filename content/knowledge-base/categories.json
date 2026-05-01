@@ -1,0 +1,13 @@
+{
+  "categories": [
+    { "id": "getting-started", "label": "Getting started", "order": 10 },
+    { "id": "pos", "label": "POS & checkout", "order": 20 },
+    { "id": "inventory", "label": "Products & inventory", "order": 30 },
+    { "id": "staff", "label": "Staff & access", "order": 40 },
+    { "id": "branches", "label": "Branches", "order": 50 },
+    { "id": "billing", "label": "Billing & subscription", "order": 60 },
+    { "id": "reports", "label": "Finance & reports", "order": 70 },
+    { "id": "security", "label": "Security & privacy", "order": 80 },
+    { "id": "troubleshooting", "label": "Troubleshooting", "order": 90 }
+  ]
+}

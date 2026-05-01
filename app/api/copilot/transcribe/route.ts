@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 
     if (await isCopilotRateLimited(payload.sub)) {
       return new Response(
-        JSON.stringify({ error: "Copilot rate limit exceeded. Try again tomorrow." }),
+        JSON.stringify({ error: "Zuri rate limit exceeded. Try again tomorrow." }),
         { status: 429, headers: { "Content-Type": "application/json" } },
       );
     }

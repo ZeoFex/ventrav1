@@ -86,7 +86,7 @@ export type CopilotCustomerRow = {
 };
 
 /**
- * Search customers by name/phone or list most recently added (Copilot read path; not cached).
+ * Search customers by name/phone or list most recently added (Zuri read path; not cached).
  */
 export async function searchCustomersForCopilot(
   businessId: string,
