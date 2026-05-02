@@ -18,6 +18,7 @@ import { initOfflineSync } from "@/app/lib/offline/offline-sync";
 import { GlobalCartIndicator } from "./pos/global-cart-indicator";
 import { TrialBanner } from "./trial-banner";
 import { CopilotMobileFab, CopilotPanel, CopilotProvider } from "./copilot";
+import { DashboardProductTour } from "./product-tour/dashboard-product-tour";
 
 function DashboardShellFrame({
   children,
@@ -86,6 +87,7 @@ function DashboardShellFrame({
       <GlobalCartIndicator />
       <CopilotMobileFab />
       <CopilotPanel />
+      <DashboardProductTour />
     </div>
   );
 }

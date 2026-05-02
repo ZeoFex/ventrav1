@@ -27,15 +27,25 @@ export function DashboardHeader({
         aria-label="Open navigation menu"
         aria-expanded={mobileNavOpen}
         aria-controls="dashboard-mobile-nav"
+        data-tour-target="header-mobile-menu"
+        data-tour-mount="main"
       >
         <Menu className="size-[1.35rem]" strokeWidth={2} aria-hidden />
       </button>
 
-      <div className="col-start-2 row-start-1 min-w-0 self-center lg:col-start-1 lg:row-start-1">
+      <div
+        className="col-start-2 row-start-1 min-w-0 self-center lg:col-start-1 lg:row-start-1"
+        data-tour-target="header-search"
+        data-tour-mount="main"
+      >
         <HeaderSearch />
       </div>
 
-      <div className="col-span-4 row-start-2 min-w-0 self-center lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:max-w-[min(100%,14rem)]">
+      <div
+        className="col-span-4 row-start-2 min-w-0 self-center lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:max-w-[min(100%,14rem)]"
+        data-tour-target="header-branch"
+        data-tour-mount="main"
+      >
         <HeaderBranchSelector />
       </div>
 

@@ -1,4 +1,5 @@
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import type { DashboardTourSidebarMount } from "@/app/lib/dashboard-product-tour";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { useDashboardNav } from "./dashboard-nav-context";
 import { SidebarBrand } from "./sidebar/sidebar-brand";
@@ -9,10 +10,12 @@ export function DashboardSidebarPanel({
   onNavigate,
   mobileClose,
   isCollapsed = false,
+  tourMount = "desktop",
 }: {
   onNavigate?: () => void;
   mobileClose?: () => void;
   isCollapsed?: boolean;
+  tourMount?: DashboardTourSidebarMount;
 }) {
   const { toggleIsCollapsed } = useDashboardNav();
 
@@ -35,11 +38,19 @@ export function DashboardSidebarPanel({
       </div>
 
       <div className="dashboard-sidebar-scroll min-h-0 flex-1 px-3 py-4 overflow-x-hidden">
-        <SidebarNav onNavigate={onNavigate} isCollapsed={isCollapsed} />
+        <SidebarNav
+          onNavigate={onNavigate}
+          isCollapsed={isCollapsed}
+          tourMount={tourMount}
+        />
       </div>
 
       <div className="shrink-0 space-y-4 border-t border-[#bfc9c3]/15 px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:border-white/[0.06]">
-        <div className="hidden w-full lg:block">
+        <div
+          className="hidden w-full lg:block"
+          data-tour-target="copilot-sidebar"
+          data-tour-mount="main"
+        >
           <CopilotSidebarTrigger isCollapsed={isCollapsed} />
         </div>
         <div className={`flex items-center gap-2 ${isCollapsed ? "flex-col" : "justify-between"}`}>
@@ -75,7 +86,7 @@ export function DashboardSidebar() {
         isCollapsed ? "w-[5.5rem]" : "w-[17.5rem]"
       }`}
     >
-      <DashboardSidebarPanel isCollapsed={isCollapsed} />
+      <DashboardSidebarPanel isCollapsed={isCollapsed} tourMount="desktop" />
     </aside>
   );
 }
@@ -97,6 +108,7 @@ export function DashboardSidebarMobileDrawer() {
         onNavigate={closeMobileNav}
         mobileClose={closeMobileNav}
         isCollapsed={false}
+        tourMount="mobile"
       />
     </aside>
   );

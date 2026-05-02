@@ -13,6 +13,8 @@ import { UpgradeTooltip } from "./upgrade-tooltip";
 import { SidebarTooltip } from "./sidebar-tooltip";
 import { SidebarFlyout } from "./sidebar-flyout";
 
+import type { DashboardTourSidebarMount } from "@/app/lib/dashboard-product-tour";
+
 function pathActive(pathname: string, href: string, allHrefs?: string[]): boolean {
   if (href === "/dashboard") {
     return pathname === "/dashboard" || pathname === "/dashboard/";
@@ -36,11 +38,13 @@ function pathActive(pathname: string, href: string, allHrefs?: string[]): boolea
 export function SidebarNav({
   onNavigate,
   isCollapsed = false,
+  tourMount = "desktop",
 }: {
   /** Close mobile drawer after navigation (or on route change). */
   onNavigate?: () => void;
   isCollapsed?: boolean;
-} = {}) {
+  tourMount?: DashboardTourSidebarMount;
+}) {
   const pathname = usePathname() || "";
   const { branchId } = useBranchContext();
   const { user, isLoading: sessionLoading } = useSession();
@@ -141,7 +145,12 @@ export function SidebarNav({
           : `rounded-xl text-muted-foreground hover:bg-surface-elevated dark:hover:bg-[#1a1a1a] ${muted}`;
 
         return (
-          <div key={item.id} className="flex flex-col">
+          <div
+            key={item.id}
+            className="flex flex-col"
+            data-tour-target={`nav-${item.id}`}
+            data-tour-mount={tourMount}
+          >
             <div
               className={`flex min-h-[2.75rem] items-stretch gap-0.5 ${rowClass}`}
             >
