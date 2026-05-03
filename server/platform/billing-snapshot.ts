@@ -1,104 +1,152 @@
-import { and, count, eq, isNotNull, or } from "drizzle-orm";
+/**
+ * Billing aggregates for GET /api/platform/billing/summary and GET /api/platform/overview.
+ * Single SQL round-trip to avoid piling many sequential counts on a small serverless DB pool.
+ */
 import { db } from "@/server/db";
-import { businesses } from "@/server/db/schema/businesses";
-import { pendingSubscriptions } from "@/server/db/schema/pending-subscriptions";
-import { referralQualifications } from "@/server/db/schema/referral-qualifications";
 
-type GbRow = { key: string; n: number };
+type JsonMap = Record<string, unknown>;
 
-function toMap(rows: GbRow[]): Record<string, number> {
+type BillingRow = {
+    businesses_total: bigint | string | number | null;
+    businesses_with_referrer: bigint | string | number | null;
+    referral_qualifications_total: bigint | string | number | null;
+    pending_total: bigint | string | number | null;
+    pending_by_status: JsonMap | null;
+    plans: JsonMap | null;
+    subscription_status: JsonMap | null;
+    business_status: JsonMap | null;
+};
+
+function num(v: bigint | string | number | null | undefined): number {
+    if (v == null) return 0;
+    if (typeof v === "bigint") return Number(v);
+    if (typeof v === "number") return v;
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+}
+
+function jsonToCountMap(j: JsonMap | null | undefined): Record<string, number> {
+    if (!j || typeof j !== "object") return {};
     const o: Record<string, number> = {};
-    for (const r of rows) {
-        o[String(r.key)] = Number(r.n);
+    for (const [k, v] of Object.entries(j)) {
+        o[k] = num(v as bigint | string | number | null);
     }
     return o;
 }
 
 /** Payload for GET /api/platform/billing/summary and GET /api/platform/overview. */
 export async function getPlatformBillingSummary(businessId: string | undefined) {
-    const idEq = businessId ? eq(businesses.id, businessId) : undefined;
-    const refCond = businessId
-        ? or(
-              eq(referralQualifications.referrerBusinessId, businessId),
-              eq(referralQualifications.refereeBusinessId, businessId)
-          )
-        : undefined;
+    const sql = db.$client;
 
-    const withReferrerCond = idEq
-        ? and(idEq, isNotNull(businesses.referredByBusinessId))
-        : isNotNull(businesses.referredByBusinessId);
-
-    const [totalBusinesses, withReferrer, referralRows, pendingTotal, pendingByStatus, plans, subStatuses, businessStatuses] =
-        await Promise.all([
-            idEq
-                ? db
-                      .select({ n: count() })
-                      .from(businesses)
-                      .where(idEq)
-                : db.select({ n: count() }).from(businesses),
-            db
-                .select({ n: count() })
-                .from(businesses)
-                .where(withReferrerCond),
-            refCond
-                ? db
-                      .select({ n: count() })
-                      .from(referralQualifications)
-                      .where(refCond)
-                : db.select({ n: count() }).from(referralQualifications),
-            db.select({ n: count() }).from(pendingSubscriptions),
-            db
-                .select({ key: pendingSubscriptions.status, n: count() })
-                .from(pendingSubscriptions)
-                .groupBy(pendingSubscriptions.status),
-            idEq
-                ? db
-                      .select({ key: businesses.plan, n: count() })
-                      .from(businesses)
-                      .where(idEq)
-                      .groupBy(businesses.plan)
-                : db
-                      .select({ key: businesses.plan, n: count() })
-                      .from(businesses)
-                      .groupBy(businesses.plan),
-            idEq
-                ? db
-                      .select({ key: businesses.subscriptionStatus, n: count() })
-                      .from(businesses)
-                      .where(idEq)
-                      .groupBy(businesses.subscriptionStatus)
-                : db
-                      .select({ key: businesses.subscriptionStatus, n: count() })
-                      .from(businesses)
-                      .groupBy(businesses.subscriptionStatus),
-            idEq
-                ? db
-                      .select({ key: businesses.status, n: count() })
-                      .from(businesses)
-                      .where(idEq)
-                      .groupBy(businesses.status)
-                : db
-                      .select({ key: businesses.status, n: count() })
-                      .from(businesses)
-                      .groupBy(businesses.status),
-        ]);
-
-    const pendingMap: Record<string, number> = {};
-    for (const r of pendingByStatus) {
-        pendingMap[String(r.key)] = Number(r.n);
+    if (businessId) {
+        const [row] = await sql<BillingRow[]>`
+            SELECT
+                (SELECT COUNT(*)::bigint FROM businesses WHERE id = ${businessId}) AS businesses_total,
+                (SELECT COUNT(*)::bigint FROM businesses
+                    WHERE id = ${businessId} AND referred_by_business_id IS NOT NULL)
+                    AS businesses_with_referrer,
+                (SELECT COUNT(*)::bigint FROM referral_qualifications
+                    WHERE referrer_business_id = ${businessId} OR referee_business_id = ${businessId})
+                    AS referral_qualifications_total,
+                (SELECT COUNT(*)::bigint FROM pending_subscriptions) AS pending_total,
+                (SELECT COALESCE(jsonb_object_agg(sub.status, sub.n), '{}'::jsonb)
+                    FROM (
+                        SELECT ps.status, COUNT(*)::bigint AS n
+                        FROM pending_subscriptions ps
+                        GROUP BY ps.status
+                    ) sub) AS pending_by_status,
+                (SELECT COALESCE(jsonb_object_agg(sub.plan, sub.n), '{}'::jsonb)
+                    FROM (
+                        SELECT b.plan::text AS plan, COUNT(*)::bigint AS n
+                        FROM businesses b
+                        WHERE b.id = ${businessId}
+                        GROUP BY b.plan
+                    ) sub) AS plans,
+                (SELECT COALESCE(jsonb_object_agg(sub.subscription_status, sub.n), '{}'::jsonb)
+                    FROM (
+                        SELECT b.subscription_status::text AS subscription_status, COUNT(*)::bigint AS n
+                        FROM businesses b
+                        WHERE b.id = ${businessId}
+                        GROUP BY b.subscription_status
+                    ) sub) AS subscription_status,
+                (SELECT COALESCE(jsonb_object_agg(sub.biz_status, sub.n), '{}'::jsonb)
+                    FROM (
+                        SELECT b.status::text AS biz_status, COUNT(*)::bigint AS n
+                        FROM businesses b
+                        WHERE b.id = ${businessId}
+                        GROUP BY b.status
+                    ) sub) AS business_status
+        `;
+        if (!row) {
+            throw new Error("platform billing: empty result");
+        }
+        return {
+            filter: { businessId } as const,
+            businessesTotal: num(row.businesses_total),
+            businessesWithReferralSignup: num(row.businesses_with_referrer),
+            plans: jsonToCountMap(row.plans),
+            subscriptionStatus: jsonToCountMap(row.subscription_status),
+            businessStatus: jsonToCountMap(row.business_status),
+            referralQualifications: num(row.referral_qualifications_total),
+            pendingSubscriptions: {
+                total: num(row.pending_total),
+                byStatus: jsonToCountMap(row.pending_by_status),
+            },
+            relatedPlatformLists: {
+                billingBusinesses: "/api/platform/billing/businesses",
+                businesses: "/api/platform/businesses",
+                pendingSubscriptions: "/api/platform/pending-subscriptions",
+                referralQualifications: "/api/platform/referral-qualifications",
+            },
+        };
     }
 
+    const [row] = await sql<BillingRow[]>`
+        SELECT
+            (SELECT COUNT(*)::bigint FROM businesses) AS businesses_total,
+            (SELECT COUNT(*)::bigint FROM businesses WHERE referred_by_business_id IS NOT NULL)
+                AS businesses_with_referrer,
+            (SELECT COUNT(*)::bigint FROM referral_qualifications) AS referral_qualifications_total,
+            (SELECT COUNT(*)::bigint FROM pending_subscriptions) AS pending_total,
+            (SELECT COALESCE(jsonb_object_agg(sub.status, sub.n), '{}'::jsonb)
+                FROM (
+                    SELECT ps.status, COUNT(*)::bigint AS n
+                    FROM pending_subscriptions ps
+                    GROUP BY ps.status
+                ) sub) AS pending_by_status,
+            (SELECT COALESCE(jsonb_object_agg(sub.plan, sub.n), '{}'::jsonb)
+                FROM (
+                    SELECT b.plan::text AS plan, COUNT(*)::bigint AS n
+                    FROM businesses b
+                    GROUP BY b.plan
+                ) sub) AS plans,
+            (SELECT COALESCE(jsonb_object_agg(sub.subscription_status, sub.n), '{}'::jsonb)
+                FROM (
+                    SELECT b.subscription_status::text AS subscription_status, COUNT(*)::bigint AS n
+                    FROM businesses b
+                    GROUP BY b.subscription_status
+                ) sub) AS subscription_status,
+            (SELECT COALESCE(jsonb_object_agg(sub.biz_status, sub.n), '{}'::jsonb)
+                FROM (
+                    SELECT b.status::text AS biz_status, COUNT(*)::bigint AS n
+                    FROM businesses b
+                    GROUP BY b.status
+                ) sub) AS business_status
+    `;
+    if (!row) {
+        throw new Error("platform billing: empty result");
+    }
     return {
-        filter: businessId ? { businessId } : null,
-        businessesTotal: Number(totalBusinesses[0]?.n ?? 0),
-        businessesWithReferralSignup: Number(withReferrer[0]?.n ?? 0),
-        plans: toMap(plans as GbRow[]),
-        subscriptionStatus: toMap(subStatuses as GbRow[]),
-        businessStatus: toMap(businessStatuses as GbRow[]),
-        referralQualifications: Number(referralRows[0]?.n ?? 0),
+        filter: null,
+        businessesTotal: num(row.businesses_total),
+        businessesWithReferralSignup: num(row.businesses_with_referrer),
+        plans: jsonToCountMap(row.plans),
+        subscriptionStatus: jsonToCountMap(row.subscription_status),
+        businessStatus: jsonToCountMap(row.business_status),
+        referralQualifications: num(row.referral_qualifications_total),
         pendingSubscriptions: {
-            total: Number(pendingTotal[0]?.n ?? 0),
-            byStatus: pendingMap,
+            total: num(row.pending_total),
+            byStatus: jsonToCountMap(row.pending_by_status),
         },
         relatedPlatformLists: {
             billingBusinesses: "/api/platform/billing/businesses",

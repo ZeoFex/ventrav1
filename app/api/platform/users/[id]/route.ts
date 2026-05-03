@@ -34,6 +34,18 @@ function needBusinessId(req: NextRequest): string | null {
     return new URL(req.url).searchParams.get("businessId")?.trim() ?? null;
 }
 
+const uuidParam = z.string().uuid();
+
+function invalidUserIdResponse() {
+    return NextResponse.json(
+        {
+            error:
+                "Invalid user id: use a real UUID from GET /api/platform/users (OpenAPI \"{id}\" is a placeholder, not the path).",
+        },
+        { status: 400 }
+    );
+}
+
 /** Single user with role + branch (same shape as GET /api/staff/[id]). */
 export async function GET(
     req: NextRequest,
@@ -48,6 +60,9 @@ export async function GET(
         return NextResponse.json({ error: "Query businessId is required" }, { status: 400 });
     }
     const { id: userId } = await params;
+    if (!uuidParam.safeParse(userId).success) {
+        return invalidUserIdResponse();
+    }
 
     const result = await db
         .select({
@@ -81,6 +96,9 @@ export async function PATCH(
         return gate;
     }
     const { id: userId } = await params;
+    if (!uuidParam.safeParse(userId).success) {
+        return invalidUserIdResponse();
+    }
     let body: unknown;
     try {
         body = await req.json();
@@ -154,6 +172,9 @@ export async function DELETE(
         return NextResponse.json({ error: "Query businessId is required" }, { status: 400 });
     }
     const { id: userId } = await params;
+    if (!uuidParam.safeParse(userId).success) {
+        return invalidUserIdResponse();
+    }
 
     await db.delete(users).where(and(eq(users.id, userId), eq(users.businessId, businessId)));
     return NextResponse.json({ success: true });

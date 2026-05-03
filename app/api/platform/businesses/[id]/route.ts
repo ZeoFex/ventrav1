@@ -20,6 +20,18 @@ const patchBody = z
         message: "At least one field required",
     });
 
+const uuidParam = z.string().uuid();
+
+function invalidBusinessIdResponse() {
+    return NextResponse.json(
+        {
+            error:
+                'Invalid business id: use a real UUID from GET /api/platform/businesses (OpenAPI "{id}" is a placeholder—set the id variable in Scalar).',
+        },
+        { status: 400 }
+    );
+}
+
 /**
  * Get one business (full row except heavy JSON if needed for ops).
  */
@@ -32,6 +44,9 @@ export async function GET(
         return gate;
     }
     const { id } = await params;
+    if (!uuidParam.safeParse(id).success) {
+        return invalidBusinessIdResponse();
+    }
     const [row] = await db.select().from(businesses).where(eq(businesses.id, id)).limit(1);
     if (!row) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -51,6 +66,9 @@ export async function PATCH(
         return gate;
     }
     const { id } = await params;
+    if (!uuidParam.safeParse(id).success) {
+        return invalidBusinessIdResponse();
+    }
     let body: unknown;
     try {
         body = await req.json();
