@@ -112,6 +112,27 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Request password reset email.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -134,6 +155,32 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Tenant user sign-in.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -168,6 +215,17 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Clears auth cookies; JSON body not required.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
           }
         }
       }
@@ -235,6 +293,49 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Update the signed-in user's profile.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firstName"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "lastName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 100
+                  },
+                  "phone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 30
+                  },
+                  "city": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 100
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -258,6 +359,40 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Resend verification OTP.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 320
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "sms"
+                    ],
+                    "default": "email"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 20
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -280,6 +415,32 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Complete reset using token from email link.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "newPassword"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -338,6 +499,51 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Create user + business tenant.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "businessName",
+                  "fullName",
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "businessName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 255
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 320
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128,
+                    "description": "Must include upper, lower, digit, and special character (see route validation)."
+                  },
+                  "referralCode": {
+                    "type": "string",
+                    "maxLength": 32
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -360,6 +566,34 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Verify signup OTP.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "code"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 320
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$",
+                    "description": "Six-digit OTP."
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -395,6 +629,58 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Initialize MoMo charge; Bearer optional.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "plan",
+                  "phone",
+                  "provider"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "plan": {
+                    "type": "string",
+                    "enum": [
+                      "starter",
+                      "growth",
+                      "pro"
+                    ]
+                  },
+                  "cycle": {
+                    "type": "string",
+                    "enum": [
+                      "monthly",
+                      "annually"
+                    ],
+                    "default": "monthly"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 9
+                  },
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "mtn",
+                      "vod",
+                      "tigo"
+                    ]
+                  },
+                  "preSignupEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Guest checkout email when no session."
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -428,6 +714,32 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Submit Paystack OTP for authorized user.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "otp",
+                  "reference"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "otp": {
+                    "type": "string",
+                    "minLength": 4
+                  },
+                  "reference": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -530,6 +842,17 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "No JSON body.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
           }
         }
       }
@@ -665,6 +988,61 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "businessId is inferred from JWT.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "code": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "region": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "address": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "phone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "isMain": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -730,6 +1108,19 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Update branch.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Partial branch fields forwarded to branch service."
+              }
+            }
           }
         }
       }
@@ -797,6 +1188,19 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Owner-only.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Partial business config forwarded to update service."
+              }
+            }
+          }
         }
       }
     },
@@ -830,6 +1234,49 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Returns application/x-ndjson stream.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "messages"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "messages": {
+                    "type": "array",
+                    "description": "Conversation / model messages (shape validated server-side)."
+                  },
+                  "pathname": {
+                    "type": "string"
+                  },
+                  "threadId": {
+                    "type": "string"
+                  },
+                  "preferredLanguage": {
+                    "type": "string",
+                    "enum": [
+                      "en",
+                      "tw",
+                      "gaa",
+                      "ee"
+                    ]
+                  },
+                  "posCart": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -899,6 +1346,34 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Confirm or decline gated copilot action.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resumeToken"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "resumeToken": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "confirm": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "idempotencyKey": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -933,6 +1408,18 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "description": "Binary audio body; optional language query (default tw). Content-Type echoes upstream Khaya expectation.",
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "description": "Raw request bytes (e.g. audio). Set Content-Type appropriately."
+              }
+            }
+          }
         }
       }
     },
@@ -966,6 +1453,37 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Proxy TTS.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "text",
+                  "language"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "language": {
+                    "type": "string",
+                    "description": "Khaya TTS language code."
+                  },
+                  "translateFromEnglish": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1060,6 +1578,33 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Create customer.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "default": "active"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1125,6 +1670,32 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Partial update; only supplied fields forwarded.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1226,6 +1797,69 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "value must be present when creating.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "type"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Required on create; numeric or string depends on discount type field.",
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "isActive": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "autoApply": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "minOrderValueGhs": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "startDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "ISO date"
+                  },
+                  "endDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "ISO date"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1259,6 +1893,48 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Replace/update discount columns.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Numeric or string per discount type."
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "autoApply": {
+                    "type": "boolean"
+                  },
+                  "minOrderValueGhs": {
+                    "type": [
+                      "number",
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "startDate": {
+                    "type": "string"
+                  },
+                  "endDate": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -1358,6 +2034,27 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Additional fields forwarded to createExpense.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "date"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "description": "Parsed as expense date (new Date(body.date))."
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1391,6 +2088,30 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Update expense status.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "Paid",
+                      "Pending"
+                    ]
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -1445,6 +2166,40 @@
           }
         ],
         "summary": "GET /api/finance/overview",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/help/search": {
+      "get": {
+        "tags": [
+          "help"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
+          }
+        ],
+        "summary": "GET /api/help/search",
         "responses": {
           "200": {
             "description": "OK"
@@ -1524,6 +2279,36 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Create broadcast-style notification.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "icon": {
+                    "type": "string",
+                    "default": "info"
+                  }
+                }
+              }
+            }
+          }
         }
       },
       "patch": {
@@ -1555,6 +2340,17 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Marks visible notifications read; no JSON body required.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
           }
         }
       }
@@ -1590,6 +2386,17 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Marks one notification read; no JSON body.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
         }
       }
     },
@@ -1623,6 +2430,143 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Completes onboarding wizard; many fields optional with defaults in Zod schema.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "storeName",
+                  "email"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "businessType": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "storeName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "legalName": {
+                    "type": "string"
+                  },
+                  "registrationId": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "addressLine": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "default": "GHS"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "default": "en-GH"
+                  },
+                  "taxRegistered": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "taxType": {
+                    "type": "string",
+                    "default": "none"
+                  },
+                  "taxRate": {
+                    "type": "string",
+                    "default": "0"
+                  },
+                  "logoUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "receiptHeader": {
+                    "type": "string"
+                  },
+                  "receiptFooter": {
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "structure": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "single",
+                      "multi",
+                      null
+                    ]
+                  },
+                  "branches": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "region",
+                        "isMain"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "region": {
+                          "type": "string"
+                        },
+                        "isMain": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "plan": {
+                    "type": "string",
+                    "enum": [
+                      "starter",
+                      "growth",
+                      "pro"
+                    ],
+                    "default": "starter"
+                  },
+                  "cycle": {
+                    "type": "string",
+                    "enum": [
+                      "monthly",
+                      "annually"
+                    ],
+                    "default": "annually"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1689,6 +2633,32 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Persist wizard snapshot; all keys optional.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "stepIndex": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 50
+                  },
+                  "data": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "updatedAt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -1908,6 +2878,56 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Tenant admin fields.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "At least one property required.",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "suspended",
+                      "deactivated"
+                    ]
+                  },
+                  "plan": {
+                    "type": "string",
+                    "enum": [
+                      "starter",
+                      "growth",
+                      "pro"
+                    ]
+                  },
+                  "subscriptionStatus": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "past_due",
+                      "canceled"
+                    ]
+                  },
+                  "currentPeriodEnd": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
           }
         }
       }
@@ -2555,6 +3575,68 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Platform key or superadmin Bearer; creates staff-like user.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "businessId",
+                  "branchId",
+                  "firstName",
+                  "email",
+                  "phone",
+                  "password",
+                  "roleName"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "businessId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "branchId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "default": ""
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6
+                  },
+                  "roleName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "permissionKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2606,6 +3688,90 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Shape depends on whether firstName is present (discriminant in handler).",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "title": "Status-only",
+                    "required": [
+                      "businessId",
+                      "status"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "businessId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "pending_verification",
+                          "active",
+                          "suspended",
+                          "deactivated"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "title": "Full profile",
+                    "required": [
+                      "businessId",
+                      "firstName",
+                      "email",
+                      "phone",
+                      "roleName",
+                      "branchId"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "businessId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "firstName": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "lastName": {
+                        "type": "string",
+                        "default": ""
+                      },
+                      "email": {
+                        "type": "string",
+                        "format": "email"
+                      },
+                      "phone": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "password": {
+                        "type": "string",
+                        "minLength": 6,
+                        "description": "Optional; rotates password when set."
+                      },
+                      "roleName": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "branchId": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
           }
         }
       },
@@ -2665,6 +3831,91 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "POS checkout cart snapshot.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "lines",
+                  "invoiceId",
+                  "subtotalGhs",
+                  "taxGhs",
+                  "discountGhs",
+                  "totalGhs",
+                  "paymentMethod"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "productId",
+                        "quantity",
+                        "productName",
+                        "unitPriceGhs",
+                        "lineTotalGhs"
+                      ],
+                      "properties": {
+                        "productId": {
+                          "type": "string"
+                        },
+                        "variationId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "quantity": {
+                          "type": "number"
+                        },
+                        "productName": {
+                          "type": "string"
+                        },
+                        "unitPriceGhs": {
+                          "type": "number"
+                        },
+                        "lineTotalGhs": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  },
+                  "invoiceId": {
+                    "type": "string"
+                  },
+                  "subtotalGhs": {
+                    "type": "number"
+                  },
+                  "taxGhs": {
+                    "type": "number"
+                  },
+                  "discountGhs": {
+                    "type": "number"
+                  },
+                  "totalGhs": {
+                    "type": "number"
+                  },
+                  "paymentMethod": {
+                    "type": "string"
+                  },
+                  "customerId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -2734,6 +3985,17 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Opens relay session; no JSON body.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
         }
       }
     },
@@ -2802,6 +4064,32 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Mobile scanner webhook.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "barcode"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "barcode": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2836,6 +4124,31 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "CSV/import-style array of loose product-ish objects.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2869,6 +4182,31 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Delete many products by id.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -2936,6 +4274,32 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Create category.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         }
       },
       "put": {
@@ -2967,6 +4331,35 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Update category.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -3033,6 +4426,17 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Uses active branch; copies missing categories from main.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
           }
         }
       }
@@ -3134,6 +4538,19 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Creates product for active branch.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Product fields forwarded to catalog save (saveProduct). Must not use Global branch view."
+              }
+            }
+          }
         }
       },
       "put": {
@@ -3165,6 +4582,82 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Update product by id; other fields optional.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Product UUID."
+                  },
+                  "categoryId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "sku": {
+                    "type": "string"
+                  },
+                  "barcode": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "imageSrc": {
+                    "type": "string"
+                  },
+                  "priceGhs": {
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "costPriceGhs": {
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "stock": {
+                    "type": "integer"
+                  },
+                  "reorderAt": {
+                    "type": "integer"
+                  },
+                  "unit": {
+                    "type": "string",
+                    "default": "piece"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "tagIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -3232,6 +4725,17 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "Uses active branch cookie; syncs catalog from main branch.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
         }
       }
     },
@@ -3298,6 +4802,26 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Create tag.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "color": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
         }
       },
       "put": {
@@ -3329,6 +4853,32 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Update tag.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "color": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -3634,6 +5184,45 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Process sale returns / stock restoration.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "saleId",
+                  "lines"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "saleId": {
+                    "type": "string"
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "saleItemId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -3802,6 +5391,34 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Create custom role.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "permissionKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -3902,6 +5519,63 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Owner-only; creates staff member.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "email",
+                  "phone",
+                  "password",
+                  "roleName",
+                  "branchId",
+                  "permissionKeys"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "default": ""
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6
+                  },
+                  "roleName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "branchId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "permissionKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -3967,6 +5641,54 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Owner-only; must match updateStaff payload (use passwordRaw, not password).",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "email",
+                  "phone",
+                  "roleName",
+                  "branchId"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "passwordRaw": {
+                    "type": "string",
+                    "description": "Optional; hash updated when provided."
+                  },
+                  "roleName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "branchId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -4034,6 +5756,40 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Requires X-Ventra-Platform-Key header; creates a superadmin account.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password",
+                  "firstName"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 12
+                  },
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "lastName": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -4042,18 +5798,7 @@
         "tags": [
           "superadmin"
         ],
-        "security": [
-          {
-            "bearer": []
-          },
-          {
-            "ventraAccessCookie": []
-          },
-          {
-            "platformKey": [],
-            "actAsBusiness": []
-          }
-        ],
+        "security": [],
         "summary": "POST /api/superadmin/auth/login",
         "responses": {
           "200": {
@@ -4067,6 +5812,32 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Superadmin email/password sign-in; returns JSON with accessToken for use as Bearer.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -4101,6 +5872,17 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "description": "No body required.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
           }
         }
       }
@@ -4170,6 +5952,83 @@
           "500": {
             "description": "Server error"
           }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Superadmin docs sandbox; also send X-Ventra-Platform-Key header.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "GET path under /api/platform/ (same origin).",
+                    "pattern": "^/api/platform/"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/support/zuri/chat": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "ventraAccessCookie": []
+          },
+          {
+            "platformKey": [],
+            "actAsBusiness": []
+          }
+        ],
+        "summary": "POST /api/support/zuri/chat",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Marketing/support assistant (stream).",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "messages"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "messages": {
+                    "type": "array",
+                    "description": "AI SDK UI messages array (safeValidateUIMessages)."
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -4197,6 +6056,19 @@
           },
           "500": {
             "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "description": "Raw Paystack webhook JSON body. Validate with the X-Paystack-Signature header (HMAC-SHA512 of the raw bytes using PAYSTACK_SECRET_KEY).",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Paystack event envelope (fields such as event, data).",
+                "additionalProperties": true
+              }
+            }
           }
         }
       }

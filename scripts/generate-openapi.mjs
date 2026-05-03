@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { applyRequestBodies } from "./openapi-request-bodies.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.join(__dirname, "..", "app", "api");
@@ -67,6 +68,8 @@ const overrideSecurity = (p, u) => {
     u.security = [{ cronSecret: [] }];
   } else if (p === "/api/auth/login" || p === "/api/auth/signup" || p.includes("forgot-password") || p.includes("reset-password") || p.includes("verify-email") || p === "/api/auth/resend-otp" || p === "/api/auth/verify-email" || p.includes("signup")) {
     u.security = [];
+  } else if (p === "/api/superadmin/auth/login") {
+    u.security = [];
   } else if (p.startsWith("/api/uploadthing")) {
     u.security = [{ uploadthing: [] }, { bearer: [] }, { ventraAccessCookie: [] }];
   } else if (p.startsWith("/api/platform/")) {
@@ -80,6 +83,8 @@ for (const p of Object.keys(paths)) {
     overrideSecurity(p, paths[p][op]);
   }
 }
+
+applyRequestBodies(paths);
 
 const spec = {
   openapi: "3.1.0",
