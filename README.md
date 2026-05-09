@@ -782,4 +782,5 @@ Server-side requirements are validated in `server/config/env.ts`. Client-only `N
 Private project — © VentraPOS. All rights reserved.
 #   v e n t r a v 1  
  #   v e n t r a v 1  
+ #   v e n t r a v 1  
  
