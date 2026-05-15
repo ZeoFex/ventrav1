@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePlatformAccess } from "@/server/auth/api-request-auth";
-import { updateBusinessConfig } from "@/server/businesses/business-service";
+import { invalidateBusinessConfig, updateBusinessConfig } from "@/server/businesses/business-service";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 
@@ -21,6 +21,10 @@ const patchBody = z
     });
 
 const uuidParam = z.string().uuid();
+
+const deleteBody = z.object({
+    confirmSlug: z.string().min(1),
+});
 
 function invalidBusinessIdResponse() {
     return NextResponse.json(
@@ -104,4 +108,52 @@ export async function PATCH(
     });
 
     return NextResponse.json({ success: true });
+}
+
+/**
+ * Hard-delete a tenant (CASCADE removes related rows). Requires body.confirmSlug matching the row slug.
+ */
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const gate = await requirePlatformAccess(req);
+    if (gate !== true) {
+        return gate;
+    }
+    const { id } = await params;
+    if (!uuidParam.safeParse(id).success) {
+        return invalidBusinessIdResponse();
+    }
+    let body: unknown;
+    try {
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+    const parsed = deleteBody.safeParse(body);
+    if (!parsed.success) {
+        return NextResponse.json(
+            { error: "Invalid body", details: parsed.error.flatten() },
+            { status: 400 }
+        );
+    }
+    const confirmSlug = parsed.data.confirmSlug.trim();
+
+    const [row] = await db
+        .select({ id: businesses.id, slug: businesses.slug })
+        .from(businesses)
+        .where(eq(businesses.id, id))
+        .limit(1);
+    if (!row) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (row.slug.trim() !== confirmSlug) {
+        return NextResponse.json({ error: "confirmSlug does not match this business" }, { status: 400 });
+    }
+
+    await db.delete(businesses).where(eq(businesses.id, id));
+    await invalidateBusinessConfig(id);
+
+    return new NextResponse(null, { status: 204 });
 }
