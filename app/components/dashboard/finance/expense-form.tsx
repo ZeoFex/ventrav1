@@ -10,13 +10,20 @@ import { useOnlineStatus } from "@/app/lib/offline/use-online-status";
 import { addToSyncQueue, cacheExpense } from "@/app/lib/offline/offline-db";
 import { toast } from "sonner";
 
+import { useUploadThing } from "@/app/lib/uploadthing";
+import { EXPENSE_CATEGORY_OPTIONS } from "@/app/lib/expense-categories";
+
 export type ExpenseFormInitialValues = {
+    id?: string;
     description: string;
     amount: string;
     category: string;
     status: "Paid" | "Pending";
     date: string;
     receiptSrc: string | null;
+    vendor?: string;
+    paymentMethod?: string;
+    receiptUrl?: string | null;
 };
 
 type ExpenseFormProps = {
@@ -26,14 +33,14 @@ type ExpenseFormProps = {
     shellDescription: string;
 };
 
-const EXPENSE_CATEGORIES = [
-    "Payroll",
-    "Inventory",
-    "Utilities",
-    "Marketing",
-    "Logistics",
-    "Maintenance",
-    "Misc",
+const PAYMENT_METHOD_OPTIONS = [
+    { value: "cash", label: "Cash" },
+    { value: "mtn_momo", label: "MTN Mobile Money" },
+    { value: "vodafone_cash", label: "Vodafone Cash" },
+    { value: "atmoney", label: "AT Money" },
+    { value: "card", label: "Card" },
+    { value: "bank_transfer", label: "Bank transfer" },
+    { value: "other", label: "Other" },
 ];
 
 export function ExpenseForm({
@@ -45,6 +52,7 @@ export function ExpenseForm({
     const router = useRouter();
     const { mutate } = useSWRConfig();
     const { isOnline } = useOnlineStatus();
+    const { startUpload, isUploading } = useUploadThing("expenseReceipt");
     const [savedHint, setSavedHint] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -53,11 +61,14 @@ export function ExpenseForm({
     const [category, setCategory] = useState(initial.category);
     const [status, setStatus] = useState<"Paid" | "Pending">(initial.status);
     const [date, setDate] = useState(initial.date);
+    const [vendor, setVendor] = useState(initial.vendor ?? "");
+    const [paymentMethod, setPaymentMethod] = useState(initial.paymentMethod ?? "cash");
 
     const blobUrlRef = useRef<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const selectedReceiptFileRef = useRef<File | null>(null);
     const [receiptPreview, setReceiptPreview] = useState<string | null>(
-        initial.receiptSrc
+        initial.receiptSrc ?? initial.receiptUrl ?? null
     );
 
     const revokeBlob = useCallback(() => {
@@ -76,37 +87,59 @@ export function ExpenseForm({
         revokeBlob();
 
         if (!file || !file.type.startsWith("image/")) {
-            setReceiptPreview(initial.receiptSrc ?? null);
+            setReceiptPreview(initial.receiptSrc ?? initial.receiptUrl ?? null);
+            selectedReceiptFileRef.current = null;
             return;
         }
 
         const url = URL.createObjectURL(file);
         blobUrlRef.current = url;
+        selectedReceiptFileRef.current = file;
         setReceiptPreview(url);
     }
 
     function clearFile() {
         revokeBlob();
+        selectedReceiptFileRef.current = null;
         setReceiptPreview(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
     }
 
     async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        if (isUploading) return;
         setIsSaving(true);
 
         try {
+            let receiptUrl: string | null = initial.receiptUrl ?? null;
+            if (!isOnline && selectedReceiptFileRef.current) {
+                toast.error("Receipt upload requires an internet connection. Remove the image or go online.");
+                setIsSaving(false);
+                return;
+            }
+            if (isOnline && selectedReceiptFileRef.current) {
+                const uploadRes = await startUpload([selectedReceiptFileRef.current]);
+                if (uploadRes?.[0]?.url) {
+                    receiptUrl = uploadRes[0].url;
+                } else {
+                    throw new Error("Receipt upload failed");
+                }
+            }
+
             const payload = {
                 description,
                 amountGhs: Number(amount),
                 category,
                 date,
-                status
+                status,
+                vendor: vendor.trim() || null,
+                paymentMethod: paymentMethod || null,
+                receiptUrl,
             };
 
             if (!isOnline) {
                 // --- OFFLINE MODE ---
-                const tempId = mode === "new" ? `off-exp-${Date.now()}` : (initial as any).id || `off-exp-${Date.now()}`;
+                const tempId = mode === "new" ? `off-exp-${Date.now()}` : initial.id || `off-exp-${Date.now()}`;
                 
                 // 1. Queue for sync
                 await addToSyncQueue({
@@ -123,7 +156,8 @@ export function ExpenseForm({
             }
 
             // --- ONLINE MODE ---
-            const url = mode === "new" ? "/api/finance/expenses" : `/api/finance/expenses/${(initial as any).id}`;
+            const url =
+                mode === "new" ? "/api/finance/expenses" : `/api/finance/expenses/${initial.id ?? ""}`;
             const method = mode === "new" ? "POST" : "PATCH";
 
             const res = await fetch(url, {
@@ -238,9 +272,39 @@ export function ExpenseForm({
                                 className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
                             >
                                 <option value="">Select category...</option>
-                                {EXPENSE_CATEGORIES.map((cat) => (
+                                {EXPENSE_CATEGORY_OPTIONS.map((cat) => (
                                     <option key={cat} value={cat}>
                                         {cat}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label className="mb-1.5 block text-[13px] font-medium text-foreground">
+                                Vendor / payee (optional)
+                            </label>
+                            <input
+                                value={vendor}
+                                onChange={(e) => setVendor(e.target.value)}
+                                placeholder="Who was paid"
+                                className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1.5 block text-[13px] font-medium text-foreground">
+                                Payment method
+                            </label>
+                            <select
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
+                            >
+                                {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                        {opt.label}
                                     </option>
                                 ))}
                             </select>
@@ -325,7 +389,7 @@ export function ExpenseForm({
 
                     <button
                         type="submit"
-                        disabled={isSaving}
+                        disabled={isSaving || isUploading}
                         className="inline-flex justify-center rounded-xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-5 py-2.5 text-[14px] font-semibold text-white shadow-lg shadow-[#003527]/20 hover:brightness-105 disabled:opacity-70 disabled:pointer-events-none"
                     >
                         {isSaving ? (

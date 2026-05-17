@@ -5,7 +5,7 @@ import { useBranchContext } from "../branch-context";
 import { useBranches } from "../branches/branches-data-hooks";
 import { resolveBranchReceiptMeta } from "./sale/pos-receipt-data";
 import { Drawer } from "vaul";
-import { X, Receipt } from "lucide-react";
+import { X } from "lucide-react";
 import { useGlobalCart } from "./global-cart-context";
 import { useProducts } from "../products/products-data-hooks";
 import { PosCartPanelContent } from "./sale/pos-cart-panel";
@@ -15,9 +15,12 @@ import { computePosTotals } from "./sale/pos-cart-totals";
 import { ProductRow } from "../products/types";
 import { usePosConfig } from "./sale/pos-config-hooks";
 import { useSession } from "../../auth/use-session";
-import type { GhanaPaymentMethodId } from "./sale/pos-payment-methods";
-import { getPaymentMethod } from "./sale/pos-payment-methods";
 import type { PosReceiptData } from "./sale/pos-receipt-data";
+import type { PosPaymentCompletion } from "./sale/pos-payment-completion";
+import {
+  buildReceiptData,
+  type PosPaymentSnapshot,
+} from "./sale/pos-sale-view";
 
 function newInvoiceId(): string {
   return `INV-${Date.now().toString(36).toUpperCase()}`;
@@ -44,8 +47,7 @@ export function QuickCheckoutDrawer({
 
   const [flow, setFlow] = useState<"cart" | "payment" | "receipt">("cart");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [manualDiscountId, setManualDiscountId] = useState<string | null>(null);
-  const [paymentSnapshot, setPaymentSnapshot] = useState<any>(null);
+  const [paymentSnapshot, setPaymentSnapshot] = useState<PosPaymentSnapshot | null>(null);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -64,13 +66,18 @@ export function QuickCheckoutDrawer({
     [lines, productById, taxRate],
   );
 
-  const handlePaymentComplete = async (payload: {
-    methodId: GhanaPaymentMethodId;
-    amountTenderedGhs: number;
-    changeGhs: number;
-  }) => {
+  const handlePaymentComplete = async (completion: PosPaymentCompletion) => {
     setIsCheckingOut(true);
     const thisInvoiceId = newInvoiceId();
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const paymentLines =
+      completion.kind === "single"
+        ? [{ paymentMethod: completion.methodId, amountGhs: round2(totals.total) }]
+        : completion.lines.map((l) => ({
+            paymentMethod: l.methodId,
+            amountGhs: round2(l.amountGhs),
+          }));
 
     const checkoutPayload = {
       invoiceId: thisInvoiceId,
@@ -78,7 +85,8 @@ export function QuickCheckoutDrawer({
       taxGhs: totals.tax,
       discountGhs: totals.discount,
       totalGhs: totals.total,
-      paymentMethod: payload.methodId,
+      paymentMethod: paymentLines.length > 1 ? "split" : paymentLines[0]!.paymentMethod,
+      paymentLines,
       customerId: selectedCustomerId,
       lines: lines.map((l) => {
         const p = productById.get(l.productId)!;
@@ -110,7 +118,8 @@ export function QuickCheckoutDrawer({
           body: JSON.stringify(checkoutPayload),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error("Checkout failed");
+        if (!res.ok)
+          throw new Error(typeof data.error === "string" ? data.error : "Checkout failed");
         setReceiptSaleId(typeof data.saleId === "string" ? data.saleId : null);
       } else {
         setReceiptSaleId(null);
@@ -134,7 +143,7 @@ export function QuickCheckoutDrawer({
       );
 
       setInvoiceId(thisInvoiceId);
-      setPaymentSnapshot({ ...payload, _offline: !navigator.onLine });
+      setPaymentSnapshot({ completion, _offline: !navigator.onLine });
       setFlow("receipt");
     } catch (err: any) {
       alert(`Error processing checkout: ${err.message}`);
@@ -145,38 +154,22 @@ export function QuickCheckoutDrawer({
 
   const receiptData = useMemo((): PosReceiptData | null => {
     if (!invoiceId || !paymentSnapshot || lines.length === 0) return null;
-    return {
+    return buildReceiptData(
+      lines,
+      productById,
+      totals,
+      paymentSnapshot,
       invoiceId,
-      date: new Date(),
-      lines: lines.map((l) => {
-        const p = productById.get(l.productId)!;
-        let name = p.name;
-        let price = Number(p.priceGhs);
-        if (l.variationId && p.variations) {
-          const v = p.variations.find((v) => v.id === l.variationId);
-          if (v) {
-            name = `${p.name} (${v.name})`;
-            if (v.priceGhs) price = Number(v.priceGhs);
-          }
-        }
-        return { name, qty: l.qty, unitPriceGhs: price, lineTotalGhs: price * l.qty };
-      }),
-      subtotal: totals.subtotal,
-      tax: totals.tax,
-      discount: totals.discount,
-      total: totals.total,
-      paymentMethodLabel: getPaymentMethod(paymentSnapshot.methodId)?.label ?? paymentSnapshot.methodId,
-      amountTenderedGhs: paymentSnapshot.amountTenderedGhs,
-      changeGhs: paymentSnapshot.changeGhs,
-      storeName: config?.name || "Ventra POS",
-      branchName: branchMeta.name,
-      branchLocation: branchMeta.location,
-      receiptHeader: config?.receiptHeader ?? undefined,
-      receiptFooter: config?.receiptFooter ?? undefined,
-      operatorName: user?.name || "SYSTEM",
-      currencySymbol: config?.currency || "GHS",
-      saleId: receiptSaleId ?? undefined,
-    };
+      branchMeta.name,
+      branchMeta.location,
+      receiptSaleId,
+      undefined,
+      config?.name || "Ventra POS",
+      config?.receiptHeader ?? undefined,
+      config?.receiptFooter ?? undefined,
+      config?.currency || "GHS",
+      user?.name || "SYSTEM",
+    );
   }, [invoiceId, receiptSaleId, paymentSnapshot, lines, productById, totals, config, user, branchMeta]);
 
   const handleNewSale = () => {
@@ -219,11 +212,12 @@ export function QuickCheckoutDrawer({
             {flow === "payment" && (
               <div className="min-h-0 py-1">
                  <PosPaymentStep
-                   totalGhs={totals.total}
-                   isProcessing={isCheckingOut}
-                   onBack={() => setFlow("cart")}
-                   onComplete={handlePaymentComplete}
-                 />
+                  totalGhs={totals.total}
+                  isProcessing={isCheckingOut}
+                  onBack={() => setFlow("cart")}
+                  onComplete={handlePaymentComplete}
+                  allowCreditDeposit={Boolean(selectedCustomerId)}
+                />
               </div>
             )}
             {flow === "receipt" && receiptData && (

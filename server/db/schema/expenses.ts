@@ -3,6 +3,7 @@ import {
     uuid,
     varchar,
     decimal,
+    text,
     timestamp,
     index,
     pgEnum,
@@ -26,6 +27,9 @@ export const expenses = pgTable(
         category: varchar("category", { length: 100 }).notNull(),
         amountGhs: decimal("amount_ghs", { precision: 12, scale: 2 }).notNull(),
         status: expenseStatusEnum("status").default("Paid").notNull(),
+        paymentMethod: varchar("payment_method", { length: 30 }),
+        vendor: varchar("vendor", { length: 255 }),
+        receiptUrl: text("receipt_url"),
         createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     },
@@ -34,5 +38,6 @@ export const expenses = pgTable(
         index("expenses_branch_id_idx").on(t.branchId),
         index("expenses_date_idx").on(t.date),
         index("expenses_category_idx").on(t.category),
+        index("expenses_vendor_idx").on(t.vendor),
     ]
 );

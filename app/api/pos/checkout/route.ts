@@ -23,8 +23,18 @@ export async function POST(req: Request) {
         const result = await completeCheckout(payload.bid, body, branchId, payload.sub);
 
         return NextResponse.json({ success: true, saleId: result.saleId });
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("POST /api/pos/checkout failed:", error);
-        return NextResponse.json({ error: "Checkout failed" }, { status: 500 });
+        const msg = error instanceof Error ? error.message : "Checkout failed";
+        const clientError =
+            msg.includes("Customer required") ||
+            msg.includes("exceed") ||
+            msg.includes("Invalid") ||
+            msg.includes("positive") ||
+            msg.includes("Payments");
+        return NextResponse.json(
+            { error: msg },
+            { status: clientError ? 400 : 500 },
+        );
     }
 }

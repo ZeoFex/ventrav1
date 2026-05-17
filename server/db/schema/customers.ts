@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp, pgEnum, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp, pgEnum, uuid, index, decimal } from "drizzle-orm/pg-core";
 import { businesses } from "./businesses";
 import { branches } from "./branches";
 
@@ -17,6 +17,13 @@ export const customers = pgTable(
         phone: varchar("phone", { length: 50 }).notNull(),
         email: varchar("email", { length: 255 }),
         status: customerStatusEnum("status").default("active").notNull(),
+        /** Running balance customer owes the business (after credit sales − payments). */
+        accountsReceivableGhs: decimal("accounts_receivable_ghs", {
+            precision: 12,
+            scale: 2,
+        })
+            .default("0")
+            .notNull(),
         createdAt: timestamp("created_at")
             .defaultNow()
             .notNull(),

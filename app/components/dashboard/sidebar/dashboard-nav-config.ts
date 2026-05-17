@@ -22,7 +22,7 @@ export type DashboardNavIconId =
   | "pos"
   | "sales"
   | "products"
-  | "customers"
+  | "contacts"
   | "staff"
   | "finance"
   | "branches"
@@ -104,24 +104,39 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         label: "Stock / inventory",
         href: "/dashboard/inventory",
       },
+      {
+        id: "stock-take",
+        label: "Stock take",
+        href: "/dashboard/inventory/stock-take",
+      },
     ],
   },
   {
     id: "customers",
-    label: "Customers",
+    label: "Contacts",
     href: "/dashboard/customers",
-    icon: "customers",
+    icon: "contacts",
     collapsibleOnly: true,
     children: [
       {
         id: "customer-list",
-        label: "Customer list",
+        label: "Customers",
         href: "/dashboard/customers",
       },
       {
         id: "customer-add",
         label: "Add customer",
         href: "/dashboard/customers/new",
+      },
+      {
+        id: "suppliers-list",
+        label: "Supplier list",
+        href: "/dashboard/suppliers",
+      },
+      {
+        id: "supplier-add",
+        label: "Add supplier",
+        href: "/dashboard/suppliers/new",
       },
     ],
   },
@@ -153,9 +168,29 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         href: "/dashboard/finance",
       },
       {
+        id: "finance-pnl",
+        label: "P&L",
+        href: "/dashboard/finance/pnl",
+      },
+      {
         id: "finance-expenses",
         label: "Expenses",
         href: "/dashboard/finance/expenses",
+      },
+      {
+        id: "finance-expense-schedules",
+        label: "Recurring expenses",
+        href: "/dashboard/finance/expense-schedules",
+      },
+      {
+        id: "finance-expense-reports",
+        label: "Expense reports",
+        href: "/dashboard/finance/expenses/reports",
+      },
+      {
+        id: "finance-reminders",
+        label: "Reminders",
+        href: "/dashboard/finance/reminders",
       },
     ],
   },

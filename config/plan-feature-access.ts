@@ -12,8 +12,8 @@ export const COPILOT_FEATURE_ID = "copilot" as const;
 
 export const PLAN_LIMITS = {
   starter: { maxBranches: 1, maxStaff: 3, maxProducts: 500, maxTerminals: 1 },
-  growth:  { maxBranches: 5, maxStaff: 15, maxProducts: 5000, maxTerminals: 3 },
-  pro:     { maxBranches: -1, maxStaff: -1, maxProducts: -1, maxTerminals: -1 },
+  growth:  { maxBranches: 3, maxStaff: 15, maxProducts: 5000, maxTerminals: 3 },
+  pro:     { maxBranches: 5, maxStaff: -1, maxProducts: -1, maxTerminals: -1 },
 } as const;
 
 export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
@@ -30,15 +30,20 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "sales-average-order-value": false, "sales-refunds": false,
     // Products (stock ✓, transfers ✗, expiry ✗)
     "products": true, "product-list": true, "categories": true,
-    "tags": true, "stock": true,
+    "tags": true, "stock": true, "stock-take": true,
     "stock-transfers": false, "expiry-batch-tracking": false,
     // Customers
     "customers": true, "customer-list": true, "customer-add": true,
+    "suppliers-list": true, "supplier-add": true,
     // Staff (basic roles ✓, advanced ✗, performance ✗)
     "staff": true, "staff-list": true, "add-staff": true,
     "staff-advanced-roles": false, "staff-performance": false,
     // Finance (expenses ✓, profit trends ✗)
-    "finance": true, "finance-overview": true, "finance-expenses": true,
+    "finance": true, "finance-overview": true, "finance-pnl": true,
+    "finance-expenses": true,
+    "finance-expense-schedules": true,
+    "finance-expense-reports": true,
+    "finance-reminders": true,
     "finance-profit-trends": false,
     // Branches (single only → locked)
     "branches": false, "branches-all": false,
@@ -70,12 +75,16 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "sales-revenue": true, "sales-profit": true,
     "sales-average-order-value": true, "sales-refunds": true,
     "products": true, "product-list": true, "categories": true,
-    "tags": true, "stock": true,
+    "tags": true, "stock": true, "stock-take": true,
     "stock-transfers": true, "expiry-batch-tracking": false,
     "customers": true, "customer-list": true, "customer-add": true,
+    "suppliers-list": true, "supplier-add": true,
     "staff": true, "staff-list": true, "add-staff": true,
     "staff-advanced-roles": true, "staff-performance": true,
-    "finance": true, "finance-overview": true, "finance-expenses": true,
+    "finance": true, "finance-overview": true, "finance-pnl": true, "finance-expenses": true,
+    "finance-expense-schedules": true,
+    "finance-expense-reports": true,
+    "finance-reminders": true,
     "finance-profit-trends": true,
     "branches": true, "branches-all": true,
     "reports": true, "reports-sales-summary": true,
@@ -101,12 +110,16 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "sales-revenue": true, "sales-profit": true,
     "sales-average-order-value": true, "sales-refunds": true,
     "products": true, "product-list": true, "categories": true,
-    "tags": true, "stock": true,
+    "tags": true, "stock": true, "stock-take": true,
     "stock-transfers": true, "expiry-batch-tracking": true,
     "customers": true, "customer-list": true, "customer-add": true,
+    "suppliers-list": true, "supplier-add": true,
     "staff": true, "staff-list": true, "add-staff": true,
     "staff-advanced-roles": true, "staff-performance": true,
-    "finance": true, "finance-overview": true, "finance-expenses": true,
+    "finance": true, "finance-overview": true, "finance-pnl": true, "finance-expenses": true,
+    "finance-expense-schedules": true,
+    "finance-expense-reports": true,
+    "finance-reminders": true,
     "finance-profit-trends": true,
     "branches": true, "branches-all": true,
     "reports": true, "reports-sales-summary": true,

@@ -115,18 +115,42 @@ export function PosSaleReceiptThermal({ data }: { data: PosReceiptData }) {
           <DashedDivider />
 
           <div className="space-y-1 pt-1 text-[12px]">
-            <div className="flex justify-between">
-              <span>Payment</span>
-              <span className="font-bold">{data.paymentMethodLabel}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Amount paid</span>
-              <span className="font-bold">{formatCurrency(data.amountTenderedGhs, data.currencySymbol)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Change</span>
-              <span className="font-bold">{formatCurrency(data.changeGhs, data.currencySymbol)}</span>
-            </div>
+            {data.paymentLines && data.paymentLines.length > 0 ? (
+              <>
+                <div className="font-bold mb-1">Payments</div>
+                {data.paymentLines.map((pl, i) => (
+                  <div key={i} className="flex justify-between gap-2">
+                    <span>{pl.label}</span>
+                    <span className="font-bold">{formatCurrency(pl.amountGhs, data.currencySymbol)}</span>
+                  </div>
+                ))}
+                {data.balanceDueGhs != null && data.balanceDueGhs > 0.01 ? (
+                  <div className="flex justify-between gap-2 font-bold text-amber-800">
+                    <span>Balance due</span>
+                    <span>{formatCurrency(data.balanceDueGhs, data.currencySymbol)}</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-2 pt-1 border-t border-black/10 mt-1">
+                  <span>Total collected</span>
+                  <span className="font-bold">{formatCurrency(data.amountTenderedGhs, data.currencySymbol)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span>Payment</span>
+                  <span className="font-bold">{data.paymentMethodLabel}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Amount paid</span>
+                  <span className="font-bold">{formatCurrency(data.amountTenderedGhs, data.currencySymbol)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Change</span>
+                  <span className="font-bold">{formatCurrency(data.changeGhs, data.currencySymbol)}</span>
+                </div>
+              </>
+            )}
           </div>
 
           <DashedDivider />

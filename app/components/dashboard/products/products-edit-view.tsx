@@ -40,6 +40,10 @@ export function ProductsEditView({ productId }: { productId: string }) {
     sku: product.sku,
     description: product.description ?? "",
     price: Number(product.priceGhs),
+    costPrice:
+      product.costPriceGhs != null && String(product.costPriceGhs).length > 0
+        ? Number(product.costPriceGhs)
+        : "",
     stock: product.stock,
     reorderAt: product.reorderAt,
     categoryId: product.categoryId || "all",

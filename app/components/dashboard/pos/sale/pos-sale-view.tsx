@@ -18,8 +18,8 @@ import type { CartLine } from "./pos-cart-totals";
 import { computePosTotals } from "./pos-cart-totals";
 import { PosCartPanel, PosMobileCartDock } from "./pos-cart-panel";
 import { PosCategoryBar } from "./pos-category-bar";
-import type { GhanaPaymentMethodId } from "./pos-payment-methods";
 import { getPaymentMethod } from "./pos-payment-methods";
+import type { PosPaymentCompletion } from "./pos-payment-completion";
 import { PosPaymentStep } from "./pos-payment-step";
 import {
   resolveBranchReceiptMeta,
@@ -34,6 +34,7 @@ import {
   usePosKeyboardWedge,
 } from "./use-pos-keyboard-wedge";
 import { PosProductCard } from "./pos-product-card";
+import { PosQuickAddProductModal } from "./pos-quick-add-product-modal";
 import { playPosAddProductBeep } from "./pos-add-beep";
 import {
   addHeldSale,
@@ -57,15 +58,20 @@ function newInvoiceId(): string {
   return `INV-${Date.now().toString(36).toUpperCase()}`;
 }
 
-function buildReceiptData(
+export type PosPaymentSnapshot = {
+  completion: PosPaymentCompletion;
+  _offline?: boolean;
+};
+
+function roundMoney2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function buildReceiptData(
   lines: CartLine[],
   productById: Map<string, ProductRow>,
   totals: ReturnType<typeof computePosTotals>,
-  payment: {
-    methodId: GhanaPaymentMethodId;
-    amountTenderedGhs: number;
-    changeGhs: number;
-  },
+  snapshot: PosPaymentSnapshot,
   invoiceId: string,
   branchName: string,
   branchLocation?: string,
@@ -97,7 +103,44 @@ function buildReceiptData(
       lineTotalGhs: price * line.qty,
     };
   });
-  const m = getPaymentMethod(payment.methodId);
+  const total = roundMoney2(totals.total);
+  const comp = snapshot.completion;
+
+  let paymentMethodLabel: string;
+  /** Amount collected toward the invoice (not larger than total unless balance line shown). */
+  let amountTenderedGhs: number;
+  let changeGhs: number;
+  let paymentLines: PosReceiptData["paymentLines"];
+  let balanceDueGhs: number | undefined;
+
+  if (comp.kind === "single") {
+    const m = getPaymentMethod(comp.methodId);
+    paymentMethodLabel = m?.label ?? comp.methodId;
+    if (m?.usesTenderAndChange) {
+      amountTenderedGhs = comp.amountTenderedGhs;
+      changeGhs = comp.changeGhs;
+    } else {
+      amountTenderedGhs = total;
+      changeGhs = 0;
+    }
+  } else {
+    const paid = roundMoney2(comp.lines.reduce((s, l) => s + l.amountGhs, 0));
+    amountTenderedGhs = paid;
+    changeGhs = roundMoney2(Math.max(0, paid - total));
+    paymentLines = comp.lines.map((l) => ({
+      label: getPaymentMethod(l.methodId)?.shortLabel ?? l.methodId,
+      amountGhs: roundMoney2(l.amountGhs),
+    }));
+    const due = roundMoney2(total - paid);
+    if (due > 0.02) {
+      balanceDueGhs = due;
+      paymentMethodLabel =
+        comp.lines.length > 1 ? "Split + balance due" : "Deposit / account balance";
+    } else {
+      paymentMethodLabel = comp.lines.length > 1 ? "Split payment" : (getPaymentMethod(comp.lines[0]!.methodId)?.label ?? "Payment");
+    }
+  }
+
   return {
     invoiceId,
     date: new Date(),
@@ -106,9 +149,11 @@ function buildReceiptData(
     tax: totals.tax,
     discount: totals.discount,
     total: totals.total,
-    paymentMethodLabel: m?.label ?? payment.methodId,
-    amountTenderedGhs: payment.amountTenderedGhs,
-    changeGhs: payment.changeGhs,
+    paymentMethodLabel,
+    amountTenderedGhs,
+    changeGhs,
+    paymentLines,
+    balanceDueGhs,
     customerName,
     storeName: businessName || STORE_NAME,
     branchName,
@@ -162,12 +207,9 @@ function PosSaleViewInner() {
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   /** Server sale UUID for `/receipt/verify/{id}` — unset for offline-queued checkouts. */
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
-  const [paymentSnapshot, setPaymentSnapshot] = useState<{
-    methodId: GhanaPaymentMethodId;
-    amountTenderedGhs: number;
-    changeGhs: number;
-  } | null>(null);
+  const [paymentSnapshot, setPaymentSnapshot] = useState<PosPaymentSnapshot | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [selectedVariationProduct, setSelectedVariationProduct] = useState<ProductRow | null>(null);
@@ -177,6 +219,11 @@ function PosSaleViewInner() {
   const { discounts = [] } = useDiscounts();
   const { config } = usePosConfig();
   const { branches = [] } = useBranches();
+
+  const canQuickAddProduct =
+    user?.role === "owner" ||
+    (user?.permissions?.length &&
+      user.permissions.includes("product-list"));
 
   const branchMeta = useMemo(
     () => resolveBranchReceiptMeta(branches, branchId),
@@ -385,13 +432,22 @@ function PosSaleViewInner() {
   }, [lines.length]);
 
   const handlePaymentComplete = useCallback(
-    async (payload: {
-      methodId: GhanaPaymentMethodId;
-      amountTenderedGhs: number;
-      changeGhs: number;
-    }) => {
+    async (completion: PosPaymentCompletion) => {
       setIsCheckingOut(true);
       const thisInvoiceId = newInvoiceId();
+
+      const paymentLines =
+        completion.kind === "single"
+          ? [
+                {
+                    paymentMethod: completion.methodId,
+                    amountGhs: roundMoney2(totals.total),
+                },
+            ]
+          : completion.lines.map((l) => ({
+                paymentMethod: l.methodId,
+                amountGhs: roundMoney2(l.amountGhs),
+            }));
 
       const checkoutPayload = {
         invoiceId: thisInvoiceId,
@@ -399,14 +455,16 @@ function PosSaleViewInner() {
         taxGhs: totals.tax,
         discountGhs: totals.discount,
         totalGhs: totals.total,
-        paymentMethod: payload.methodId,
-        customerId: selectedCustomer?.id,
+        paymentMethod:
+          paymentLines.length > 1 ? "split" : paymentLines[0]!.paymentMethod,
+        paymentLines,
+        customerId: selectedCustomer?.id ?? null,
         lines: lines.map((l) => {
           const p = productById.get(l.productId)!;
           let price = Number(p.priceGhs);
           let name = p.name;
           if (l.variationId && p.variations) {
-            const v = p.variations.find(varItem => varItem.id === l.variationId);
+            const v = p.variations.find((varItem) => varItem.id === l.variationId);
             if (v) {
               name = `${p.name} (${v.name})`;
               if (v.priceGhs) price = Number(v.priceGhs);
@@ -425,7 +483,6 @@ function PosSaleViewInner() {
 
       try {
         if (navigator.onLine) {
-          // Online: send to server immediately
           const res = await fetch("/api/pos/checkout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -434,22 +491,19 @@ function PosSaleViewInner() {
 
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-            throw new Error(data.error || "Checkout failed");
+            throw new Error(typeof data.error === "string" ? data.error : "Checkout failed");
           }
           setReceiptSaleId(typeof data.saleId === "string" ? data.saleId : null);
         } else {
           setReceiptSaleId(null);
-          // Offline: queue for later sync
           const { addToSyncQueue, updateCachedProductStock } = await import("@/app/lib/offline/offline-db");
           await addToSyncQueue({ type: "checkout", payload: checkoutPayload });
 
-          // Deduct stock locally in IndexedDB
           for (const l of lines) {
             await updateCachedProductStock(l.productId, l.qty).catch(() => {});
           }
         }
 
-        // Optimistic cache update (works for both online and offline)
         mutateProducts(
           (current: ProductRow[] | undefined) => {
             if (!current) return current;
@@ -463,7 +517,7 @@ function PosSaleViewInner() {
         );
 
         setInvoiceId(thisInvoiceId);
-        setPaymentSnapshot({ ...payload, _offline: !navigator.onLine } as any);
+        setPaymentSnapshot({ completion, _offline: !navigator.onLine });
         setFlow("receipt");
       } catch (err: any) {
         alert(`Error processing checkout: ${err.message}`);
@@ -536,6 +590,7 @@ function PosSaleViewInner() {
             isProcessing={isCheckingOut}
             onBack={() => setFlow("browse")}
             onComplete={handlePaymentComplete}
+            allowCreditDeposit={Boolean(selectedCustomer)}
           />
         </div>
       ) : flow === "receipt" && receiptData ? (
@@ -570,6 +625,8 @@ function PosSaleViewInner() {
                 searchQuery={searchQuery}
                 onSearchQueryChange={setSearchQuery}
                 onOpenScan={() => setScanOpen(true)}
+                showQuickAddProduct={Boolean(canQuickAddProduct)}
+                onQuickAddProduct={() => setQuickAddOpen(true)}
               />
               {isProductsLoading ? (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-4 xl:gap-5">
@@ -635,6 +692,11 @@ function PosSaleViewInner() {
         product={selectedVariationProduct}
         onClose={() => setSelectedVariationProduct(null)}
         onSelect={(pId, vId) => addToCart(pId, vId)}
+      />
+      <PosQuickAddProductModal
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        categories={categories}
       />
     </>
   );

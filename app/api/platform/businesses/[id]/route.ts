@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePlatformAccess } from "@/server/auth/api-request-auth";
+import { computePeriodEndAfterAddingDays } from "@/server/billing/subscription-period";
 import { invalidateBusinessConfig, updateBusinessConfig } from "@/server/businesses/business-service";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
@@ -15,7 +16,16 @@ const patchBody = z
         plan: z.enum(["starter", "growth", "pro"]).optional(),
         subscriptionStatus: z.enum(["active", "past_due", "canceled"]).optional(),
         currentPeriodEnd: z.string().datetime().optional().nullable(),
+        extendSubscriptionDays: z.number().int().min(1).max(3650).optional(),
     })
+    .refine(
+        (o) =>
+            !(o.extendSubscriptionDays !== undefined && o.currentPeriodEnd !== undefined),
+        {
+            message: "Use either extendSubscriptionDays or currentPeriodEnd, not both",
+            path: ["extendSubscriptionDays"],
+        }
+    )
     .refine((o) => Object.values(o).some((v) => v !== undefined), {
         message: "At least one field required",
     });
@@ -92,19 +102,30 @@ export async function PATCH(
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const currentPeriodEnd =
-        p.currentPeriodEnd === null
-            ? null
-            : p.currentPeriodEnd !== undefined
-              ? new Date(p.currentPeriodEnd)
-              : undefined;
+    let nextPeriodEnd: Date | null | undefined;
+    if (p.extendSubscriptionDays !== undefined) {
+        const [biz] = await db
+            .select({ currentPeriodEnd: businesses.currentPeriodEnd })
+            .from(businesses)
+            .where(eq(businesses.id, id))
+            .limit(1);
+        nextPeriodEnd = computePeriodEndAfterAddingDays({
+            currentPeriodEnd: biz?.currentPeriodEnd,
+            days: p.extendSubscriptionDays,
+        });
+    } else if (p.currentPeriodEnd !== undefined) {
+        nextPeriodEnd = p.currentPeriodEnd === null ? null : new Date(p.currentPeriodEnd);
+    }
 
     await updateBusinessConfig(id, {
         ...(p.name !== undefined ? { name: p.name } : {}),
         ...(p.status !== undefined ? { status: p.status } : {}),
         ...(p.plan !== undefined ? { plan: p.plan } : {}),
         ...(p.subscriptionStatus !== undefined ? { subscriptionStatus: p.subscriptionStatus } : {}),
-        ...(currentPeriodEnd !== undefined ? { currentPeriodEnd } : {}),
+        ...(p.extendSubscriptionDays !== undefined && p.subscriptionStatus === undefined
+            ? { subscriptionStatus: "active" as const }
+            : {}),
+        ...(nextPeriodEnd !== undefined ? { currentPeriodEnd: nextPeriodEnd } : {}),
     });
 
     return NextResponse.json({ success: true });

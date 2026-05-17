@@ -157,10 +157,52 @@ export function BillingSettingsView() {
 
                     <div className="mt-8 pt-8 border-t border-[#f0f2f4] dark:border-white/[0.06]">
                         <p className="text-[13px] text-muted-foreground mb-4">Need help with billing?</p>
-                        <button className="flex items-center gap-2 text-[14px] font-bold text-[#006c49] dark:text-[#6ffbbe] hover:underline">
-                            <MessageSquare className="size-4" />
-                            Contact Support
-                        </button>
+                        {(() => {
+                            const phone = (
+                                typeof process.env.NEXT_PUBLIC_SUPPORT_PHONE === "string"
+                                    ? process.env.NEXT_PUBLIC_SUPPORT_PHONE
+                                    : ""
+                            ).trim();
+                            const waRaw = (
+                                typeof process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP === "string"
+                                    ? process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP
+                                    : ""
+                            ).trim();
+                            const waDigits = waRaw.replace(/\D/g, "");
+
+                            if (!phone && !waDigits) {
+                                return (
+                                    <p className="text-[13px] text-muted-foreground">
+                                        Support phone is not configured. Ask your administrator to set{" "}
+                                        <code className="rounded bg-muted px-1 text-[12px]">NEXT_PUBLIC_SUPPORT_PHONE</code> in the environment.
+                                    </p>
+                                );
+                            }
+
+                            return (
+                                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                                    {phone ? (
+                                        <a
+                                            href={`tel:${phone.replace(/\s/g, "")}`}
+                                            className="inline-flex items-center gap-2 text-[14px] font-bold text-[#006c49] dark:text-[#6ffbbe] hover:underline"
+                                        >
+                                            <MessageSquare className="size-4 shrink-0" />
+                                            Call {phone}
+                                        </a>
+                                    ) : null}
+                                    {waDigits ? (
+                                        <a
+                                            href={`https://wa.me/${waDigits}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 text-[14px] font-bold text-[#006c49] dark:text-[#6ffbbe] hover:underline"
+                                        >
+                                            WhatsApp support
+                                        </a>
+                                    ) : null}
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>

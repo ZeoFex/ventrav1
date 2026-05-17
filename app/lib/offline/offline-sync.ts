@@ -136,7 +136,7 @@ async function syncUpdateCustomer(payload: any): Promise<void> {
 }
 
 async function syncAddExpense(payload: any): Promise<void> {
-  const res = await fetch("/api/expenses", {
+  const res = await fetch("/api/finance/expenses", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

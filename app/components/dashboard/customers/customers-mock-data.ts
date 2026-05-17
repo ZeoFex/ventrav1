@@ -7,8 +7,9 @@ export type CustomerRow = {
     email?: string;
     status: CustomerStatus;
     createdAt: string;
-
-}
+    /** From API: amount customer owes (credit sales − payments). */
+    accountsReceivableGhs?: string | number | null;
+};
 
 export const MOCK_CUSTOMERS: CustomerRow[] = [
     {

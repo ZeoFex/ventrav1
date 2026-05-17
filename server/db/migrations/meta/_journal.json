@@ -57,6 +57,48 @@
       "when": 1778000000000,
       "tag": "0007_superadmins",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779000000000,
+      "tag": "0008_expense_enhancements",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779100000000,
+      "tag": "0009_suppliers_supply",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779200000000,
+      "tag": "0010_supply_order_totals_payment_method",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779300000000,
+      "tag": "0011_reminders",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1779400000000,
+      "tag": "0012_stock_take",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1779500000000,
+      "tag": "0013_pos_split_payment_customer_credit",
+      "breakpoints": true
     }
   ]
 }

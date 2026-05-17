@@ -191,6 +191,7 @@ export function CustomersListView() {
           <div className="grid gap-4 sm:hidden pb-10">
             {filtered.map((c) => {
               const initials = c.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+              const owes = Number(c.accountsReceivableGhs ?? 0);
               return (
                 <div key={c.id} className="rounded-2xl border border-border bg-white p-5 dark:bg-[#111] dark:border-white/10 shadow-sm">
                   <div className="flex items-center gap-4 mb-4">
@@ -199,12 +200,17 @@ export function CustomersListView() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <Link href={`/dashboard/customers/${c.id}/edit`} className="font-bold text-[16px] truncate hover:underline underline-offset-2">
+                        <Link href={`/dashboard/customers/${c.id}`} className="font-bold text-[16px] truncate hover:underline underline-offset-2">
                           {c.name}
                         </Link>
                         {statusBadge(c.status)}
                       </div>
                       <p className="text-[13px] text-muted-foreground mt-0.5">{c.phone}</p>
+                      {owes > 0.02 ? (
+                        <p className="mt-1 text-[12px] font-semibold text-amber-700 dark:text-amber-300">
+                          Owes {new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(owes)}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   
@@ -218,10 +224,16 @@ export function CustomersListView() {
                     
                     <div className="flex gap-2">
                       <Link 
-                        href={`/dashboard/customers/${c.id}/edit`} 
+                        href={`/dashboard/customers/${c.id}`} 
                         className="flex-1 flex items-center justify-center py-2.5 rounded-xl bg-[#006c49]/5 text-[#006c49] text-[14px] font-bold hover:bg-[#006c49]/10 transition-colors"
                       >
-                        Edit Profile
+                        Account
+                      </Link>
+                      <Link 
+                        href={`/dashboard/customers/${c.id}/edit`} 
+                        className="flex-1 flex items-center justify-center py-2.5 rounded-xl border border-border text-[14px] font-bold hover:bg-muted/50 transition-colors"
+                      >
+                        Edit
                       </Link>
                     </div>
                   </div>
@@ -240,15 +252,18 @@ export function CustomersListView() {
                     <th className="px-4 py-3 font-semibold text-foreground">Phone</th>
                     <th className="px-4 py-3 font-semibold text-foreground">Email</th>
                     <th className="px-4 py-3 font-semibold text-foreground">Status</th>
+                    <th className="px-4 py-3 font-semibold text-foreground text-right">Owes</th>
                     <th className="px-4 py-3 font-semibold text-foreground text-right">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-[#f0f2f4] dark:divide-white/[0.06]">
-                  {filtered.map((c) => (
+                  {filtered.map((c) => {
+                    const owes = Number(c.accountsReceivableGhs ?? 0);
+                    return (
                     <tr key={c.id} className="hover:bg-[#fafafa]/80 dark:hover:bg-white/[0.03]">
                       <td className="px-4 py-3 font-medium text-foreground">
-                        <Link href={`/dashboard/customers/${c.id}/edit`} className="hover:underline">
+                        <Link href={`/dashboard/customers/${c.id}`} className="hover:underline">
                           {c.name}
                         </Link>
                       </td>
@@ -261,16 +276,34 @@ export function CustomersListView() {
 
                       <td className="px-4 py-3">{statusBadge(c.status)}</td>
 
+                      <td className="px-4 py-3 text-right tabular-nums text-[13px]">
+                        {owes > 0.02 ? (
+                          <span className="font-medium text-amber-700 dark:text-amber-300">
+                            {new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(owes)}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+
                       <td className="px-4 py-3 text-right">
                         <Link
-                          href={`/dashboard/customers/${c.id}/edit`}
+                          href={`/dashboard/customers/${c.id}`}
                           className="text-[13px] font-semibold text-[#006c49] hover:underline dark:text-[#6ffbbe]"
+                        >
+                          Account
+                        </Link>
+                        <span className="mx-2 text-muted-foreground">·</span>
+                        <Link
+                          href={`/dashboard/customers/${c.id}/edit`}
+                          className="text-[13px] font-semibold text-muted-foreground hover:underline"
                         >
                           Edit
                         </Link>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>

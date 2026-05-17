@@ -1,6 +1,6 @@
 "use client";
 
-import { ScanLine } from "lucide-react";
+import { ScanLine, Plus } from "lucide-react";
 import { type CategoryRow } from "../../products/types";
 import { PosCategorySearchMorph } from "./pos-category-search-morph";
 import { useSession } from "../../../auth/use-session";
@@ -14,6 +14,8 @@ export function PosCategoryBar({
   searchQuery,
   onSearchQueryChange,
   onOpenScan,
+  onQuickAddProduct,
+  showQuickAddProduct,
 }: {
   categories: CategoryRow[];
   activeId: string;
@@ -21,6 +23,9 @@ export function PosCategoryBar({
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   onOpenScan: () => void;
+  /** Optional: open quick-add product modal (POS register). */
+  onQuickAddProduct?: () => void;
+  showQuickAddProduct?: boolean;
 }) {
   const allCategories = [
     { id: "all", name: "All", productCount: categories.reduce((s, c) => s + (c.productCount || 0), 0) },
@@ -62,6 +67,17 @@ export function PosCategoryBar({
         })}
       </div>
       <div className="flex w-full min-w-0 shrink-0 flex-col gap-2 sm:flex-row sm:items-stretch sm:justify-end lg:ml-auto lg:w-auto lg:max-w-md">
+        {showQuickAddProduct && onQuickAddProduct ? (
+          <button
+            type="button"
+            onClick={onQuickAddProduct}
+            className="tap-target inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-[#e5e7eb] bg-white px-4 text-[13px] font-medium text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:border-[#006c49]/35 hover:bg-[#006c49]/06 dark:border-white/[0.1] dark:bg-[#141414] dark:hover:border-[#6ffbbe]/35 dark:hover:bg-[#6ffbbe]/08 sm:h-10 sm:text-[14px]"
+            title="Add product"
+          >
+            <Plus className="size-[18px] text-[#006c49] dark:text-[#6ffbbe]" strokeWidth={2} aria-hidden />
+            Add product
+          </button>
+        ) : null}
         {hasScanAccess ? (
           <button
             type="button"

@@ -19,10 +19,14 @@ export type PosReceiptData = {
   total: number;
   paymentMethodLabel: string;
   customerName?: string;
-  /** For cash: amount customer gave. For MoMo/card: same as total or recorded amount. */
+  /** For cash single-tender: amount customer gave. For splits: total tendered across methods (may exceed total). */
   amountTenderedGhs: number;
-  /** Cash change due; 0 for exact electronic payments. */
+  /** Change due back to the customer (cash single-tender, or split when tendered &gt; total). */
   changeGhs: number;
+  /** Itemized amounts when paying with more than one method. */
+  paymentLines?: { label: string; amountGhs: number }[];
+  /** When customer did not pay full invoice at checkout (on-account). */
+  balanceDueGhs?: number;
   receiptHeader?: string;
   receiptFooter?: string;
   operatorName?: string;
@@ -117,9 +121,24 @@ export function buildReceiptPlainText(d: PosReceiptData): string {
     `Discount     -${formatCurrency(d.discount, symbol)}`,
     `TOTAL        ${formatCurrency(d.total, symbol)}`,
     "--------------------------------",
-    `Payment: ${d.paymentMethodLabel}`,
-    `Amount paid  ${formatCurrency(d.amountTenderedGhs, symbol)}`,
-    `Change       ${formatCurrency(d.changeGhs, symbol)}`,
+    ...(d.paymentLines && d.paymentLines.length > 0
+      ? [
+          "Payments:",
+          ...d.paymentLines.flatMap((pl) => [
+            `  ${pl.label}  ${formatCurrency(pl.amountGhs, symbol)}`,
+          ]),
+          ...(d.balanceDueGhs != null && d.balanceDueGhs > 0.01
+            ? [`Balance due   ${formatCurrency(d.balanceDueGhs, symbol)}`]
+            : []),
+          ...(d.changeGhs > 0.01
+            ? [`Change       ${formatCurrency(d.changeGhs, symbol)}`]
+            : []),
+        ]
+      : [
+          `Payment: ${d.paymentMethodLabel}`,
+          `Amount paid  ${formatCurrency(d.amountTenderedGhs, symbol)}`,
+          `Change       ${formatCurrency(d.changeGhs, symbol)}`,
+        ]),
     "--------------------------------",
     ...(d.saleId
       ? [

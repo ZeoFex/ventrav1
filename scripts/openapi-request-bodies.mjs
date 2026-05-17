@@ -324,6 +324,13 @@ export const OPENAPI_REQUEST_BODIES = [
             enum: ["active", "past_due", "canceled"],
           },
           currentPeriodEnd: { type: ["string", "null"], format: "date-time" },
+          extendSubscriptionDays: {
+            type: "integer",
+            minimum: 1,
+            maximum: 3650,
+            description:
+              "Add this many days from max(now, existing currentPeriodEnd); mutually exclusive with currentPeriodEnd in the same request. Sets subscriptionStatus to active when that field is omitted.",
+          },
         },
         additionalProperties: false,
       },

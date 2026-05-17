@@ -1,9 +1,12 @@
 import { eq, sql, and, gte, lte, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { products, categories, productVariations } from "../db/schema/products";
-import { sales, saleItems, REVENUE_SALE_STATUSES } from "../db/schema/sales";
+import { sales, saleItems, salePaymentLines, REVENUE_SALE_STATUSES } from "../db/schema/sales";
+import { customers } from "../db/schema/customers";
+import { customerAccountEntries } from "../db/schema/customer-account-entries";
 import { notifications } from "../db/schema/notifications";
 import { redis } from "../lib/redis";
+import { invalidateCustomerCaches } from "../customers/customer-account-service";
 
 const CACHE_KEYS = {
     PRODUCTS_LIST: (bizId: string, brn?: string | null) => `products:biz_${bizId}:brn_${brn || 'all'}:list`,
@@ -37,6 +40,11 @@ export interface CheckoutLine {
     lineTotalGhs: number;
 }
 
+export interface CheckoutPaymentLine {
+    paymentMethod: string;
+    amountGhs: number;
+}
+
 export interface CheckoutInput {
     lines: CheckoutLine[];
     invoiceId: string;
@@ -44,24 +52,69 @@ export interface CheckoutInput {
     taxGhs: number;
     discountGhs: number;
     totalGhs: number;
+    /** Legacy / primary label; ignored when paymentLines is provided. */
     paymentMethod: string;
+    /** When set, amounts are what was tendered per method (may exceed total; excess is change). */
+    paymentLines?: CheckoutPaymentLine[];
     customerId?: string | null;
+}
+
+function roundMoney(n: number): number {
+    return Math.round(n * 100) / 100;
 }
 
 /**
  * Completes a POS checkout:
  * 1. Deducts stock for all items
- * 2. Records the sale + line items
+ * 2. Records the sale + line items + payment lines (split tender)
+ * 3. Optional: posts customer balance (credit) when amount paid &lt; total
  * All in a single atomic transaction.
  */
 export async function completeCheckout(businessId: string, input: CheckoutInput, branchId?: string | null, userId?: string | null) {
+    const normalizedLines =
+        input.paymentLines && input.paymentLines.length > 0
+            ? input.paymentLines.map((l) => ({
+                  paymentMethod: l.paymentMethod.trim(),
+                  amountGhs: roundMoney(Number(l.amountGhs)),
+              }))
+            : [
+                  {
+                      paymentMethod: input.paymentMethod.trim(),
+                      amountGhs: roundMoney(Number(input.totalGhs)),
+                  },
+              ];
+
+    for (const pl of normalizedLines) {
+        if (!pl.paymentMethod || pl.paymentMethod.length > 30) {
+            throw new Error("Invalid payment method");
+        }
+        if (!Number.isFinite(pl.amountGhs) || pl.amountGhs <= 0) {
+            throw new Error("Each payment amount must be positive");
+        }
+    }
+
+    const amountCollected = roundMoney(
+        normalizedLines.reduce((s, l) => s + l.amountGhs, 0),
+    );
+    const totalDue = roundMoney(Number(input.totalGhs));
+
+    /** Amount that settles this invoice (tender may be higher — difference is change). */
+    const amountAppliedToInvoice = roundMoney(Math.min(amountCollected, totalDue));
+    const balanceDue = roundMoney(Math.max(0, totalDue - amountCollected));
+
+    if (balanceDue > 0.02 && !input.customerId) {
+        throw new Error("Select a customer for partial / credit payment");
+    }
+
+    const paymentMethodSummary =
+        normalizedLines.length > 1 ? "split" : normalizedLines[0].paymentMethod;
+
     const result = await db.transaction(async (tx) => {
         // 1. Deduct stock
         for (const line of input.lines) {
             if (line.quantity <= 0) continue;
 
             if (line.variationId) {
-                // Deduct from variation stock
                 await tx
                     .update(productVariations)
                     .set({
@@ -70,7 +123,6 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
                     })
                     .where(eq(productVariations.id, line.variationId));
             } else {
-                // Deduct from main product stock
                 await tx
                     .update(products)
                     .set({
@@ -80,13 +132,12 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
                     .where(
                         and(
                             eq(products.id, line.productId),
-                            eq(products.businessId, businessId)
-                        )
+                            eq(products.businessId, businessId),
+                        ),
                     );
             }
         }
 
-        // 2. Record the sale
         const [sale] = await tx
             .insert(sales)
             .values({
@@ -98,13 +149,14 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
                 taxGhs: String(input.taxGhs),
                 discountGhs: String(input.discountGhs),
                 totalGhs: String(input.totalGhs),
-                paymentMethod: input.paymentMethod,
+                paymentMethod: paymentMethodSummary,
+                amountPaidGhs: String(amountAppliedToInvoice),
+                balanceDueGhs: String(balanceDue),
                 itemCount: input.lines.reduce((s, l) => s + l.quantity, 0),
                 customerId: input.customerId ?? null,
             })
             .returning({ id: sales.id });
 
-        // 3. Record line items
         await tx.insert(saleItems).values(
             input.lines.map((l) => ({
                 saleId: sale.id,
@@ -114,15 +166,53 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
                 quantity: l.quantity,
                 unitPriceGhs: String(l.unitPriceGhs),
                 lineTotalGhs: String(l.lineTotalGhs),
-            }))
+            })),
         );
-        
-        // 4. Create Notification
+
+        await tx.insert(salePaymentLines).values(
+            normalizedLines.map((l, i) => ({
+                saleId: sale.id,
+                paymentMethod: l.paymentMethod,
+                amountGhs: String(l.amountGhs),
+                sortOrder: i,
+            })),
+        );
+
+        if (balanceDue > 0.02 && input.customerId) {
+            await tx
+                .update(customers)
+                .set({
+                    accountsReceivableGhs: sql`${customers.accountsReceivableGhs}::numeric + ${String(balanceDue)}`,
+                    updatedAt: new Date(),
+                })
+                .where(
+                    and(
+                        eq(customers.id, input.customerId),
+                        eq(customers.businessId, businessId),
+                    ),
+                );
+
+            await tx.insert(customerAccountEntries).values({
+                businessId,
+                branchId: branchId ?? null,
+                customerId: input.customerId,
+                saleId: sale.id,
+                kind: "sale_charge",
+                amountGhs: String(balanceDue),
+                note: `Balance from invoice ${input.invoiceId}`,
+            });
+        }
+
+        const notifyBody =
+            balanceDue > 0.02
+                ? `Sale ${input.invoiceId} — GHS ${totalDue} (paid GHS ${amountAppliedToInvoice}, balance GHS ${balanceDue}).`
+                : `Sale ${input.invoiceId} for GHS ${input.totalGhs} has been recorded.`;
+
         await tx.insert(notifications).values({
             businessId,
             branchId: branchId ?? null,
             title: "New Sale Completed",
-            body: `Sale ${input.invoiceId} for GHC ${input.totalGhs} has been recorded.`,
+            body: notifyBody,
             icon: "receipt",
         });
 
@@ -130,6 +220,9 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
     });
 
     await invalidatePosBusinessCaches(businessId, branchId);
+    if (input.customerId) {
+        await invalidateCustomerCaches(businessId, input.customerId);
+    }
 
     return result;
 }
