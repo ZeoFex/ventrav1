@@ -108,7 +108,8 @@ export function ProductForm({
   const suggestedTypes = useMemo(() => {
     const bType = user?.businessType || "retail";
     if (bType === "boutique") return ["Size", "Color"];
-    if (bType === "restaurant") return ["Extras", "Size", "Options"];
+    if (bType === "agro_chemicals")
+      return ["Pack size", "Volume / weight", "Concentration"];
     if (bType === "pharmacy") return ["Dosage", "Pack Size"];
     if (bType === "electronics") return ["Storage", "Color", "Model"];
     if (bType === "cold_store") return ["Cut", "Weight", "Pack Size"];

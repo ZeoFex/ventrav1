@@ -7,6 +7,7 @@ import { customerAccountEntries } from "../db/schema/customer-account-entries";
 import { notifications } from "../db/schema/notifications";
 import { redis } from "../lib/redis";
 import { invalidateCustomerCaches } from "../customers/customer-account-service";
+import { sellableUnits } from "../stock/sellable-stock";
 
 const CACHE_KEYS = {
     PRODUCTS_LIST: (bizId: string, brn?: string | null) => `products:biz_${bizId}:brn_${brn || 'all'}:list`,
@@ -110,11 +111,31 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
         normalizedLines.length > 1 ? "split" : normalizedLines[0].paymentMethod;
 
     const result = await db.transaction(async (tx) => {
-        // 1. Deduct stock
+        // 1. Deduct stock (must not exceed sellable = stock − reserved)
         for (const line of input.lines) {
             if (line.quantity <= 0) continue;
 
             if (line.variationId) {
+                const [vr] = await tx
+                    .select({
+                        stock: productVariations.stock,
+                        stockReserved: productVariations.stockReserved,
+                    })
+                    .from(productVariations)
+                    .where(eq(productVariations.id, line.variationId))
+                    .limit(1);
+                if (!vr) {
+                    throw new Error("Invalid product variation");
+                }
+                const avail = sellableUnits(
+                    Number(vr.stock),
+                    Number(vr.stockReserved ?? 0),
+                );
+                if (avail < line.quantity) {
+                    throw new Error(
+                        `Insufficient available stock for ${line.productName}`,
+                    );
+                }
                 await tx
                     .update(productVariations)
                     .set({
@@ -123,6 +144,31 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
                     })
                     .where(eq(productVariations.id, line.variationId));
             } else {
+                const [pr] = await tx
+                    .select({
+                        stock: products.stock,
+                        stockReserved: products.stockReserved,
+                    })
+                    .from(products)
+                    .where(
+                        and(
+                            eq(products.id, line.productId),
+                            eq(products.businessId, businessId),
+                        ),
+                    )
+                    .limit(1);
+                if (!pr) {
+                    throw new Error("Product not found");
+                }
+                const avail = sellableUnits(
+                    Number(pr.stock),
+                    Number(pr.stockReserved ?? 0),
+                );
+                if (avail < line.quantity) {
+                    throw new Error(
+                        `Insufficient available stock for ${line.productName}`,
+                    );
+                }
                 await tx
                     .update(products)
                     .set({

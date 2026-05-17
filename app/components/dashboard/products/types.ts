@@ -7,7 +7,12 @@ export interface ProductRow {
     categoryId: string | null;
     tagIds: string[];
     priceGhs: number | string;
+    /** Physical on-hand count. */
     stock: number;
+    /** Units held for open customer orders (layaway). */
+    stockReserved?: number;
+    /** Sellable = stock − reserved; prefer for POS limits. */
+    stockAvailable?: number;
     reorderAt: number;
     status: ProductStatus;
     description?: string;
@@ -25,6 +30,8 @@ export interface ProductVariation {
     type: string;
     priceGhs?: number | string;
     stock: number;
+    stockReserved?: number;
+    stockAvailable?: number;
     sku?: string;
     barcode?: string;
 }

@@ -21,7 +21,7 @@ function round2(n: number): number {
     return Math.round(n * 100) / 100;
 }
 
-type PayMode = "single" | "split" | "deposit";
+type PayMode = "single" | "split" | "deposit" | "reserve_only";
 
 type SplitRow = { id: string; methodId: GhanaPaymentMethodId; amountStr: string };
 
@@ -35,6 +35,7 @@ export function PosPaymentStep({
     onComplete,
     isProcessing = false,
     allowCreditDeposit,
+    layawayMode = false,
 }: {
     totalGhs: number;
     onBack: () => void;
@@ -42,6 +43,8 @@ export function PosPaymentStep({
     isProcessing?: boolean;
     /** True when a customer is selected on the cart (required for partial / on-account). */
     allowCreditDeposit: boolean;
+    /** Customer order (pay & pickup later): balance stays on the order, not AR. Enables reserve without payment. */
+    layawayMode?: boolean;
 }) {
     const total = round2(totalGhs);
     const [mode, setMode] = useState<PayMode>("single");
@@ -96,8 +99,17 @@ export function PosPaymentStep({
         multiSum > 0 &&
         multiRemaining > 0.02;
 
+    const reserveOnlyCanPay =
+        mode === "reserve_only" &&
+        layawayMode &&
+        allowCreditDeposit &&
+        !isProcessing;
+
     const canPay =
-        (mode === "single" && singleCanPay) || splitCanPay || depositCanPay;
+        (mode === "single" && singleCanPay) ||
+        splitCanPay ||
+        depositCanPay ||
+        reserveOnlyCanPay;
 
     function updateRow(id: string, patch: Partial<SplitRow>) {
         setSplitRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -109,6 +121,11 @@ export function PosPaymentStep({
 
     function handlePay() {
         if (!canPay || isProcessing) return;
+
+        if (mode === "reserve_only") {
+            onComplete({ kind: "reserve_only" });
+            return;
+        }
 
         if (mode === "single") {
             if (!method) return;
@@ -158,7 +175,9 @@ export function PosPaymentStep({
                     Payment
                 </h2>
                 <p className="mt-1 text-[13px] text-muted-foreground">
-                    One method, split between MoMo and cash, or a deposit with balance on the customer&apos;s account.
+                    {layawayMode
+                        ? "Pay in full, split tender, partial payment (balance on this order), or reserve stock with no payment today."
+                        : "One method, split between MoMo and cash, or a deposit with balance on the customer&apos;s account."}
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -166,14 +185,22 @@ export function PosPaymentStep({
                         [
                             ["single", "Single method"],
                             ["split", "Split payment"],
-                            ["deposit", "Pay deposit (owe rest)"],
-                        ] as const
+                            [
+                                "deposit",
+                                layawayMode ? "Partial (balance on order)" : "Pay deposit (owe rest)",
+                            ],
+                            ...(layawayMode ? ([["reserve_only", "Reserve only"]] as const) : []),
+                        ] as [string, string][]
                     ).map(([id, label]) => (
                         <button
                             key={id}
                             type="button"
-                            disabled={isProcessing || (id === "deposit" && !allowCreditDeposit)}
-                            onClick={() => setMode(id)}
+                            disabled={
+                                isProcessing ||
+                                (id === "deposit" && !allowCreditDeposit) ||
+                                (id === "reserve_only" && !layawayMode)
+                            }
+                            onClick={() => setMode(id as PayMode)}
                             title={
                                 id === "deposit" && !allowCreditDeposit
                                     ? "Select a customer on the cart first"
@@ -191,8 +218,15 @@ export function PosPaymentStep({
                 </div>
                 {mode === "deposit" && !allowCreditDeposit ? (
                     <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-                        Choose a <strong>customer</strong> in the cart before recording a deposit — the balance is
-                        tracked on their account.
+                        Choose a <strong>customer</strong> in the cart first —{" "}
+                        {layawayMode
+                            ? "required for customer orders and partial payments."
+                            : "the balance is tracked on their account."}
+                    </p>
+                ) : null}
+                {mode === "reserve_only" && !allowCreditDeposit ? (
+                    <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                        Select a <strong>customer</strong> on the cart to reserve stock against their name.
                     </p>
                 ) : null}
 
@@ -203,7 +237,12 @@ export function PosPaymentStep({
                     </p>
                 </div>
 
-                {mode === "single" ? (
+                {mode === "reserve_only" ? (
+                    <p className="mt-8 text-[13px] leading-relaxed text-muted-foreground">
+                        Units will be reserved so other sales cannot use them. No payment is recorded yet — add payments
+                        from <strong>Customer orders</strong> or the customer profile, then complete pickup when paid.
+                    </p>
+                ) : mode === "single" ? (
                     <>
                         <fieldset className="mt-8 space-y-3" disabled={isProcessing}>
                             <legend className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -290,7 +329,11 @@ export function PosPaymentStep({
                     <div className="mt-8 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                {mode === "split" ? "Allocate by method" : "Deposit collected now"}
+                                {mode === "split"
+                                    ? "Allocate by method"
+                                    : layawayMode
+                                      ? "Payment collected now (order balance)"
+                                      : "Deposit collected now"}
                             </p>
                             <button
                                 type="button"
@@ -376,7 +419,8 @@ export function PosPaymentStep({
                             {mode === "split" && multiSum > 0 && multiRemaining > 0.02 ? (
                                 <p className="mt-2 text-[12px] text-muted-foreground">
                                     Split payment must cover the full total. Use{" "}
-                                    <strong>Pay deposit</strong> to leave a balance on account.
+                                    <strong>{layawayMode ? "Partial (balance on order)" : "Pay deposit"}</strong> to
+                                    leave a balance{layawayMode ? " on this order" : " on account"}.
                                 </p>
                             ) : null}
                         </div>
@@ -389,7 +433,15 @@ export function PosPaymentStep({
                     onClick={handlePay}
                     className="tap-target mt-8 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-gradient-to-br from-[#003527] to-[#064e3b] py-3.5 text-[16px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,53,39,0.45)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.5)]"
                 >
-                    {isProcessing ? <Loader2 className="size-5 animate-spin" /> : "Complete payment"}
+                    {isProcessing ? (
+                        <Loader2 className="size-5 animate-spin" />
+                    ) : mode === "reserve_only" ? (
+                        "Reserve stock"
+                    ) : layawayMode ? (
+                        "Create customer order"
+                    ) : (
+                        "Complete payment"
+                    )}
                 </button>
             </div>
         </div>

@@ -67,6 +67,7 @@ export function QuickCheckoutDrawer({
   );
 
   const handlePaymentComplete = async (completion: PosPaymentCompletion) => {
+    if (completion.kind === "reserve_only") return;
     setIsCheckingOut(true);
     const thisInvoiceId = newInvoiceId();
 

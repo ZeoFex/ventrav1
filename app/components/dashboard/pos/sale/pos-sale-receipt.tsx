@@ -68,7 +68,11 @@ export function PosSaleReceiptThermal({ data }: { data: PosReceiptData }) {
           <DashedDivider />
           <div className="flex justify-between gap-4">
             <span className="text-black/60">Order ID</span>
-            <span className="font-bold">{data.invoiceId.split('-')[1]}</span>
+            <span className="font-bold break-all text-right">
+              {data.invoiceId.includes("-")
+                ? data.invoiceId.slice(data.invoiceId.indexOf("-") + 1)
+                : data.invoiceId}
+            </span>
           </div>
           <DashedDivider />
           

@@ -25,7 +25,11 @@ export const BUSINESS_TYPES: {
   hint: string;
 }[] = [
     { id: "retail", label: "Retail", hint: "General goods" },
-    { id: "restaurant", label: "Restaurant", hint: "Food & drink" },
+    {
+      id: "agro_chemicals",
+      label: "Agro chemicals",
+      hint: "Fertilizer, pesticide & farm inputs",
+    },
     { id: "pharmacy", label: "Pharmacy", hint: "Health & wellness" },
     { id: "supermarket", label: "Supermarket", hint: "Groceries at scale" },
     { id: "mini_mart", label: "Mini mart", hint: "Neighbourhood shop" },

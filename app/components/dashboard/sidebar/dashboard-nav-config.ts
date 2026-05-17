@@ -52,6 +52,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
       // },
       { id: "new-sale", label: "New sale", href: "/dashboard/pos/sale" },
       {
+        id: "customer-orders",
+        label: "Customer orders",
+        href: "/dashboard/pos/customer-orders",
+      },
+      {
         id: "held-sales",
         label: "Held sales",
         href: "/dashboard/pos/held",

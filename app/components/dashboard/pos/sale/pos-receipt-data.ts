@@ -1,3 +1,8 @@
+import {
+  getPaymentMethod,
+  type GhanaPaymentMethodId,
+} from "./pos-payment-methods";
+
 export type PosReceiptLine = {
   name: string;
   qty: number;
@@ -89,6 +94,122 @@ export function resolveBranchReceiptMeta(
 
 export function formatCurrency(n: number, symbol: string = "GHS"): string {
   return `${symbol} ${n.toFixed(2)}`;
+}
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function paymentMethodShortLabel(methodId: string): string {
+  const m = getPaymentMethod(methodId as GhanaPaymentMethodId);
+  return m?.shortLabel ?? m?.label ?? methodId;
+}
+
+export type CustomerOrderReceiptOrderTotals = {
+  invoiceId: string;
+  subtotalGhs: number;
+  taxGhs: number;
+  discountGhs: number;
+  totalGhs: number;
+};
+
+/** Thermal receipt for a single advance-payment installment on a customer (layaway) order. */
+export function buildCustomerOrderAdvancePaymentReceiptData(opts: {
+  order: CustomerOrderReceiptOrderTotals;
+  orderLines: { productName: string; quantity: number; lineTotalGhs: number }[];
+  /** Amounts collected in this transaction only */
+  paymentLines: { paymentMethod: string; amountGhs: number }[];
+  balanceDueGhs: number;
+  customerName?: string | null;
+  storeName: string;
+  branchName: string;
+  branchLocation?: string;
+  receiptHeader?: string;
+  receiptFooter?: string;
+  operatorName?: string;
+  currencySymbol?: string;
+}): PosReceiptData {
+  const symbol = opts.currencySymbol || "GHS";
+  const lines: PosReceiptLine[] = opts.orderLines.map((l) => ({
+    name: l.productName,
+    qty: l.quantity,
+    unitPriceGhs:
+      l.quantity > 0
+        ? roundMoney(l.lineTotalGhs / l.quantity)
+        : l.lineTotalGhs,
+    lineTotalGhs: roundMoney(l.lineTotalGhs),
+  }));
+
+  const subtotal = roundMoney(opts.order.subtotalGhs);
+  const tax = roundMoney(opts.order.taxGhs);
+  const discount = roundMoney(opts.order.discountGhs);
+  const total = roundMoney(opts.order.totalGhs);
+
+  const normalizedPay = opts.paymentLines.map((p) => ({
+    paymentMethod: p.paymentMethod,
+    amountGhs: roundMoney(p.amountGhs),
+  }));
+  const tendered = roundMoney(
+    normalizedPay.reduce((s, p) => s + p.amountGhs, 0),
+  );
+
+  let paymentMethodLabel: string;
+  let amountTenderedGhs: number;
+  let changeGhs: number;
+  let paymentLines: PosReceiptData["paymentLines"] | undefined;
+
+  if (normalizedPay.length === 0) {
+    paymentMethodLabel = "—";
+    amountTenderedGhs = 0;
+    changeGhs = 0;
+  } else if (normalizedPay.length === 1) {
+    const pl = normalizedPay[0]!;
+    paymentMethodLabel = paymentMethodShortLabel(pl.paymentMethod);
+    amountTenderedGhs = tendered;
+    changeGhs = 0;
+  } else {
+    paymentMethodLabel = "Split payment";
+    amountTenderedGhs = tendered;
+    changeGhs = roundMoney(Math.max(0, tendered - total));
+    paymentLines = normalizedPay.map((p) => ({
+      label: paymentMethodShortLabel(p.paymentMethod),
+      amountGhs: p.amountGhs,
+    }));
+  }
+
+  const balanceDueGhs =
+    opts.balanceDueGhs > 0.02 ? roundMoney(opts.balanceDueGhs) : undefined;
+
+  const headerExtras = [
+    opts.receiptHeader?.trim(),
+    "Customer order — advance payment",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    invoiceId: opts.order.invoiceId,
+    date: new Date(),
+    lines,
+    subtotal,
+    tax,
+    discount,
+    total,
+    paymentMethodLabel,
+    amountTenderedGhs,
+    changeGhs,
+    paymentLines,
+    balanceDueGhs,
+    customerName: opts.customerName ?? undefined,
+    storeName: opts.storeName,
+    branchName: opts.branchName,
+    branchLocation: opts.branchLocation,
+    receiptHeader: headerExtras || undefined,
+    receiptFooter: opts.receiptFooter || "Thank you — VentraPOS",
+    operatorName: opts.operatorName,
+    currencySymbol: symbol,
+    saleId: undefined,
+  };
 }
 
 export function buildReceiptPlainText(d: PosReceiptData): string {

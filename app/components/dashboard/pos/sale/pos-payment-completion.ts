@@ -11,4 +11,8 @@ export type PosPaymentCompletion =
     | {
           kind: "multi";
           lines: { methodId: GhanaPaymentMethodId; amountGhs: number }[];
+      }
+    /** Layaway: reserve stock with no payment captured yet. */
+    | {
+          kind: "reserve_only";
       };

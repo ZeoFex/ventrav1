@@ -107,7 +107,7 @@ export function SettingsProfileView() {
                                 >
                                     <option value="Retail & Grocery">Retail & Grocery</option>
                                     <option value="Pharmacy">Pharmacy</option>
-                                    <option value="Restaurant">Restaurant</option>
+                                    <option value="Agro chemicals">Agro chemicals</option>
                                     <option value="Boutique">Boutique</option>
                                 </select>
                             </div>

@@ -27,6 +27,10 @@ export function CustomerDetailView({ customerId }: { customerId: string }) {
         customerId ? `/api/customers/${customerId}/account` : null,
         fetcher,
     );
+    const { data: ordersData } = useSWR(
+        customerId ? `/api/customer-orders?customerId=${encodeURIComponent(customerId)}` : null,
+        fetcher,
+    );
     const [payAmount, setPayAmount] = useState("");
     const [payMethod, setPayMethod] = useState("cash");
     const [payNote, setPayNote] = useState("");
@@ -179,6 +183,55 @@ export function CustomerDetailView({ customerId }: { customerId: string }) {
                         </button>
                     </form>
                 </div>
+            </div>
+
+            <div className="mt-8 rounded-2xl border border-[#eef0f2] bg-white p-6 dark:border-white/[0.08] dark:bg-[#111]">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 className="text-[16px] font-semibold">Customer orders (pay &amp; hold)</h2>
+                        <p className="mt-1 text-[13px] text-muted-foreground">
+                            Balances here are for reserved stock until pickup — separate from amount owed (AR) after
+                            goods leave on credit.
+                        </p>
+                    </div>
+                    <Link
+                        href="/dashboard/pos/customer-orders"
+                        className="shrink-0 text-[13px] font-semibold text-[#006c49] hover:underline dark:text-[#6ffbbe]"
+                    >
+                        Manage in POS
+                    </Link>
+                </div>
+                {!ordersData?.orders?.length ? (
+                    <p className="mt-4 text-[14px] text-muted-foreground">No open orders for this customer.</p>
+                ) : (
+                    <ul className="mt-4 divide-y divide-[#eef0f2] dark:divide-white/[0.08]">
+                        {(ordersData.orders as Array<{
+                            id: string;
+                            invoiceId: string;
+                            status: string;
+                            totalGhs: string;
+                            balanceDueGhs: string;
+                            createdAt: string;
+                        }>).map((o) => (
+                            <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-[14px]">
+                                <div>
+                                    <p className="font-medium">{o.invoiceId}</p>
+                                    <p className="text-[12px] text-muted-foreground capitalize">
+                                        {o.status.replace(/_/g, " ")} · {new Date(o.createdAt).toLocaleDateString("en-GH")}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="tabular-nums text-muted-foreground">Total {formatGhs(Number(o.totalGhs))}</p>
+                                    {Number(o.balanceDueGhs) > 0.02 ? (
+                                        <p className="font-semibold tabular-nums text-amber-700 dark:text-amber-300">
+                                            Due {formatGhs(Number(o.balanceDueGhs))}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
 
             <div className="mt-8 rounded-2xl border border-[#eef0f2] bg-white p-6 dark:border-white/[0.08] dark:bg-[#111]">

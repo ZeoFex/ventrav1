@@ -31,6 +31,8 @@ type CartPanelContentProps = {
   onRemove: (productId: string) => void;
   onReset: () => void;
   onContinue?: () => void;
+  /** Pay & hold: customer order / layaway (requires customer on cart). */
+  onCustomerOrder?: () => void;
   onHoldSale?: () => void;
   onCloseSheet?: () => void;
   /** Wrap continue (e.g. close sheet first) */
@@ -51,6 +53,7 @@ export function PosCartPanelContent({
   onRemove,
   onReset,
   onContinue,
+  onCustomerOrder,
   onHoldSale,
   onCloseSheet,
   onContinueClick,
@@ -297,6 +300,17 @@ export function PosCartPanelContent({
           >
             Continue to payment
           </button>
+          {onCustomerOrder && (
+            <button
+              type="button"
+              disabled={lines.length === 0 || !customerId}
+              title={!customerId ? "Select a customer for pay-and-hold orders" : undefined}
+              onClick={onCustomerOrder}
+              className="tap-target flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-[#006c49]/30 bg-[#006c49]/5 py-3 text-[14px] font-semibold text-[#006c49] transition-colors hover:bg-[#006c49]/10 disabled:cursor-not-allowed disabled:opacity-45 dark:border-[#6ffbbe]/30 dark:bg-[#6ffbbe]/8 dark:text-[#6ffbbe] dark:hover:bg-[#6ffbbe]/12"
+            >
+              Customer order (pay &amp; hold)
+            </button>
+          )}
           {onHoldSale && (
             <button
               type="button"

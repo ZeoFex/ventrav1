@@ -22,7 +22,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
   starter: {
     "home": true,
     // POS (Checkout ✓, barcode ✗, register ✗)
-    "pos": true, "new-sale": true, "held-sales": true,
+    "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
     "open-register": false, "pos-scan": false,
     // Sales (basic ✓)
     "sales": true, "sales-overview": true, "sales-transactions": true,
@@ -69,7 +69,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
   // ── GROWTH ── Multi-branch · adv roles · barcode · refunds · deeper reports
   growth: {
     "home": true,
-    "pos": true, "new-sale": true, "held-sales": true,
+    "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
     "open-register": false, "pos-scan": true,
     "sales": true, "sales-overview": true, "sales-transactions": true,
     "sales-revenue": true, "sales-profit": true,
@@ -104,7 +104,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
   // ── PRO ── Everything unlocked
   pro: {
     "home": true,
-    "pos": true, "new-sale": true, "held-sales": true,
+    "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
     "open-register": true, "pos-scan": true,
     "sales": true, "sales-overview": true, "sales-transactions": true,
     "sales-revenue": true, "sales-profit": true,

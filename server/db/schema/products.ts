@@ -95,6 +95,8 @@ export const products = pgTable(
 
         // Inventory
         stock: integer("stock").default(0).notNull(),
+        /** Units committed to open customer orders (layaway); sellable = stock - stockReserved. */
+        stockReserved: integer("stock_reserved").default(0).notNull(),
         reorderAt: integer("reorder_at").default(5),
         trackInventory: boolean("track_inventory").default(true).notNull(),
         /**
@@ -147,6 +149,7 @@ export const productVariations = pgTable(
         type: varchar("type", { length: 100 }).notNull(), // e.g. "size", "color", "extras"
         priceGhs: decimal("price_ghs", { precision: 12, scale: 2 }), // Optional override
         stock: integer("stock").default(0).notNull(),
+        stockReserved: integer("stock_reserved").default(0).notNull(),
         sku: varchar("sku", { length: 100 }),
         barcode: varchar("barcode", { length: 100 }),
         createdAt: timestamp("created_at", { withTimezone: true })
