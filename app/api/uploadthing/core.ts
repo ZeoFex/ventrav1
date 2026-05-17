@@ -38,6 +38,18 @@ export const ourFileRouter = {
             console.log("Product Image uploaded:", file.url);
             return { url: file.url };
         }),
+    expenseReceipt: f({ image: { maxFileSize: "8MB", maxFileCount: 1 } })
+        .middleware(async ({ req }) => {
+            const token = getAccessTokenStringFromRequest(req as Request);
+            if (!token) throw new Error("Unauthorized");
+            const { verifyAccessToken } = await import("@/server/auth/token-service");
+            const payload = await verifyAccessToken(token);
+            if (!payload.bid) throw new Error("No business associated");
+            return { businessId: payload.bid };
+        })
+        .onUploadComplete(async ({ file }) => {
+            return { url: file.url };
+        }),
     userProfile: f({ image: { maxFileSize: "2MB", maxFileCount: 1 } })
         .middleware(async ({ req }) => {
             const token = getAccessTokenStringFromRequest(req as Request);

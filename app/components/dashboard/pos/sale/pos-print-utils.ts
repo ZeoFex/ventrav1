@@ -192,18 +192,45 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
 
       <div class="divider"></div>
 
-      <div class="flex-between" style="font-size: 11px;">
-        <span>Payment</span>
-        <span class="bold">${e(data.paymentMethodLabel)}</span>
-      </div>
-      <div class="flex-between" style="font-size: 11px;">
-        <span>Amount paid</span>
-        <span class="bold">${e(formatCurrency(data.amountTenderedGhs, sym))}</span>
-      </div>
-      <div class="flex-between" style="font-size: 11px;">
-        <span>Change</span>
-        <span class="bold">${e(formatCurrency(data.changeGhs, sym))}</span>
-      </div>
+          ${data.paymentLines && data.paymentLines.length > 0
+            ? `
+          <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px;">Payments</div>
+          ${data.paymentLines
+            .map(
+              (pl) => `
+            <div class="flex-between" style="font-size: 11px;">
+              <span>${e(pl.label)}</span>
+              <span class="bold">${e(formatCurrency(pl.amountGhs, sym))}</span>
+            </div>`,
+            )
+            .join("")}
+          ${
+            data.balanceDueGhs != null && data.balanceDueGhs > 0.01
+              ? `<div class="flex-between" style="font-size: 11px; margin-top: 4px;">
+            <span>Balance due</span>
+            <span class="bold">${e(formatCurrency(data.balanceDueGhs, sym))}</span>
+          </div>`
+              : ""
+          }
+          <div class="flex-between" style="font-size: 11px; margin-top: 6px;">
+            <span>Total collected</span>
+            <span class="bold">${e(formatCurrency(data.amountTenderedGhs, sym))}</span>
+          </div>
+          `
+            : `
+          <div class="flex-between" style="font-size: 11px;">
+            <span>Payment</span>
+            <span class="bold">${e(data.paymentMethodLabel)}</span>
+          </div>
+          <div class="flex-between" style="font-size: 11px;">
+            <span>Amount paid</span>
+            <span class="bold">${e(formatCurrency(data.amountTenderedGhs, sym))}</span>
+          </div>
+          <div class="flex-between" style="font-size: 11px;">
+            <span>Change</span>
+            <span class="bold">${e(formatCurrency(data.changeGhs, sym))}</span>
+          </div>
+          `}
 
       <div class="divider"></div>
 

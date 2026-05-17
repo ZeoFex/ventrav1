@@ -17,10 +17,14 @@ const APP_PERMISSIONS = [
     { key: "categories", label: "Product Categories" },
     { key: "tags", label: "Product Tags" },
     { key: "stock", label: "Stock & Inventory" },
+    { key: "stock-take", label: "Stock take" },
 
-    { key: "customers", label: "Customers Module" },
+    { key: "customers", label: "Contacts Module" },
     { key: "customer-list", label: "Customer List" },
     { key: "customer-add", label: "Add Customer" },
+
+    { key: "suppliers-list", label: "Supplier List" },
+    { key: "supplier-add", label: "Add Supplier" },
 
     { key: "staff", label: "Staff Module" },
     { key: "staff-list", label: "Staff List" },
@@ -28,7 +32,11 @@ const APP_PERMISSIONS = [
 
     { key: "finance", label: "Finance Module" },
     { key: "finance-overview", label: "Finance Overview" },
+    { key: "finance-pnl", label: "Profit & loss (P&L)" },
     { key: "finance-expenses", label: "Expenses" },
+    { key: "finance-expense-schedules", label: "Recurring expenses" },
+    { key: "finance-expense-reports", label: "Expense reports" },
+    { key: "finance-reminders", label: "Reminders" },
 
     { key: "branches", label: "Branches Module" },
     { key: "branches-all", label: "All Branches" },

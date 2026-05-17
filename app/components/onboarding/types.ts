@@ -1,6 +1,6 @@
 export type BusinessTypeId =
   | "retail"
-  | "restaurant"
+  | "agro_chemicals"
   | "pharmacy"
   | "supermarket"
   | "mini_mart"

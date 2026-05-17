@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { hasMinRole, requireOwner, requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
-import { getBranches, saveBranch } from "@/server/branches/branch-service";
+import { getBranches, saveBranch, BranchLimitExceededError } from "@/server/branches/branch-service";
 
 /**
  * GET /api/branches
@@ -47,6 +47,9 @@ export async function POST(req: Request) {
 
         return NextResponse.json(result, { status: 201 });
     } catch (error) {
+        if (error instanceof BranchLimitExceededError) {
+            return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
+        }
         console.error("POST /api/branches failed:", error);
         return NextResponse.json({ error: "Failed to save branch" }, { status: 500 });
     }

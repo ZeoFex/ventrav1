@@ -41,6 +41,14 @@ export const sales = pgTable(
         discountGhs: decimal("discount_ghs", { precision: 12, scale: 2 }).default("0").notNull(),
         totalGhs: decimal("total_ghs", { precision: 12, scale: 2 }).notNull(),
         paymentMethod: varchar("payment_method", { length: 30 }).notNull(),
+        /** Sum of payment lines collected in this checkout. */
+        amountPaidGhs: decimal("amount_paid_ghs", { precision: 12, scale: 2 })
+            .default("0")
+            .notNull(),
+        /** Invoice total minus amount paid — added to customer AR when > 0. */
+        balanceDueGhs: decimal("balance_due_ghs", { precision: 12, scale: 2 })
+            .default("0")
+            .notNull(),
         itemCount: integer("item_count").notNull(),
         customerId: uuid("customer_id")
             .references(() => customers.id, { onDelete: "set null" }),
@@ -83,4 +91,22 @@ export const saleItems = pgTable(
         index("sale_items_sale_id_idx").on(t.saleId),
         index("sale_items_product_id_idx").on(t.productId),
     ]
+);
+
+/** Allocated amounts per payment method for a sale (split tender). */
+export const salePaymentLines = pgTable(
+    "sale_payment_lines",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        saleId: uuid("sale_id")
+            .notNull()
+            .references(() => sales.id, { onDelete: "cascade" }),
+        paymentMethod: varchar("payment_method", { length: 30 }).notNull(),
+        amountGhs: decimal("amount_ghs", { precision: 12, scale: 2 }).notNull(),
+        sortOrder: integer("sort_order").default(0).notNull(),
+        createdAt: timestamp("created_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+    },
+    (t) => [index("sale_payment_lines_sale_id_idx").on(t.saleId)]
 );

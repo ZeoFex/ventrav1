@@ -4,6 +4,7 @@ import { Check, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { GHANA_REGIONS } from "@/app/components/onboarding/constants";
 import type { BranchStatus } from "./branches-mock-data";
 
@@ -56,7 +57,17 @@ export function BranchForm({
                 body: JSON.stringify(data),
             });
 
-            if (!res.ok) throw new Error("Failed to save branch");
+            const payload = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                const msg =
+                    typeof payload?.error === "string"
+                        ? payload.error
+                        : "Failed to save branch";
+                toast.error(msg);
+                setIsSaving(false);
+                return;
+            }
 
             // Option to mutate global SWR cache before redirect
             const { mutate } = await import("swr");
@@ -66,7 +77,7 @@ export function BranchForm({
             router.refresh();
         } catch (error) {
             console.error(error);
-            // In a real app we'd show a toast here
+            toast.error("Something went wrong. Try again.");
             setIsSaving(false);
         }
     }

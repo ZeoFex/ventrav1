@@ -2,13 +2,13 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   Building2,
+  BookUser,
   Home,
   Landmark,
   Package,
   Receipt,
   Settings,
   SquareTerminal,
-  Users,
   UsersRound,
   Megaphone,
 } from "lucide-react";
@@ -20,7 +20,7 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavIconId, LucideIcon> = {
   pos: SquareTerminal,
   sales: Receipt,
   products: Package,
-  customers: Users,
+  contacts: BookUser,
   staff: UsersRound,
   finance: Landmark,
   branches: Building2,

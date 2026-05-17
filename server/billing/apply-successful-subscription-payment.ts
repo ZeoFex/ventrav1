@@ -7,6 +7,7 @@ import {
     recordQualificationOnFirstPaidCharge,
 } from "@/server/referrals/referral-service";
 import type { ParsedBillingReference } from "@/server/billing/billing-reference";
+import { computePeriodEndAfterAddingDays } from "@/server/billing/subscription-period";
 
 /**
  * Apply plan extension + referral side-effects after Paystack reports success
@@ -29,11 +30,11 @@ export async function applySuccessfulAuthenticatedSubscriptionPayment(input: {
         .from(businesses)
         .where(eq(businesses.id, businessId));
 
-    const now = Date.now();
-    const currentEnd = biz?.currentPeriodEnd ? biz.currentPeriodEnd.getTime() : now;
-    const baseDate = currentEnd > now ? currentEnd : now;
     const daysToAdd = parsed.cycle === "annually" ? 365 : 30;
-    const newExpiry = new Date(baseDate + daysToAdd * 24 * 60 * 60 * 1000);
+    const newExpiry = computePeriodEndAfterAddingDays({
+        currentPeriodEnd: biz?.currentPeriodEnd,
+        days: daysToAdd,
+    });
 
     await db
         .update(businesses)

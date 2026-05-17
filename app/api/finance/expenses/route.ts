@@ -3,13 +3,32 @@ import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-r
 import { getExpensesList, createExpense } from "@/server/finance/finance-service";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
         const auth = await requireUserAuthFromContext();
         if (auth instanceof NextResponse) return auth;
         const { payload } = auth;
         const branchId = await getActiveBranchIdFromContext();
-        const list = await getExpensesList(payload.bid, branchId);
+        const { searchParams } = new URL(req.url);
+
+        const fromStr = searchParams.get("from");
+        const toStr = searchParams.get("to");
+        const category = searchParams.get("category") || undefined;
+        const vendor = searchParams.get("vendor") || undefined;
+        const search = searchParams.get("q") || searchParams.get("search") || undefined;
+
+        const filters =
+            fromStr || toStr || category || vendor || search
+                ? {
+                      from: fromStr ? new Date(fromStr) : undefined,
+                      to: toStr ? new Date(toStr) : undefined,
+                      category: category && category !== "all" ? category : undefined,
+                      vendor,
+                      search,
+                  }
+                : undefined;
+
+        const list = await getExpensesList(payload.bid, branchId, filters);
 
         return NextResponse.json(list);
     } catch (error) {
@@ -26,10 +45,20 @@ export async function POST(req: Request) {
         const branchId = await getActiveBranchIdFromContext();
         const body = await req.json();
 
-        const expense = await createExpense(payload.bid, {
-            ...body,
-            date: new Date(body.date),
-        }, branchId);
+        const expense = await createExpense(
+            payload.bid,
+            {
+                date: new Date(body.date),
+                description: body.description,
+                category: body.category,
+                amountGhs: Number(body.amountGhs),
+                status: body.status,
+                paymentMethod: body.paymentMethod ?? null,
+                vendor: body.vendor ?? null,
+                receiptUrl: body.receiptUrl ?? null,
+            },
+            branchId,
+        );
 
         return NextResponse.json({ success: true, expenseId: expense.id });
     } catch (error) {

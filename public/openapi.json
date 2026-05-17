@@ -2923,6 +2923,12 @@
                       "null"
                     ],
                     "format": "date-time"
+                  },
+                  "extendSubscriptionDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 3650,
+                    "description": "Add this many days from max(now, existing currentPeriodEnd); mutually exclusive with currentPeriodEnd in the same request. Sets subscriptionStatus to active when that field is omitted."
                   }
                 },
                 "additionalProperties": false
@@ -2941,54 +2947,15 @@
           }
         ],
         "summary": "DELETE /api/platform/businesses/{id}",
-        "description": "Hard-deletes the tenant; related rows cascade. Body must include confirmSlug equal to the business slug (from GET this resource).",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "confirmSlug"
-                ],
-                "properties": {
-                  "confirmSlug": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Must match the business slug exactly (after trim)."
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
         "responses": {
-          "204": {
-            "description": "Deleted"
-          },
-          "400": {
-            "description": "Invalid id, JSON, body, or confirmSlug mismatch"
+          "200": {
+            "description": "OK"
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Business not found"
           },
           "500": {
             "description": "Server error"

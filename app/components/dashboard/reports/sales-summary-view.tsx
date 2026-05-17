@@ -143,8 +143,8 @@ export function SalesSummaryView() {
                     <KpiCard title="Gross Sales" value={formatGhs(kpis.grossSales)} trend="+13.5%" trendType="up" href="/dashboard/sales/revenue" />
                     <KpiCard title="Discounts" value={formatGhs(kpis.discounts)} trend="-1.2%" trendType="down" href="/dashboard/sales/revenue" />
                     <KpiCard title="Net Sales" value={formatGhs(kpis.netSales)} trend="+16.4%" trendType="up" highlight href="/dashboard/sales/revenue" />
-                    <KpiCard title="Total COGS" value={formatGhs(kpis.totalCogs)} trend="+3.1%" trendType="up" href="/dashboard/sales/profit" />
-                    <KpiCard title="Gross Profit" value={formatGhs(kpis.grossProfit)} trend="+18.7%" trendType="up" highlight href="/dashboard/sales/profit" />
+                    <KpiCard title="Total COGS" value={formatGhs(kpis.totalCogs)} trend="+3.1%" trendType="up" href="/dashboard/finance/pnl" />
+                    <KpiCard title="Gross Profit" value={formatGhs(kpis.grossProfit)} trend="+18.7%" trendType="up" highlight href="/dashboard/finance/pnl" />
                     <KpiCard title="Transactions" value={kpis.transactionCount.toString()} trend="+4.0%" trendType="up" href="/dashboard/sales/transactions" />
                 </div>
 

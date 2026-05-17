@@ -1,5 +1,12 @@
 export type PlanId = "starter" | "growth" | "pro";
 
+/** Max active branches per subscription tier (enforced on branch create). */
+export const MAX_BRANCHES_BY_PLAN: Record<PlanId, number> = {
+  starter: 1,
+  growth: 3,
+  pro: 5,
+};
+
 /** Starter plan free-trial length (sets `currentPeriodEnd` for new Starter businesses). */
 export const STARTER_TRIAL_DAYS = 30;
 
@@ -43,7 +50,7 @@ export const PLANS: Plan[] = [
     highlighted: true,
     features: [
       "Everything in Starter, plus:",
-      "Multiple branches with stock transfers",
+      "Up to 3 branches with stock transfers",
       "Branch-level inventory & reporting",
       "More staff accounts & advanced roles",
       "Barcode support, refunds & returns",
@@ -60,6 +67,7 @@ export const PLANS: Plan[] = [
     highlighted: false,
     features: [
       "Everything in Growth, plus:",
+      "Up to 5 branches",
       "Zuri (AI assistant — in-dashboard tools & insights)",
       "Audit logs & cash reconciliation",
       "Approval workflows & restricted discounts",

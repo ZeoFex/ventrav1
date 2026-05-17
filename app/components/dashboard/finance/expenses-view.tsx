@@ -3,22 +3,13 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { useMemo, useState } from "react";
-import { Plus, Search, Filter, ReceiptText, Loader2, Check, X, Calendar, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, ReceiptText, Loader2, Check, X, Calendar, Trash2, Printer, Download, Pencil, BarChart3 } from "lucide-react";
+import { EXPENSE_CATEGORY_OPTIONS } from "@/app/lib/expense-categories";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { useBranchContext } from "../branch-context";
 import { toast } from "sonner";
 import { getCachedExpenses, cacheExpenses } from "@/app/lib/offline/offline-db";
 import { useOnlineStatus } from "@/app/lib/offline/use-online-status";
-
-const EXPENSE_CATEGORIES = [
-    "Payroll",
-    "Inventory",
-    "Utilities",
-    "Marketing",
-    "Logistics",
-    "Maintenance",
-    "Misc",
-];
 
 function formatGhs(n: number): string {
     return new Intl.NumberFormat("en-GH", {
@@ -34,6 +25,26 @@ function formatDate(d: string): string {
         month: "short",
         year: "numeric"
     }).format(new Date(d));
+}
+
+function downloadExpensesCsv(rows: { date: string; description: string; category: string; amount: number; status: string; vendor?: string | null; paymentMethod?: string | null }[]) {
+    const esc = (v: string | number | null | undefined) => {
+        const s = v == null ? "" : String(v);
+        return `"${s.replace(/"/g, '""')}"`;
+    };
+    const lines = [
+        ["date", "description", "category", "amount", "status", "vendor", "payment_method"].join(","),
+        ...rows.map((e) =>
+            [e.date, e.description, e.category, e.amount, e.status, e.vendor ?? "", e.paymentMethod ?? ""].map(esc).join(","),
+        ),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ventra-expenses-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
 }
 
 const fetcher = async (url: string) => {
@@ -57,7 +68,20 @@ const fetcher = async (url: string) => {
 
 export function ExpensesView() {
     const { branchId } = useBranchContext();
-    const { data: expenses, isLoading, mutate } = useSWR(`/api/finance/expenses?b=${branchId}`, fetcher);
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
+    const [vendorFilter, setVendorFilter] = useState("");
+
+    const listUrl = useMemo(() => {
+        const q = new URLSearchParams();
+        q.set("b", branchId);
+        if (dateFrom) q.set("from", dateFrom);
+        if (dateTo) q.set("to", dateTo);
+        if (vendorFilter.trim()) q.set("vendor", vendorFilter.trim());
+        return `/api/finance/expenses?${q.toString()}`;
+    }, [branchId, dateFrom, dateTo, vendorFilter]);
+
+    const { data: expenses, isLoading, mutate } = useSWR(listUrl, fetcher);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -70,7 +94,8 @@ export function ExpensesView() {
         if (!expenses) return [];
         return expenses.filter((exp: any) => {
             const matchesSearch = exp.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                 exp.category.toLowerCase().includes(searchQuery.toLowerCase());
+                                 exp.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                 (exp.vendor && String(exp.vendor).toLowerCase().includes(searchQuery.toLowerCase()));
             const matchesStatus = statusFilter === "all" || exp.status === statusFilter;
             const matchesCategory = categoryFilter === "all" || exp.category === categoryFilter;
             return matchesSearch && matchesStatus && matchesCategory;
@@ -129,13 +154,28 @@ export function ExpensesView() {
             title="Expenses"
             description="Track and manage all operational costs, payroll, and inventory purchases."
             actions={
-                <Link
-                    href="/dashboard/finance/expenses/new"
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,53,39,0.35)] hover:brightness-110"
-                >
-                    <Plus className="size-4" strokeWidth={2.5} />
-                    Record Expense
-                </Link>
+                <>
+                    <Link
+                        href="/dashboard/finance/expenses/reports"
+                        className="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-[14px] font-medium text-foreground hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
+                    >
+                        <BarChart3 className="size-4" />
+                        Reports
+                    </Link>
+                    <Link
+                        href="/dashboard/finance/expense-schedules"
+                        className="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-[14px] font-medium text-foreground hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
+                    >
+                        Recurring
+                    </Link>
+                    <Link
+                        href="/dashboard/finance/expenses/new"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,53,39,0.35)] hover:brightness-110"
+                    >
+                        <Plus className="size-4" strokeWidth={2.5} />
+                        Record Expense
+                    </Link>
+                </>
             }
         >
         <div className="flex flex-col gap-6">
@@ -152,23 +192,47 @@ export function ExpensesView() {
                     />
                 </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => downloadExpensesCsv(filteredExpenses)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[13px] font-semibold hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
+                    >
+                        <Download className="size-4" />
+                        Export CSV
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[13px] font-semibold hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
+                    >
+                        <Printer className="size-4" />
+                        Print
+                    </button>
                     <div className="relative">
                         <button 
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
                             className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-[14px] font-semibold transition-all ${
-                                isFilterOpen || statusFilter !== "all" || categoryFilter !== "all"
+                                isFilterOpen || statusFilter !== "all" || categoryFilter !== "all" || dateFrom || dateTo || vendorFilter.trim()
                                 ? "border-[#006c49]/30 bg-[#006c49]/05 text-[#006c49] dark:border-[#6ffbbe]/30 dark:bg-[#6ffbbe]/05 dark:text-[#6ffbbe]"
                                 : "border-[#e5e7eb] bg-white text-foreground hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
                             }`}
                         >
                             <Filter className="size-4" />
                             Filters
-                            {(statusFilter !== "all" || categoryFilter !== "all") && (
+                            {(() => {
+                                const n =
+                                    (statusFilter !== "all" ? 1 : 0) +
+                                    (categoryFilter !== "all" ? 1 : 0) +
+                                    (dateFrom ? 1 : 0) +
+                                    (dateTo ? 1 : 0) +
+                                    (vendorFilter.trim() ? 1 : 0);
+                                return n > 0 ? (
                                 <span className="flex size-4 items-center justify-center rounded-full bg-[#006c49] text-[10px] text-white dark:bg-[#6ffbbe] dark:text-black">
-                                    {(statusFilter !== "all" ? 1 : 0) + (categoryFilter !== "all" ? 1 : 0)}
+                                    {n}
                                 </span>
-                            )}
+                                ) : null;
+                            })()}
                         </button>
 
                         {isFilterOpen && (
@@ -203,12 +267,22 @@ export function ExpensesView() {
                                                 className="w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-[13px] outline-none focus:border-[#006c49]/40"
                                             >
                                                 <option value="all">All Categories</option>
-                                                {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                {EXPENSE_CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                         </div>
 
+                                        <div className="space-y-1.5">
+                                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">From / To</p>
+                                            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-[13px]" />
+                                            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-[13px]" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Vendor contains</p>
+                                            <input value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} placeholder="Filter by vendor" className="w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-[13px]" />
+                                        </div>
+
                                         <button 
-                                            onClick={() => { setStatusFilter("all"); setCategoryFilter("all"); setIsFilterOpen(false); }}
+                                            onClick={() => { setStatusFilter("all"); setCategoryFilter("all"); setDateFrom(""); setDateTo(""); setVendorFilter(""); setIsFilterOpen(false); }}
                                             className="w-full pt-2 text-[12px] font-semibold text-red-500 hover:underline text-left"
                                         >
                                             Reset Filters
@@ -278,7 +352,14 @@ export function ExpensesView() {
                                             <p className="text-[18px] font-bold text-foreground font-[family-name:var(--font-display)]">{formatGhs(exp.amount)}</p>
                                         </div>
                                     </div>
-                                    <div className="mt-3 flex justify-end border-t border-dashed pt-3 dark:border-white/10">
+                                    <div className="mt-3 flex justify-end gap-2 border-t border-dashed pt-3 dark:border-white/10">
+                                        <Link
+                                            href={`/dashboard/finance/expenses/${exp.id}/edit`}
+                                            className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-muted/50"
+                                        >
+                                            <Pencil className="size-3.5" />
+                                            Edit
+                                        </Link>
                                         <button
                                             type="button"
                                             onClick={() => removeExpense(exp)}
@@ -357,7 +438,15 @@ export function ExpensesView() {
                                                 </button>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button
+                                                <div className="flex justify-end gap-1">
+                                                    <Link
+                                                        href={`/dashboard/finance/expenses/${exp.id}/edit`}
+                                                        title="Edit expense"
+                                                        className="inline-flex size-9 items-center justify-center rounded-xl border transition-colors hover:bg-muted/50 dark:border-white/[0.12]"
+                                                    >
+                                                        <Pencil className="size-4" />
+                                                    </Link>
+                                                    <button
                                                     type="button"
                                                     onClick={() => removeExpense(exp)}
                                                     disabled={deletingId === exp.id}
@@ -370,6 +459,7 @@ export function ExpensesView() {
                                                         <Trash2 className="size-4" />
                                                     )}
                                                 </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

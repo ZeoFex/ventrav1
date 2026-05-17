@@ -6,6 +6,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db";
 import { products, productTags, tags, categories, productVariations } from "../db/schema/products";
 import { redis } from "../lib/redis";
+import { sellableUnits } from "../stock/sellable-stock";
 
 // Key formats
 const CACHE_KEYS = {
@@ -92,6 +93,7 @@ export async function getProducts(businessId: string, branchId?: string | null) 
             barcode: products.barcode,
             priceGhs: products.priceGhs,
             stock: products.stock,
+            stockReserved: products.stockReserved,
             unit: products.unit,
             status: products.status,
             description: products.description,
@@ -125,20 +127,26 @@ export async function getProducts(businessId: string, branchId?: string | null) 
         return v;
     });
 
-    const rowsWithVariations = rows.map(row => ({
+    const rowsWithVariations = rows.map((row) => ({
         ...row,
+        stockAvailable: sellableUnits(Number(row.stock), Number(row.stockReserved ?? 0)),
         variations: finalVariations
-            .filter(v => v.productId === row.id)
-            .map(v => ({
+            .filter((v) => v.productId === row.id)
+            .map((v) => ({
                 id: v.id,
                 productId: v.productId,
                 name: v.name,
                 type: v.type,
                 priceGhs: v.priceGhs,
                 stock: v.stock,
+                stockReserved: v.stockReserved,
+                stockAvailable: sellableUnits(
+                    Number(v.stock),
+                    Number(v.stockReserved ?? 0),
+                ),
                 sku: v.sku,
                 barcode: v.barcode,
-            }))
+            })),
     }));
 
     await redis.setex(key, CACHE_TTL, JSON.stringify(rowsWithVariations));

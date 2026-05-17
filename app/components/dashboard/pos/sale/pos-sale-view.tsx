@@ -18,11 +18,12 @@ import type { CartLine } from "./pos-cart-totals";
 import { computePosTotals } from "./pos-cart-totals";
 import { PosCartPanel, PosMobileCartDock } from "./pos-cart-panel";
 import { PosCategoryBar } from "./pos-category-bar";
-import type { GhanaPaymentMethodId } from "./pos-payment-methods";
 import { getPaymentMethod } from "./pos-payment-methods";
+import type { PosPaymentCompletion } from "./pos-payment-completion";
 import { PosPaymentStep } from "./pos-payment-step";
 import {
   resolveBranchReceiptMeta,
+  buildCustomerOrderAdvancePaymentReceiptData,
   type PosReceiptData,
   type PosReceiptLine,
 } from "./pos-receipt-data";
@@ -34,6 +35,7 @@ import {
   usePosKeyboardWedge,
 } from "./use-pos-keyboard-wedge";
 import { PosProductCard } from "./pos-product-card";
+import { PosQuickAddProductModal } from "./pos-quick-add-product-modal";
 import { playPosAddProductBeep } from "./pos-add-beep";
 import {
   addHeldSale,
@@ -57,15 +59,28 @@ function newInvoiceId(): string {
   return `INV-${Date.now().toString(36).toUpperCase()}`;
 }
 
-function buildReceiptData(
+export type PosPaymentSnapshot = {
+  completion: PosPaymentCompletion;
+  _offline?: boolean;
+};
+
+function roundMoney2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function sellableForLine(p: ProductRow, variationId?: string): number {
+  if (variationId && p.variations?.length) {
+    const v = p.variations.find((x) => x.id === variationId);
+    if (v) return v.stockAvailable ?? v.stock;
+  }
+  return p.stockAvailable ?? p.stock;
+}
+
+export function buildReceiptData(
   lines: CartLine[],
   productById: Map<string, ProductRow>,
   totals: ReturnType<typeof computePosTotals>,
-  payment: {
-    methodId: GhanaPaymentMethodId;
-    amountTenderedGhs: number;
-    changeGhs: number;
-  },
+  snapshot: PosPaymentSnapshot,
   invoiceId: string,
   branchName: string,
   branchLocation?: string,
@@ -97,7 +112,49 @@ function buildReceiptData(
       lineTotalGhs: price * line.qty,
     };
   });
-  const m = getPaymentMethod(payment.methodId);
+  const total = roundMoney2(totals.total);
+  const comp = snapshot.completion;
+
+  let paymentMethodLabel: string;
+  /** Amount collected toward the invoice (not larger than total unless balance line shown). */
+  let amountTenderedGhs: number;
+  let changeGhs: number;
+  let paymentLines: PosReceiptData["paymentLines"];
+  let balanceDueGhs: number | undefined;
+
+  if (comp.kind === "single") {
+    const m = getPaymentMethod(comp.methodId);
+    paymentMethodLabel = m?.label ?? comp.methodId;
+    if (m?.usesTenderAndChange) {
+      amountTenderedGhs = comp.amountTenderedGhs;
+      changeGhs = comp.changeGhs;
+    } else {
+      amountTenderedGhs = total;
+      changeGhs = 0;
+    }
+  } else if (comp.kind === "multi") {
+    const paid = roundMoney2(comp.lines.reduce((s, l) => s + l.amountGhs, 0));
+    amountTenderedGhs = paid;
+    changeGhs = roundMoney2(Math.max(0, paid - total));
+    paymentLines = comp.lines.map((l) => ({
+      label: getPaymentMethod(l.methodId)?.shortLabel ?? l.methodId,
+      amountGhs: roundMoney2(l.amountGhs),
+    }));
+    const due = roundMoney2(total - paid);
+    if (due > 0.02) {
+      balanceDueGhs = due;
+      paymentMethodLabel =
+        comp.lines.length > 1 ? "Split + balance due" : "Deposit / account balance";
+    } else {
+      paymentMethodLabel =
+        comp.lines.length > 1 ? "Split payment" : (getPaymentMethod(comp.lines[0]!.methodId)?.label ?? "Payment");
+    }
+  } else {
+    paymentMethodLabel = "Reserved (no payment)";
+    amountTenderedGhs = 0;
+    changeGhs = 0;
+  }
+
   return {
     invoiceId,
     date: new Date(),
@@ -106,9 +163,11 @@ function buildReceiptData(
     tax: totals.tax,
     discount: totals.discount,
     total: totals.total,
-    paymentMethodLabel: m?.label ?? payment.methodId,
-    amountTenderedGhs: payment.amountTenderedGhs,
-    changeGhs: payment.changeGhs,
+    paymentMethodLabel,
+    amountTenderedGhs,
+    changeGhs,
+    paymentLines,
+    balanceDueGhs,
     customerName,
     storeName: businessName || STORE_NAME,
     branchName,
@@ -162,13 +221,14 @@ function PosSaleViewInner() {
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   /** Server sale UUID for `/receipt/verify/{id}` — unset for offline-queued checkouts. */
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
-  const [paymentSnapshot, setPaymentSnapshot] = useState<{
-    methodId: GhanaPaymentMethodId;
-    amountTenderedGhs: number;
-    changeGhs: number;
-  } | null>(null);
+  const [paymentSnapshot, setPaymentSnapshot] = useState<PosPaymentSnapshot | null>(null);
+  /** Receipt for customer-order advance payment (no regular sale invoice). */
+  const [customerOrderReceipt, setCustomerOrderReceipt] =
+    useState<PosReceiptData | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [paymentPurpose, setPaymentPurpose] = useState<"sale" | "customer_order">("sale");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [selectedVariationProduct, setSelectedVariationProduct] = useState<ProductRow | null>(null);
 
@@ -177,6 +237,11 @@ function PosSaleViewInner() {
   const { discounts = [] } = useDiscounts();
   const { config } = usePosConfig();
   const { branches = [] } = useBranches();
+
+  const canQuickAddProduct =
+    user?.role === "owner" ||
+    (user?.permissions?.length &&
+      user.permissions.includes("product-list"));
 
   const branchMeta = useMemo(
     () => resolveBranchReceiptMeta(branches, branchId),
@@ -273,6 +338,8 @@ function PosSaleViewInner() {
     user?.name,
   ]);
 
+  const activeReceipt = customerOrderReceipt ?? receiptData;
+
   const addToCart = useCallback((productId: string, variationId?: string) => {
     const p = productById.get(productId);
     if (!p) return;
@@ -284,14 +351,10 @@ function PosSaleViewInner() {
     }
 
     // Check availability (of specific variation if applicable)
-    let stock = p.stock;
-    if (variationId && p.variations) {
-      const v = p.variations.find(v => v.id === variationId);
-      if (v) stock = v.stock;
-    }
+    const sell = sellableForLine(p, variationId);
 
     const inCart = lines.find(l => l.productId === productId && l.variationId === variationId)?.qty || 0;
-    if (inCart >= stock) {
+    if (inCart >= sell) {
       alert(`Cannot add more. Stock limit reached.`);
       return;
     }
@@ -307,7 +370,7 @@ function PosSaleViewInner() {
       return [...prev, { productId, qty: 1, variationId }];
     });
     setSelectedVariationProduct(null);
-  }, [lines, productById]);
+  }, [lines, productById, setLines]);
 
   const isDesktopLayout = useIsDesktopLayout();
   const lastWedgeScanRef = useRef<{ raw: string; at: number } | null>(null);
@@ -341,7 +404,8 @@ function PosSaleViewInner() {
     setLines((prev) =>
       prev.map((l) => {
         if (l.productId === productId) {
-          if (l.qty >= p.stock) {
+          const sell = sellableForLine(p, l.variationId);
+          if (l.qty >= sell) {
             alert(`Cannot add more of ${p.name}. Stock limit reached.`);
             return l;
           }
@@ -350,7 +414,7 @@ function PosSaleViewInner() {
         return l;
       }),
     );
-  }, [productById]);
+  }, [productById, setLines]);
 
   const decrement = useCallback((productId: string) => {
     setLines((prev) =>
@@ -381,17 +445,39 @@ function PosSaleViewInner() {
 
   const goToPayment = useCallback(() => {
     if (lines.length === 0) return;
+    setPaymentPurpose("sale");
     setFlow("payment");
   }, [lines.length]);
 
+  const goToCustomerOrderPayment = useCallback(() => {
+    if (lines.length === 0) return;
+    if (!selectedCustomer) {
+      toast.error("Select a customer on the cart for pay-and-hold orders.");
+      return;
+    }
+    setPaymentPurpose("customer_order");
+    setFlow("payment");
+  }, [lines.length, selectedCustomer]);
+
   const handlePaymentComplete = useCallback(
-    async (payload: {
-      methodId: GhanaPaymentMethodId;
-      amountTenderedGhs: number;
-      changeGhs: number;
-    }) => {
+    async (completion: PosPaymentCompletion) => {
+      if (completion.kind === "reserve_only") return;
+      setCustomerOrderReceipt(null);
       setIsCheckingOut(true);
       const thisInvoiceId = newInvoiceId();
+
+      const paymentLines =
+        completion.kind === "single"
+          ? [
+                {
+                    paymentMethod: completion.methodId,
+                    amountGhs: roundMoney2(totals.total),
+                },
+            ]
+          : completion.lines.map((l) => ({
+                paymentMethod: l.methodId,
+                amountGhs: roundMoney2(l.amountGhs),
+            }));
 
       const checkoutPayload = {
         invoiceId: thisInvoiceId,
@@ -399,14 +485,16 @@ function PosSaleViewInner() {
         taxGhs: totals.tax,
         discountGhs: totals.discount,
         totalGhs: totals.total,
-        paymentMethod: payload.methodId,
-        customerId: selectedCustomer?.id,
+        paymentMethod:
+          paymentLines.length > 1 ? "split" : paymentLines[0]!.paymentMethod,
+        paymentLines,
+        customerId: selectedCustomer?.id ?? null,
         lines: lines.map((l) => {
           const p = productById.get(l.productId)!;
           let price = Number(p.priceGhs);
           let name = p.name;
           if (l.variationId && p.variations) {
-            const v = p.variations.find(varItem => varItem.id === l.variationId);
+            const v = p.variations.find((varItem) => varItem.id === l.variationId);
             if (v) {
               name = `${p.name} (${v.name})`;
               if (v.priceGhs) price = Number(v.priceGhs);
@@ -425,7 +513,6 @@ function PosSaleViewInner() {
 
       try {
         if (navigator.onLine) {
-          // Online: send to server immediately
           const res = await fetch("/api/pos/checkout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -434,22 +521,19 @@ function PosSaleViewInner() {
 
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-            throw new Error(data.error || "Checkout failed");
+            throw new Error(typeof data.error === "string" ? data.error : "Checkout failed");
           }
           setReceiptSaleId(typeof data.saleId === "string" ? data.saleId : null);
         } else {
           setReceiptSaleId(null);
-          // Offline: queue for later sync
           const { addToSyncQueue, updateCachedProductStock } = await import("@/app/lib/offline/offline-db");
           await addToSyncQueue({ type: "checkout", payload: checkoutPayload });
 
-          // Deduct stock locally in IndexedDB
           for (const l of lines) {
             await updateCachedProductStock(l.productId, l.qty).catch(() => {});
           }
         }
 
-        // Optimistic cache update (works for both online and offline)
         mutateProducts(
           (current: ProductRow[] | undefined) => {
             if (!current) return current;
@@ -463,7 +547,7 @@ function PosSaleViewInner() {
         );
 
         setInvoiceId(thisInvoiceId);
-        setPaymentSnapshot({ ...payload, _offline: !navigator.onLine } as any);
+        setPaymentSnapshot({ completion, _offline: !navigator.onLine });
         setFlow("receipt");
       } catch (err: any) {
         alert(`Error processing checkout: ${err.message}`);
@@ -471,7 +555,151 @@ function PosSaleViewInner() {
         setIsCheckingOut(false);
       }
     },
-    [lines, mutateProducts, productById, totals, selectedCustomer],
+    [lines, mutateProducts, productById, totals, selectedCustomer, setLines],
+  );
+
+  const handleCustomerOrderComplete = useCallback(
+    async (completion: PosPaymentCompletion) => {
+      if (!selectedCustomer) {
+        toast.error("Customer is required.");
+        return;
+      }
+      setIsCheckingOut(true);
+      try {
+        let paymentLinesPayload: { paymentMethod: string; amountGhs: number }[] = [];
+        if (completion.kind === "reserve_only") {
+          paymentLinesPayload = [];
+        } else if (completion.kind === "single") {
+          const method = getPaymentMethod(completion.methodId);
+          const usesCash = method?.usesTenderAndChange ?? false;
+          const amount = usesCash
+            ? roundMoney2(Math.min(completion.amountTenderedGhs, totals.total))
+            : roundMoney2(totals.total);
+          paymentLinesPayload = [{ paymentMethod: completion.methodId, amountGhs: amount }];
+        } else {
+          paymentLinesPayload = completion.lines.map((l) => ({
+            paymentMethod: l.methodId,
+            amountGhs: roundMoney2(l.amountGhs),
+          }));
+        }
+
+        const orderInvoiceId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        const res = await fetch("/api/customer-orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invoiceId: orderInvoiceId,
+            subtotalGhs: totals.subtotal,
+            taxGhs: totals.tax,
+            discountGhs: totals.discount,
+            totalGhs: totals.total,
+            customerId: selectedCustomer.id,
+            ...(paymentLinesPayload.length > 0 ? { paymentLines: paymentLinesPayload } : {}),
+            lines: lines.map((l) => {
+              const p = productById.get(l.productId)!;
+              let price = Number(p.priceGhs);
+              let name = p.name;
+              if (l.variationId && p.variations) {
+                const v = p.variations.find((varItem) => varItem.id === l.variationId);
+                if (v) {
+                  name = `${p.name} (${v.name})`;
+                  if (v.priceGhs) price = Number(v.priceGhs);
+                }
+              }
+              return {
+                productId: l.productId,
+                variationId: l.variationId,
+                quantity: l.qty,
+                productName: name,
+                unitPriceGhs: price,
+                lineTotalGhs: price * l.qty,
+              };
+            }),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(typeof data.error === "string" ? data.error : "Failed to create order");
+        }
+        toast.success(
+          `Customer order ${typeof data.invoiceId === "string" ? data.invoiceId : orderInvoiceId} saved.`,
+        );
+        if (
+          paymentLinesPayload.length > 0 &&
+          typeof data.invoiceId === "string"
+        ) {
+          const orderLinesForReceipt = lines.map((l) => {
+            const p = productById.get(l.productId)!;
+            let price = Number(p.priceGhs);
+            let name = p.name;
+            if (l.variationId && p.variations) {
+              const v = p.variations.find((varItem) => varItem.id === l.variationId);
+              if (v) {
+                name = `${p.name} (${v.name})`;
+                if (v.priceGhs) price = Number(v.priceGhs);
+              }
+            }
+            return {
+              productName: name,
+              quantity: l.qty,
+              lineTotalGhs: price * l.qty,
+            };
+          });
+          setCustomerOrderReceipt(
+            buildCustomerOrderAdvancePaymentReceiptData({
+              order: {
+                invoiceId: data.invoiceId,
+                subtotalGhs: totals.subtotal,
+                taxGhs: totals.tax,
+                discountGhs: totals.discount,
+                totalGhs:
+                  typeof data.totalGhs === "number" ? data.totalGhs : totals.total,
+              },
+              orderLines: orderLinesForReceipt,
+              paymentLines: paymentLinesPayload,
+              balanceDueGhs:
+                typeof data.balanceDueGhs === "number" ? data.balanceDueGhs : 0,
+              customerName: selectedCustomer.name,
+              storeName: config?.name?.trim() || STORE_NAME,
+              branchName: branchMeta.name,
+              branchLocation: branchMeta.location,
+              receiptHeader: config?.receiptHeader || undefined,
+              receiptFooter: config?.receiptFooter || undefined,
+              operatorName: user?.name || "SYSTEM",
+              currencySymbol: config?.currency || "GHS",
+            }),
+          );
+          setLines([]);
+          setSelectedCustomer(null);
+          setPaymentPurpose("sale");
+          setPaymentSnapshot(null);
+          setInvoiceId(null);
+          setReceiptSaleId(null);
+          setFlow("receipt");
+        } else {
+          setLines([]);
+          setSelectedCustomer(null);
+          setPaymentPurpose("sale");
+          setFlow("browse");
+        }
+        await mutateProducts();
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Order failed");
+      } finally {
+        setIsCheckingOut(false);
+      }
+    },
+    [
+      lines,
+      productById,
+      totals,
+      selectedCustomer,
+      mutateProducts,
+      setLines,
+      branchMeta,
+      config,
+      user?.name,
+    ],
   );
 
   const handleNewSale = useCallback(() => {
@@ -480,8 +708,10 @@ function PosSaleViewInner() {
     setPaymentSnapshot(null);
     setInvoiceId(null);
     setReceiptSaleId(null);
+    setCustomerOrderReceipt(null);
+    setPaymentPurpose("sale");
     setFlow("browse");
-  }, []);
+  }, [setLines]);
 
   const filteredProducts = useMemo(() => {
     let list = categories.length > 0 && categoryId !== "all"
@@ -532,15 +762,25 @@ function PosSaleViewInner() {
       {flow === "payment" ? (
         <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
           <PosPaymentStep
+            key={paymentPurpose}
             totalGhs={totals.total}
             isProcessing={isCheckingOut}
-            onBack={() => setFlow("browse")}
-            onComplete={handlePaymentComplete}
+            onBack={() => {
+              setPaymentPurpose("sale");
+              setFlow("browse");
+            }}
+            onComplete={
+              paymentPurpose === "customer_order"
+                ? handleCustomerOrderComplete
+                : handlePaymentComplete
+            }
+            allowCreditDeposit={Boolean(selectedCustomer)}
+            layawayMode={paymentPurpose === "customer_order"}
           />
         </div>
-      ) : flow === "receipt" && receiptData ? (
+      ) : flow === "receipt" && activeReceipt ? (
         <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
-          <PosReceiptStep receiptData={receiptData} onNewSale={handleNewSale} />
+          <PosReceiptStep receiptData={activeReceipt} onNewSale={handleNewSale} />
         </div>
       ) : (
         <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
@@ -570,6 +810,8 @@ function PosSaleViewInner() {
                 searchQuery={searchQuery}
                 onSearchQueryChange={setSearchQuery}
                 onOpenScan={() => setScanOpen(true)}
+                showQuickAddProduct={Boolean(canQuickAddProduct)}
+                onQuickAddProduct={() => setQuickAddOpen(true)}
               />
               {isProductsLoading ? (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-4 xl:gap-5">
@@ -584,8 +826,10 @@ function PosSaleViewInner() {
               ) : (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-4 xl:gap-5">
                   {filteredProducts.map((p: ProductRow) => {
-                    const inCart = lines.find(l => l.productId === p.id)?.qty || 0;
-                    const available = p.stock - inCart;
+                    const inCart = lines
+                      .filter((l) => l.productId === p.id && !l.variationId)
+                      .reduce((s, l) => s + l.qty, 0);
+                    const available = sellableForLine(p) - inCart;
                     return (
                       <PosProductCard
                         key={p.id}
@@ -608,6 +852,7 @@ function PosSaleViewInner() {
               onRemove={remove}
               onReset={resetCart}
               onContinue={goToPayment}
+              onCustomerOrder={goToCustomerOrderPayment}
               onHoldSale={handleHoldSale}
               discounts={discounts}
               appliedDiscount={appliedDiscount}
@@ -623,6 +868,7 @@ function PosSaleViewInner() {
               onRemove={remove}
               onReset={resetCart}
               onContinue={goToPayment}
+              onCustomerOrder={goToCustomerOrderPayment}
               onHoldSale={handleHoldSale}
               discounts={discounts}
               appliedDiscount={appliedDiscount}
@@ -635,6 +881,11 @@ function PosSaleViewInner() {
         product={selectedVariationProduct}
         onClose={() => setSelectedVariationProduct(null)}
         onSelect={(pId, vId) => addToCart(pId, vId)}
+      />
+      <PosQuickAddProductModal
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        categories={categories}
       />
     </>
   );
@@ -662,7 +913,8 @@ function PosVariationModal({
 
         <div className="grid grid-cols-1 gap-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
           {product.variations?.map((v) => {
-            const isOutOfStock = v.stock <= 0;
+            const sell = v.stockAvailable ?? v.stock;
+            const isOutOfStock = sell <= 0;
             return (
               <button
                 key={v.id}
@@ -677,7 +929,7 @@ function PosVariationModal({
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{v.type}</span>
                   <h3 className="text-[15px] font-semibold">{v.name}</h3>
-                  <p className="text-[12px] text-muted-foreground">{v.stock} in stock</p>
+                  <p className="text-[12px] text-muted-foreground">{sell} available</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-[#006c49] dark:text-[#6ffbbe]">

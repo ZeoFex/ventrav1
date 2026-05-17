@@ -9,22 +9,29 @@ import { PosSaleReceiptThermal } from "./pos-sale-receipt";
 export function PosReceiptStep({
   receiptData,
   onNewSale,
+  title = "Payment complete",
+  description = "Print or save your receipt.",
+  primaryActionLabel = "New sale",
+  onPrimaryAction,
 }: {
   receiptData: PosReceiptData;
   onNewSale: () => void;
+  title?: string;
+  description?: string;
+  primaryActionLabel?: string;
+  onPrimaryAction?: () => void;
 }) {
   const plain = buildReceiptPlainText(receiptData);
   const safeName = receiptData.invoiceId.replace(/[^\w-]+/g, "_");
+  const handlePrimary = onPrimaryAction ?? onNewSale;
 
   return (
     <div className="mx-auto max-w-4xl px-3 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8">
       <div className="mb-8 text-center sm:text-left">
         <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground sm:text-2xl">
-          Payment complete
+          {title}
         </h2>
-        <p className="mt-1 text-[14px] text-muted-foreground">
-          Print or save your receipt.
-        </p>
+        <p className="mt-1 text-[14px] text-muted-foreground">{description}</p>
       </div>
 
       <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-center">
@@ -53,11 +60,11 @@ export function PosReceiptStep({
           </button>
           <button
             type="button"
-            onClick={onNewSale}
+            onClick={handlePrimary}
             className="tap-target inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 text-[14px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,53,39,0.4)] transition-[filter] hover:brightness-105 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.5)]"
           >
             <ShoppingCart className="size-[18px]" strokeWidth={1.75} />
-            New sale
+            {primaryActionLabel}
           </button>
         </div>
       </div>

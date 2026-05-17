@@ -1,4 +1,4 @@
-import { eq, sql, and, gte, lte, desc, inArray } from "drizzle-orm";
+import { eq, sql, and, gte, lte, desc, inArray, or, ilike } from "drizzle-orm";
 import { db } from "../db";
 import { sales, REVENUE_SALE_STATUSES } from "../db/schema/sales";
 import { expenses } from "../db/schema/expenses";
@@ -154,33 +154,95 @@ export async function getFinanceOverview(businessId: string, branchId?: string |
     return overview;
 }
 
-export async function getExpensesList(businessId: string, branchId?: string | null) {
+export type ExpenseListFilters = {
+    from?: Date;
+    to?: Date;
+    category?: string;
+    vendor?: string;
+    search?: string;
+};
+
+function buildExpenseConditions(
+    businessId: string,
+    branchId?: string | null,
+    filters?: ExpenseListFilters,
+) {
+    return and(
+        eq(expenses.businessId, businessId),
+        expenseBranchFilter(branchId),
+        filters?.from ? gte(expenses.date, filters.from) : undefined,
+        filters?.to ? lte(expenses.date, filters.to) : undefined,
+        filters?.category ? eq(expenses.category, filters.category) : undefined,
+        filters?.vendor?.trim()
+            ? ilike(expenses.vendor, `%${filters.vendor.trim()}%`)
+            : undefined,
+        filters?.search?.trim()
+            ? or(
+                  ilike(expenses.description, `%${filters.search.trim()}%`),
+                  ilike(expenses.category, `%${filters.search.trim()}%`),
+                  ilike(expenses.vendor, `%${filters.search.trim()}%`),
+              )!
+            : undefined,
+    );
+}
+
+export async function getExpensesList(
+    businessId: string,
+    branchId?: string | null,
+    filters?: ExpenseListFilters,
+) {
+    const useCache = !filters || Object.keys(filters).length === 0;
     const cacheKey = CACHE_KEYS.EXPENSES_LIST(businessId, branchId);
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-        try { return JSON.parse(cached); } catch { /* fall through */ }
+    if (useCache) {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch {
+                /* fall through */
+            }
+        }
     }
 
-    const list = await db.select()
+    const list = await db
+        .select()
         .from(expenses)
-        .where(and(eq(expenses.businessId, businessId), expenseBranchFilter(branchId)))
+        .where(buildExpenseConditions(businessId, branchId, filters))
         .orderBy(desc(expenses.date), desc(expenses.createdAt))
-        .limit(100);
+        .limit(200);
 
-    const formattedList = list.map(e => ({
+    const formattedList = list.map((e) => ({
         id: e.id,
         date: e.date.toISOString(),
         description: e.description,
         category: e.category,
         amount: Number(e.amountGhs),
         status: e.status,
+        paymentMethod: e.paymentMethod ?? null,
+        vendor: e.vendor ?? null,
+        receiptUrl: e.receiptUrl ?? null,
     }));
 
-    await redis.setex(cacheKey, 30, JSON.stringify(formattedList));
+    if (useCache) {
+        await redis.setex(cacheKey, 30, JSON.stringify(formattedList));
+    }
     return formattedList;
 }
 
-export async function createExpense(businessId: string, data: { date: Date, description: string, category: string, amountGhs: number, status: "Paid" | "Pending" }, branchId?: string | null) {
+export async function createExpense(
+    businessId: string,
+    data: {
+        date: Date;
+        description: string;
+        category: string;
+        amountGhs: number;
+        status: "Paid" | "Pending";
+        paymentMethod?: string | null;
+        vendor?: string | null;
+        receiptUrl?: string | null;
+    },
+    branchId?: string | null,
+) {
     const [expense] = await db
         .insert(expenses)
         .values({
@@ -191,6 +253,9 @@ export async function createExpense(businessId: string, data: { date: Date, desc
             category: data.category,
             amountGhs: String(data.amountGhs),
             status: data.status,
+            paymentMethod: data.paymentMethod?.trim() || null,
+            vendor: data.vendor?.trim() || null,
+            receiptUrl: data.receiptUrl?.trim() || null,
         })
         .returning();
 
@@ -204,6 +269,68 @@ export async function createExpense(businessId: string, data: { date: Date, desc
 
     return expense;
 }
+export async function getExpenseById(businessId: string, id: string) {
+    const [e] = await db
+        .select()
+        .from(expenses)
+        .where(and(eq(expenses.id, id), eq(expenses.businessId, businessId)))
+        .limit(1);
+    if (!e) return null;
+    return {
+        id: e.id,
+        date: e.date.toISOString(),
+        description: e.description,
+        category: e.category,
+        amount: Number(e.amountGhs),
+        status: e.status,
+        paymentMethod: e.paymentMethod ?? null,
+        vendor: e.vendor ?? null,
+        receiptUrl: e.receiptUrl ?? null,
+    };
+}
+
+export async function updateExpense(
+    businessId: string,
+    id: string,
+    data: {
+        date: Date;
+        description: string;
+        category: string;
+        amountGhs: number;
+        status: "Paid" | "Pending";
+        paymentMethod?: string | null;
+        vendor?: string | null;
+        receiptUrl?: string | null;
+    },
+) {
+    const [expense] = await db
+        .update(expenses)
+        .set({
+            date: data.date,
+            description: data.description.trim(),
+            category: data.category.trim(),
+            amountGhs: String(data.amountGhs),
+            status: data.status,
+            paymentMethod: data.paymentMethod?.trim() || null,
+            vendor: data.vendor?.trim() || null,
+            receiptUrl: data.receiptUrl?.trim() || null,
+            updatedAt: new Date(),
+        })
+        .where(and(eq(expenses.id, id), eq(expenses.businessId, businessId)))
+        .returning();
+
+    if (!expense) return null;
+
+    await Promise.all([
+        redis.del(CACHE_KEYS.FINANCE_OVERVIEW(businessId, expense.branchId)),
+        redis.del(CACHE_KEYS.EXPENSES_LIST(businessId, expense.branchId)),
+        redis.del(CACHE_KEYS.FINANCE_OVERVIEW(businessId)),
+        redis.del(CACHE_KEYS.EXPENSES_LIST(businessId)),
+    ]);
+
+    return expense;
+}
+
 export async function updateExpenseStatus(businessId: string, id: string, status: "Paid" | "Pending") {
     const [expense] = await db
         .update(expenses)

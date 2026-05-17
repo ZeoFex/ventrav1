@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
-  useEffect,
   useRef,
   useMemo,
   useState,
@@ -32,6 +31,8 @@ export type ProductFormInitialValues = {
   sku: string;
   description: string;
   price: number | "";
+  /** Cost per unit (GHS); optional — used for COGS / P&L. */
+  costPrice?: number | "" | null;
   stock: number;
   reorderAt: number | "";
   categoryId: string;
@@ -69,6 +70,11 @@ export function ProductForm({
   const [sku, setSku] = useState(initial.sku);
   const [description, setDescription] = useState(initial.description);
   const [price, setPrice] = useState<number | "">(initial.price);
+  const [costPrice, setCostPrice] = useState<number | "">(
+    initial.costPrice === undefined || initial.costPrice === null || initial.costPrice === ""
+      ? ""
+      : Number(initial.costPrice),
+  );
   const [stock, setStock] = useState<number | "">(
     initial.stock === 0 ? "" : initial.stock,
   );
@@ -102,7 +108,8 @@ export function ProductForm({
   const suggestedTypes = useMemo(() => {
     const bType = user?.businessType || "retail";
     if (bType === "boutique") return ["Size", "Color"];
-    if (bType === "restaurant") return ["Extras", "Size", "Options"];
+    if (bType === "agro_chemicals")
+      return ["Pack size", "Volume / weight", "Concentration"];
     if (bType === "pharmacy") return ["Dosage", "Pack Size"];
     if (bType === "electronics") return ["Storage", "Color", "Model"];
     if (bType === "cold_store") return ["Cut", "Weight", "Pack Size"];
@@ -226,11 +233,21 @@ export function ProductForm({
 
     const stockNum = stock === "" ? 0 : Math.max(0, Math.round(Number(stock)));
     const cleanUnit = unit && unit.length > 0 ? unit : DEFAULT_PRODUCT_UNIT;
+    if (costPrice !== "" && Number(costPrice) < 0) {
+      alert("Cost price cannot be negative.");
+      setIsSaving(false);
+      return;
+    }
+    const costStr =
+      costPrice === "" || costPrice === undefined
+        ? null
+        : String(Math.max(0, Number(costPrice)));
     const productData = {
       name,
       sku,
       description,
       priceGhs: price.toString(),
+      costPriceGhs: costStr,
       stock: stockNum,
       reorderAt: Number(reorderAt) || 0,
       unit: cleanUnit,
@@ -386,7 +403,7 @@ export function ProductForm({
         </section>
 
         <section className="space-y-4 border-t pt-8 dark:border-white/5">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Price (GHS) *</label>
               <div className="relative">
@@ -398,6 +415,26 @@ export function ProductForm({
                   </span>
                 )}
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Cost price (GHS)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₵</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={costPrice}
+                  onChange={(e) =>
+                    setCostPrice(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                  className="w-full p-3 pl-8 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                  placeholder="Optional — for COGS"
+                />
+              </div>
+              <p className="ml-1 text-[11px] text-muted-foreground">
+                Per {unitMeta?.short ?? "unit"}. Leaving blank treats cost as zero in reports.
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">
@@ -430,7 +467,7 @@ export function ProductForm({
                 </p>
               )}
             </div>
-            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+            <div className="space-y-2 sm:col-span-2 xl:col-span-1">
               <label className="text-sm font-semibold ml-1">
                 Unit of Measure
               </label>

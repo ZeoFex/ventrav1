@@ -57,7 +57,35 @@ export function SidebarNav({
         ...item,
         children: item.children?.filter((child) => {
           if (user && user.role !== "owner" && user.permissions.length > 0) {
-            return user.permissions.includes(child.id);
+            if (user.permissions.includes(child.id)) return true;
+            if (
+              child.id === "suppliers-list" &&
+              user.permissions.includes("customer-list")
+            ) {
+              return true;
+            }
+            if (
+              child.id === "supplier-add" &&
+              user.permissions.includes("suppliers-list")
+            ) {
+              return true;
+            }
+            if (
+              child.id === "finance-expense-reports" &&
+              user.permissions.includes("finance-expenses")
+            ) {
+              return true;
+            }
+            if (
+              child.id === "finance-reminders" &&
+              user.permissions.includes("finance-expenses")
+            ) {
+              return true;
+            }
+            if (child.id === "stock-take" && user.permissions.includes("stock")) {
+              return true;
+            }
+            return false;
           }
           return true;
         }),

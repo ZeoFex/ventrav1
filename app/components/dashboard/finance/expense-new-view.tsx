@@ -9,8 +9,11 @@ function buildInitial(): ExpenseFormInitialValues {
         amount: "",
         category: "",
         status: "Paid",
-        date: new Date().toISOString().split("T")[0],
+        date: new Date().toISOString().split("T")[0]!,
         receiptSrc: null,
+        vendor: "",
+        paymentMethod: "cash",
+        receiptUrl: null,
     };
 }
 
