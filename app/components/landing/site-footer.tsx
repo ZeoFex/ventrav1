@@ -180,10 +180,11 @@ export function SiteFooter() {
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <span>VentraPOS was built by</span>
                         <a
-                            href="#"
+                            href="https://zeofex.com/"
                             className="font-bold text-foreground transition-colors hover:text-[#006c49] dark:hover:text-[#6ffbbe]"
+                            target="_blank"
                         >
-                            Let's Code
+                            ZoeFex
                         </a>
                     </div>
                 </motion.div>

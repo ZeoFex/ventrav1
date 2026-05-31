@@ -1,6 +1,6 @@
 import { SiteHeader } from "@/app/components/landing/site-header";
 import { SiteFooter } from "@/app/components/landing/site-footer";
-import { Globe, SmartphoneNfc, PieChart, Users } from "lucide-react";
+import { Store, ScanLine, BarChart3, ShieldCheck } from "lucide-react";
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,110 +8,218 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "About Us",
-  description: "Learn about LetsCode, the team behind VentraPOS. We build innovative technology solutions to help businesses transform and grow.",
+  description:
+    "Learn about VentraPOS, the cloud POS and business management platform built for retailers, pharmacies, restaurants, and growing SMEs.",
 };
 
-const aboutSections = [
+type AboutSectionImage =
+  | { type: "single"; src: string; alt: string }
+  | { type: "theme"; light: string; dark: string; alt: string };
+
+const aboutSections: {
+  title: string;
+  description: string;
+  icon: typeof Store;
+  image: AboutSectionImage;
+}[] = [
   {
     title: "Who We Are",
     description:
-      "LetsCode is a technology solutions company dedicated to building innovative and scalable digital products for businesses and organizations. Our mission is to help clients transform their ideas into powerful technological solutions that solve real-world problems and improve efficiency.",
-    icon: Globe,
-    image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=1200&auto=format&fit=crop",
+      "VentraPOS is a cloud POS and business management platform for supermarkets, mini marts, pharmacies, restaurants, boutiques, and other retailers. We help businesses move from manual notebooks and scattered spreadsheets to one modern system they can trust every day.",
+    icon: Store,
+    image: {
+      type: "single",
+      src: "/landing/ventra.jpg",
+      alt: "VentraPOS dashboard preview",
+    },
   },
   {
     title: "What We Do",
     description:
-      "We specialize in web and mobile application development, intelligent data-driven systems powered by AI and Machine Learning, and reliable software solutions tailored to meet the specific needs of our clients.",
-    icon: SmartphoneNfc,
-    image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=1200&auto=format&fit=crop",
+      "From checkout and receipts to inventory, staff permissions, customer records, expenses, and reporting, VentraPOS brings daily operations into one place. Sign up, set up your store, add products and staff, and start selling without building custom software from scratch.",
+    icon: ScanLine,
+    image: {
+      type: "theme",
+      light: "/landing/order-light.png",
+      dark: "/landing/order-pos.png",
+      alt: "VentraPOS order management preview",
+    },
   },
   {
-    title: "Our Innovations",
+    title: "Built for Real Operations",
     description:
-      "In addition to delivering customized solutions, LetsCode is developing innovative digital products that create impact across industries. Optimedix and Orin, developed by our co-founder, reflect our commitment to innovation and technological advancement.",
-    icon: PieChart,
-    image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=1200&auto=format&fit=crop",
+      "VentraPOS supports many businesses on one platform with clear roles per branch. Owners, managers, cashiers, and stock officers each see what they need. Live dashboards, low stock alerts, and finance visibility turn sales and stock into insight your team can act on.",
+    icon: BarChart3,
+    image: {
+      type: "theme",
+      light: "/landing/analytics-light.png",
+      dark: "/landing/analytics-dark.png",
+      alt: "VentraPOS sales analytics preview",
+    },
   },
   {
     title: "Our Philosophy",
     description:
-      "At LetsCode, we believe technology should empower businesses and communities. Through collaboration, creativity, and technical excellence, we deliver solutions that help organizations grow, operate smarter, and stay competitive in a rapidly evolving digital world.",
-    icon: Users,
-    image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=1200&auto=format&fit=crop",
+      "We believe business software should be fast, clear, and reliable, not a toy checkout app. VentraPOS is built for operators who are not developers. It works well on mobile, keeps an audit trail, and protects your data so you can run smarter operations as you grow.",
+    icon: ShieldCheck,
+    image: {
+      type: "theme",
+      light: "/landing/security-light.png",
+      dark: "/landing/security-dark.png",
+      alt: "VentraPOS security and trust",
+    },
   },
 ];
+
+function SectionImage({
+  image,
+  priority = false,
+}: {
+  image: AboutSectionImage;
+  priority?: boolean;
+}) {
+  const imageClass =
+    "object-contain p-3 sm:p-5 lg:p-6 transition-transform duration-500 lg:hover:scale-[1.02]";
+
+  if (image.type === "single") {
+    return (
+      <Image
+        src={image.src}
+        alt={image.alt}
+        fill
+        className={imageClass}
+        sizes="(max-width: 1024px) 100vw, 50vw"
+        priority={priority}
+      />
+    );
+  }
+
+  return (
+    <>
+      <Image
+        src={image.light}
+        alt={image.alt}
+        fill
+        className={`${imageClass} block dark:hidden`}
+        sizes="(max-width: 1024px) 100vw, 50vw"
+      />
+      <Image
+        src={image.dark}
+        alt={image.alt}
+        fill
+        className={`${imageClass} hidden dark:block`}
+        sizes="(max-width: 1024px) 100vw, 50vw"
+      />
+    </>
+  );
+}
+
+function SectionCopy({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof Store;
+  title: string;
+  description: string;
+}) {
+  return (
+    <>
+      <div className="mb-3.5 flex items-center gap-3 sm:mb-4 sm:gap-3.5 lg:mb-5 lg:gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-[#6ffbbe] sm:h-11 sm:w-11 lg:h-14 lg:w-14 lg:rounded-2xl">
+          <Icon className="h-5 w-5 lg:h-7 lg:w-7" aria-hidden />
+        </div>
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold leading-tight text-white sm:text-xl lg:text-2xl">
+          {title}
+        </h2>
+      </div>
+      <p className="text-[14px] leading-[1.65] text-white/90 sm:text-[15px] lg:text-base lg:leading-relaxed">
+        {description}
+      </p>
+    </>
+  );
+}
 
 export default function AboutPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-32 pb-20 lg:pt-40 lg:pb-32 border-b border-border/40">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#006c49_0%,transparent_40%)] opacity-[0.05] dark:opacity-20" />
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <div className="mb-6 inline-flex rounded-full border border-[#006c49]/20 bg-[#003527]/30 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#6ffbbe]">
-            About LetsCode
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-border/40 pt-24 pb-12 sm:pt-28 sm:pb-16 md:pt-32 md:pb-20 lg:pt-40 lg:pb-28">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#006c49_0%,transparent_40%)] opacity-[0.06] dark:opacity-20" />
+        <div className="relative z-10 mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#006c49]/25 bg-[#003527]/10 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#006c49] dark:border-[#006c49]/20 dark:bg-[#003527]/30 dark:text-[#6ffbbe] sm:mb-6 sm:px-4 sm:py-1.5 sm:text-xs">
+            <span className="size-1.5 shrink-0 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" aria-hidden />
+            About VentraPOS
           </div>
-          <h1 className="mb-8 font-[family-name:var(--font-display)] text-5xl font-extrabold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-            Building Technology, Driving Innovation
+          <h1 className="mx-auto mb-4 max-w-[16ch] font-[family-name:var(--font-display)] text-[clamp(1.75rem,7vw,3.5rem)] font-semibold leading-[1.12] tracking-tight text-foreground sm:mb-6 sm:max-w-none lg:text-7xl lg:font-extrabold">
+            Your Business Operating System
           </h1>
-          <p className="mx-auto max-w-2xl text-xl leading-relaxed text-muted-foreground">
-            LetsCode helps businesses transform ideas into scalable digital solutions, empowering growth and efficiency.
+          <p className="mx-auto max-w-xl text-[15px] leading-relaxed text-muted-foreground sm:max-w-2xl sm:text-lg md:text-xl">
+            VentraPOS helps retailers and growing SMEs run sales, inventory, staff, and finances from
+            one cloud platform built for Ghana and similar markets.
           </p>
         </div>
       </section>
 
-      {/* About Sections with Zig-Zag Layout */}
-      <section className="py-24 bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-20">
+      {/* Content sections */}
+      <section className="bg-background py-12 sm:py-16 lg:py-24">
+        <div className="mx-auto max-w-7xl space-y-10 px-4 sm:space-y-14 sm:px-6 lg:space-y-20 lg:px-8">
           {aboutSections.map((section, idx) => {
             const Icon = section.icon;
-            const isEven = idx % 2 !== 0; // alternate layout
-            return (
-              <div
-                key={idx}
-                className={`grid gap-10 lg:grid-cols-2 items-center ${
-                  isEven ? "lg:flex-row-reverse" : ""
-                }`}
-              >
-                {/* Image */}
-                <div className="relative w-full h-80 lg:h-[360px] rounded-3xl overflow-hidden shadow-lg">
-                  <Image
-                    src={section.image}
-                    alt={section.title}
-                    fill
-                    className="object-cover transition-transform hover:scale-105 duration-500"
-                  />
-                </div>
+            const isEven = idx % 2 !== 0;
 
-                {/* Text Card */}
-                <div className="rounded-[2.5rem] bg-gradient-to-b from-[#003527]/30 to-[#006c49]/20 p-10 ring-1 ring-[#006c49]/30 shadow-sm transition-transform hover:-translate-y-2 hover:shadow-lg">
-                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#006c49]/10 text-[#6ffbbe] transition-colors hover:bg-[#6ffbbe] hover:text-[#002118]">
-                    <Icon className="h-7 w-7" />
+            return (
+              <article
+                key={section.title}
+                className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-12"
+              >
+                {/* Combined card on mobile; splits into two columns at lg */}
+                <div className="flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#003527] to-[#006c49] shadow-[0_20px_50px_-16px_rgba(0,53,39,0.4)] ring-1 ring-[#006c49]/35 sm:rounded-3xl lg:contents lg:overflow-visible lg:rounded-none lg:bg-transparent lg:shadow-none lg:ring-0">
+                  <div
+                    className={`relative aspect-[16/10] w-full shrink-0 bg-[#f0faf6] dark:bg-[#0a1f18] lg:aspect-auto lg:h-[360px] lg:overflow-hidden lg:rounded-3xl lg:shadow-[0_12px_40px_-16px_rgba(0,108,73,0.25)] lg:ring-1 lg:ring-[#006c49]/20 dark:lg:bg-surface-elevated dark:lg:ring-border/40 ${
+                      isEven ? "lg:order-2" : "lg:order-1"
+                    }`}
+                  >
+                    <SectionImage image={section.image} priority={idx === 0} />
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#003527]/50 to-transparent lg:hidden"
+                    />
                   </div>
-                  <h2 className="text-2xl font-bold mb-4 font-[family-name:var(--font-display)] text-foreground">{section.title}</h2>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{section.description}</p>
+
+                  <div
+                    className={`border-t border-white/10 px-5 py-5 sm:px-6 sm:py-6 lg:border-0 lg:rounded-[2.5rem] lg:bg-gradient-to-br lg:from-[#003527] lg:to-[#006c49] lg:p-10 lg:shadow-[0_16px_40px_-12px_rgba(0,53,39,0.35)] lg:ring-1 lg:ring-[#006c49]/40 lg:transition-transform lg:hover:-translate-y-1 lg:hover:shadow-[0_28px_56px_-12px_rgba(0,53,39,0.28)] ${
+                      isEven ? "lg:order-1" : "lg:order-2"
+                    }`}
+                  >
+                    <SectionCopy
+                      icon={Icon}
+                      title={section.title}
+                      description={section.description}
+                    />
+                  </div>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24 bg-[#003527] text-white text-center">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="mb-6 text-4xl font-[family-name:var(--font-display)] font-semibold">
-            Ready to Innovate With Us?
+      {/* CTA */}
+      <section className="bg-[#003527] px-4 py-14 text-center text-white sm:px-6 sm:py-20 lg:py-24">
+        <div className="mx-auto max-w-2xl lg:max-w-3xl">
+          <h2 className="mb-4 font-[family-name:var(--font-display)] text-[clamp(1.5rem,5.5vw,2.25rem)] font-semibold leading-tight sm:mb-6 lg:text-4xl">
+            Ready to run your business on VentraPOS?
           </h2>
-          <p className="mb-8 text-lg max-w-2xl mx-auto">
-            LetsCode is always looking for collaboration, innovation, and visionary ideas. Let’s build the future together.
+          <p className="mb-8 text-[15px] leading-relaxed text-white/85 sm:text-lg">
+            Whether you are opening your first branch or scaling across locations, we would love to
+            hear from you. Book a demo or get in touch with our team.
           </p>
           <Link
             href="/contact"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-gradient-to-br from-[#006c49] to-[#003527] px-8 text-[15px] font-medium text-white shadow-[0_24px_48px_-12px_rgba(0,53,39,0.18)] transition-[filter] hover:brightness-110"
+            className="inline-flex h-12 w-full max-w-sm items-center justify-center rounded-full bg-gradient-to-br from-[#006c49] to-[#004d38] px-8 text-[15px] font-medium text-white shadow-[0_20px_40px_-12px_rgba(0,0,0,0.35)] transition-[filter] hover:brightness-110 sm:mx-auto sm:w-auto sm:min-w-[200px]"
           >
             Contact Us
           </Link>
