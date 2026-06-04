@@ -183,8 +183,9 @@ export function SiteFooter() {
                             href="https://zeofex.com/"
                             className="font-bold text-foreground transition-colors hover:text-[#006c49] dark:hover:text-[#6ffbbe]"
                             target="_blank"
+                            rel="noopener noreferrer"
                         >
-                            ZoeFex
+                            ZeoFex
                         </a>
                     </div>
                 </motion.div>

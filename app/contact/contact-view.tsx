@@ -71,7 +71,7 @@ export function ContactView() {
           </h1>
 
           <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-            Reach out to LetsCode for services, support, or collaborations.
+            Reach out to ZeoFex for services, support, or collaborations.
             We respond with precision and clarity.
           </p>
         </div>
@@ -114,7 +114,7 @@ export function ContactView() {
                   <div>
                     <p className="font-medium">Email</p>
                     <p className="text-sm text-muted-foreground">
-                      letsCode6996@gmail.com
+                      zeofex.tech@gmail.com
                     </p>
                   </div>
                 </div>
@@ -126,7 +126,7 @@ export function ContactView() {
                   <div>
                     <p className="font-medium">Phone</p>
                     <p className="text-sm text-muted-foreground">
-                      +233 (242)-975-(483)
+                      +233 242 975 483
                     </p>
                   </div>
                 </div>
