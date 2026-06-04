@@ -62,8 +62,8 @@ export const PLANS: Plan[] = [
     name: "Pro",
     description: "A more advanced operating system with stronger governance and insight.",
     bestFor: "Serious supermarkets, multi-branch groups, busy pharmacies.",
-    priceMonthly: 399,
-    priceAnnually: 3990,
+    priceMonthly: 349,
+    priceAnnually: 3490,
     highlighted: false,
     features: [
       "Everything in Growth, plus:",
