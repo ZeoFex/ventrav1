@@ -9,7 +9,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "About Us",
   description:
-    "Learn about VentraPOS, the cloud POS and business management platform built for retailers, pharmacies, restaurants, and growing SMEs.",
+    "Learn about ZeoFex, the team behind VentraPOS. We build cloud POS and business software for retailers, pharmacies, restaurants, and growing SMEs.",
 };
 
 type AboutSectionImage =
@@ -25,48 +25,48 @@ const aboutSections: {
   {
     title: "Who We Are",
     description:
-      "VentraPOS is a cloud POS and business management platform for supermarkets, mini marts, pharmacies, restaurants, boutiques, and other retailers. We help businesses move from manual notebooks and scattered spreadsheets to one modern system they can trust every day.",
+      "ZeoFex is a technology solutions company dedicated to building innovative and scalable digital products for businesses. We created VentraPOS — a cloud POS and business management platform — so retailers can move from manual notebooks and scattered spreadsheets to one modern system they can trust every day.",
     icon: Store,
     image: {
       type: "single",
-      src: "/landing/ventra.jpg",
-      alt: "VentraPOS dashboard preview",
+      src: "/hero-dashboard.png",
+      alt: "VentraPOS product dashboard by ZeoFex",
     },
   },
   {
     title: "What We Do",
     description:
-      "From checkout and receipts to inventory, staff permissions, customer records, expenses, and reporting, VentraPOS brings daily operations into one place. Sign up, set up your store, add products and staff, and start selling without building custom software from scratch.",
+      "ZeoFex specializes in web and mobile application development, data-driven systems, and reliable software tailored to client needs. With VentraPOS, we bring checkout, inventory, staff permissions, customer records, expenses, and reporting into one place so shops can start selling without building custom software from scratch.",
     icon: ScanLine,
     image: {
       type: "theme",
-      light: "/landing/order-light.png",
-      dark: "/landing/order-pos.png",
-      alt: "VentraPOS order management preview",
+      light: "/onboarding/store-setup-light.png",
+      dark: "/onboarding/store-setup-dark.png",
+      alt: "VentraPOS store setup by ZeoFex",
     },
   },
   {
     title: "Built for Real Operations",
     description:
-      "VentraPOS supports many businesses on one platform with clear roles per branch. Owners, managers, cashiers, and stock officers each see what they need. Live dashboards, low stock alerts, and finance visibility turn sales and stock into insight your team can act on.",
+      "Through VentraPOS, ZeoFex supports many businesses on one platform with clear roles per branch. Owners, managers, cashiers, and stock officers each see what they need. Live dashboards, low stock alerts, and finance visibility turn sales and stock into insight your team can act on.",
     icon: BarChart3,
     image: {
       type: "theme",
-      light: "/landing/analytics-light.png",
-      dark: "/landing/analytics-dark.png",
-      alt: "VentraPOS sales analytics preview",
+      light: "/landing/security-light.png",
+      dark: "/landing/security-dark.png",
+      alt: "VentraPOS security and compliance",
     },
   },
   {
     title: "Our Philosophy",
     description:
-      "We believe business software should be fast, clear, and reliable, not a toy checkout app. VentraPOS is built for operators who are not developers. It works well on mobile, keeps an audit trail, and protects your data so you can run smarter operations as you grow.",
+      "At ZeoFex, we believe technology should empower businesses and communities. VentraPOS is built to be fast, clear, and reliable — for operators who are not developers. It works well on mobile, keeps an audit trail, and protects your data so you can run smarter operations as you grow.",
     icon: ShieldCheck,
     image: {
       type: "theme",
-      light: "/landing/security-light.png",
-      dark: "/landing/security-dark.png",
-      alt: "VentraPOS security and trust",
+      light: "/landing/analytics-light.png",
+      dark: "/landing/analytics-dark.png",
+      alt: "VentraPOS analytics and reporting",
     },
   },
 ];
@@ -151,14 +151,14 @@ export default function AboutPage() {
         <div className="relative z-10 mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#006c49]/25 bg-[#003527]/10 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#006c49] dark:border-[#006c49]/20 dark:bg-[#003527]/30 dark:text-[#6ffbbe] sm:mb-6 sm:px-4 sm:py-1.5 sm:text-xs">
             <span className="size-1.5 shrink-0 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" aria-hidden />
-            About VentraPOS
+            About ZeoFex
           </div>
-          <h1 className="mx-auto mb-4 max-w-[16ch] font-[family-name:var(--font-display)] text-[clamp(1.75rem,7vw,3.5rem)] font-semibold leading-[1.12] tracking-tight text-foreground sm:mb-6 sm:max-w-none lg:text-7xl lg:font-extrabold">
-            Your Business Operating System
+          <h1 className="mx-auto mb-4 max-w-[18ch] font-[family-name:var(--font-display)] text-[clamp(1.75rem,6.5vw,3.5rem)] font-semibold leading-[1.12] tracking-tight text-foreground sm:mb-6 sm:max-w-3xl md:max-w-none lg:text-7xl lg:font-extrabold">
+            Building VentraPOS for Modern Retail
           </h1>
-          <p className="mx-auto max-w-xl text-[15px] leading-relaxed text-muted-foreground sm:max-w-2xl sm:text-lg md:text-xl">
-            VentraPOS helps retailers and growing SMEs run sales, inventory, staff, and finances from
-            one cloud platform built for Ghana and similar markets.
+          <p className="mx-auto max-w-xl text-[15px] leading-relaxed text-muted-foreground sm:max-w-2xl sm:text-lg md:max-w-3xl md:text-xl">
+            ZeoFex helps retailers and growing SMEs run sales, inventory, staff, and finances through
+            VentraPOS — one cloud platform built for Ghana and similar markets.
           </p>
         </div>
       </section>
@@ -173,25 +173,25 @@ export default function AboutPage() {
             return (
               <article
                 key={section.title}
-                className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-12"
+                className="md:grid md:grid-cols-2 md:items-center md:gap-8 lg:gap-12"
               >
-                {/* Combined card on mobile; splits into two columns at lg */}
-                <div className="flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#003527] to-[#006c49] shadow-[0_20px_50px_-16px_rgba(0,53,39,0.4)] ring-1 ring-[#006c49]/35 sm:rounded-3xl lg:contents lg:overflow-visible lg:rounded-none lg:bg-transparent lg:shadow-none lg:ring-0">
+                {/* Combined card on mobile; splits into two columns from md */}
+                <div className="flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#003527] to-[#006c49] shadow-[0_20px_50px_-16px_rgba(0,53,39,0.4)] ring-1 ring-[#006c49]/35 sm:rounded-3xl md:contents md:overflow-visible md:rounded-none md:bg-transparent md:shadow-none md:ring-0">
                   <div
-                    className={`relative aspect-[16/10] w-full shrink-0 bg-[#f0faf6] dark:bg-[#0a1f18] lg:aspect-auto lg:h-[360px] lg:overflow-hidden lg:rounded-3xl lg:shadow-[0_12px_40px_-16px_rgba(0,108,73,0.25)] lg:ring-1 lg:ring-[#006c49]/20 dark:lg:bg-surface-elevated dark:lg:ring-border/40 ${
-                      isEven ? "lg:order-2" : "lg:order-1"
+                    className={`relative aspect-[16/10] min-h-[200px] w-full shrink-0 bg-[#f0faf6] dark:bg-[#0a1f18] sm:min-h-[220px] md:aspect-auto md:min-h-[300px] md:h-[300px] md:overflow-hidden md:rounded-3xl md:shadow-[0_12px_40px_-16px_rgba(0,108,73,0.25)] md:ring-1 md:ring-[#006c49]/20 lg:h-[360px] dark:md:bg-surface-elevated dark:md:ring-border/40 ${
+                      isEven ? "md:order-2" : "md:order-1"
                     }`}
                   >
                     <SectionImage image={section.image} priority={idx === 0} />
                     <div
                       aria-hidden
-                      className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#003527]/50 to-transparent lg:hidden"
+                      className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#003527]/50 to-transparent md:hidden"
                     />
                   </div>
 
                   <div
-                    className={`border-t border-white/10 px-5 py-5 sm:px-6 sm:py-6 lg:border-0 lg:rounded-[2.5rem] lg:bg-gradient-to-br lg:from-[#003527] lg:to-[#006c49] lg:p-10 lg:shadow-[0_16px_40px_-12px_rgba(0,53,39,0.35)] lg:ring-1 lg:ring-[#006c49]/40 lg:transition-transform lg:hover:-translate-y-1 lg:hover:shadow-[0_28px_56px_-12px_rgba(0,53,39,0.28)] ${
-                      isEven ? "lg:order-1" : "lg:order-2"
+                    className={`border-t border-white/10 px-5 py-5 sm:px-6 sm:py-7 md:border-0 md:rounded-[2.5rem] md:bg-gradient-to-br md:from-[#003527] md:to-[#006c49] md:p-8 md:shadow-[0_16px_40px_-12px_rgba(0,53,39,0.35)] md:ring-1 md:ring-[#006c49]/40 md:transition-transform md:hover:-translate-y-1 md:hover:shadow-[0_28px_56px_-12px_rgba(0,53,39,0.28)] lg:p-10 ${
+                      isEven ? "md:order-1" : "md:order-2"
                     }`}
                   >
                     <SectionCopy
@@ -211,11 +211,11 @@ export default function AboutPage() {
       <section className="bg-[#003527] px-4 py-14 text-center text-white sm:px-6 sm:py-20 lg:py-24">
         <div className="mx-auto max-w-2xl lg:max-w-3xl">
           <h2 className="mb-4 font-[family-name:var(--font-display)] text-[clamp(1.5rem,5.5vw,2.25rem)] font-semibold leading-tight sm:mb-6 lg:text-4xl">
-            Ready to run your business on VentraPOS?
+            Ready to innovate with ZeoFex?
           </h2>
           <p className="mb-8 text-[15px] leading-relaxed text-white/85 sm:text-lg">
-            Whether you are opening your first branch or scaling across locations, we would love to
-            hear from you. Book a demo or get in touch with our team.
+            ZeoFex is always open to collaboration, partnerships, and VentraPOS demos. Whether you
+            are opening your first branch or scaling across locations, get in touch with our team.
           </p>
           <Link
             href="/contact"
