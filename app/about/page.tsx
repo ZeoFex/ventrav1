@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import type { Metadata } from "next";
+import { ReviewsSection } from "@/app/components/landing/reviews-section";
 
 export const metadata: Metadata = {
   title: "About VentraPOS",
@@ -363,6 +364,8 @@ export default function AboutPage() {
           </ul>
         </div>
       </section>
+
+      <ReviewsSection page="about" />
 
       {/* Closing Statement */}
       <section className="relative overflow-hidden bg-[#003527] px-4 py-14 text-center text-white sm:px-6 sm:py-20 lg:py-24">
