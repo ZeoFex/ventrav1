@@ -7,6 +7,7 @@ import { SiteFooter } from "@/app/components/landing/site-footer";
 import { cookies } from "next/headers";
 import { verifyAccessToken } from "@/server/auth/token-service";
 import { Metadata } from "next";
+import { ReviewsSection } from "@/app/components/landing/reviews-section";
 
 export const metadata: Metadata = {
   title: "Features",
@@ -38,6 +39,7 @@ export default async function FeaturesPage() {
         <LandingAnalytics />
         <LandingOrders />
         <LandingSecurity />
+        <ReviewsSection page="features" />
       </main>
       <SiteFooter />
     </div>

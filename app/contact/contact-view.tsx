@@ -12,6 +12,7 @@ import { SiteFooter } from "../components/landing/site-footer";
 import { useState } from "react";
 import { toast } from "sonner";
 import { submitContactForm } from "./actions";
+import { ReviewsSection } from "../components/landing/reviews-section";
 
 export function ContactView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -223,6 +224,7 @@ export function ContactView() {
         </div>
       </div>
     </section>
+    <ReviewsSection page="contact" showForm={false} />
     <SiteFooter />
 </div>
   );

@@ -4,6 +4,7 @@ import { SiteFooter } from "@/app/components/landing/site-footer";
 import { cookies } from "next/headers";
 import { verifyAccessToken } from "@/server/auth/token-service";
 import { Metadata } from "next";
+import { ReviewsSection } from "@/app/components/landing/reviews-section";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -32,6 +33,7 @@ export default async function PricingPage() {
       <SiteHeader isAuthenticated={isAuthenticated} displayName={userFirstName} />
       <main className="flex-1 pt-20">
         <LandingPricing />
+        <ReviewsSection page="pricing" />
       </main>
       <SiteFooter />
     </div>

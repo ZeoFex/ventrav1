@@ -6,6 +6,7 @@ import { LandingSecurity } from "./components/landing/security";
 import { LandingWalkthrough } from "./components/landing/walkthrough";
 import { LandingPricing } from "./components/landing/pricing";
 import { LandingFaq } from "./components/landing/faq";
+import { ReviewsSection } from "./components/landing/reviews-section";
 import { SiteHeader } from "./components/landing/site-header";
 import { SiteFooter } from "./components/landing/site-footer";
 
@@ -39,6 +40,7 @@ export default async function Home() {
       <LandingSecurity />
       <LandingWalkthrough />
       <LandingPricing />
+      <ReviewsSection page="home" />
       <LandingFaq />
       <SiteFooter />
       
