@@ -99,7 +99,7 @@ function QuickSaleMarquee({ products, onAdd }: { products: ProductRow[]; onAdd: 
     products.map((product) => (
       <div
         key={`${product.id}${suffix}`}
-        className="w-[200px] shrink-0 sm:w-[220px]"
+        className="w-[200px] shrink-0 transition-[transform,filter] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:z-10 sm:w-[220px]"
         data-tour-target={suffix === "-a" ? "home-quick-sale-item" : undefined}
       >
         <PosProductCard
@@ -119,8 +119,8 @@ function QuickSaleMarquee({ products, onAdd }: { products: ProductRow[]; onAdd: 
   }
 
   return (
-    <div className="quick-sale-marquee -mx-4 overflow-hidden px-4 sm:-mx-6 sm:px-6">
-      <div className="quick-sale-marquee-track flex w-max gap-3 sm:gap-4">
+    <div className="quick-sale-marquee -mx-4 overflow-hidden px-4 pb-1 sm:-mx-6 sm:px-6">
+      <div className="quick-sale-marquee-track flex w-max gap-3 py-0.5 sm:gap-4">
         {renderTrack("-a")}
         {renderTrack("-b")}
       </div>
