@@ -49,6 +49,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "branches": false, "branches-all": false,
     // Reports (basic ✓)
     "reports": true, "reports-sales-summary": true,
+    "reports-product-report": false,
     "reports-inventory-valuation": false, "reports-taxes": false,
     "reports-z-report": false, "reports-branch-profitability": false,
     // Marketing (✗)
@@ -88,6 +89,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "finance-profit-trends": true,
     "branches": true, "branches-all": true,
     "reports": true, "reports-sales-summary": true,
+    "reports-product-report": false,
     "reports-inventory-valuation": true, "reports-taxes": true,
     "reports-z-report": false, "reports-branch-profitability": false,
     "marketing": true, "marketing-discounts": true,
@@ -123,6 +125,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "finance-profit-trends": true,
     "branches": true, "branches-all": true,
     "reports": true, "reports-sales-summary": true,
+    "reports-product-report": true,
     "reports-inventory-valuation": true, "reports-taxes": true,
     "reports-z-report": true, "reports-branch-profitability": true,
     "marketing": true, "marketing-discounts": true,
