@@ -434,7 +434,9 @@ async function getTopSellingProductIds(
         .orderBy(desc(sql`COALESCE(SUM(${sellableQty}), 0)`))
         .limit(limit);
 
-    return rows.map((r) => ({ productId: r.productId, qtySold: Number(r.qtySold) }));
+    return rows.flatMap((r) =>
+        r.productId != null ? [{ productId: r.productId, qtySold: Number(r.qtySold) }] : [],
+    );
 }
 
 function productHasSellableStock(p: {
