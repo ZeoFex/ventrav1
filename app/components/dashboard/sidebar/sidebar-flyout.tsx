@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { canAccess, PlanId } from "@/config/plan-feature-access";
+import { UpgradeTooltip } from "./upgrade-tooltip";
 
 interface FlyoutChild {
   id: string;
@@ -16,6 +18,8 @@ interface SidebarFlyoutProps {
   pathname: string;
   onNavigate?: () => void;
   trigger: React.ReactNode;
+  plan?: PlanId;
+  subscriptionPastDue?: boolean;
 }
 
 export function SidebarFlyout({ 
@@ -24,7 +28,9 @@ export function SidebarFlyout({
   children, 
   pathname, 
   onNavigate,
-  trigger 
+  trigger,
+  plan,
+  subscriptionPastDue = false,
 }: SidebarFlyoutProps) {
   const [isOpen, setIsOpen] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -66,11 +72,18 @@ export function SidebarFlyout({
           <div className="p-1.5 space-y-0.5">
             {children.map((child) => {
               const isActive = pathname === child.href;
-              return (
+              const hasAccess = plan
+                ? !subscriptionPastDue && canAccess(plan, child.id)
+                : true;
+
+              const linkContent = (
                 <Link
-                  key={child.id}
                   href={child.href}
-                  onClick={() => {
+                  onClick={(e) => {
+                    if (!hasAccess) {
+                      e.preventDefault();
+                      return;
+                    }
                     onNavigate?.();
                     setIsOpen(false);
                   }}
@@ -78,10 +91,22 @@ export function SidebarFlyout({
                     isActive 
                       ? "bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]" 
                       : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground"
-                  }`}
+                  } ${!hasAccess ? "pointer-events-none" : ""}`}
+                  tabIndex={!hasAccess ? -1 : undefined}
+                  aria-disabled={!hasAccess}
                 >
                   <span className="truncate">{child.label}</span>
                 </Link>
+              );
+
+              return (
+                <div key={child.id}>
+                  {hasAccess ? linkContent : (
+                    <UpgradeTooltip featureId={child.id}>
+                      {linkContent}
+                    </UpgradeTooltip>
+                  )}
+                </div>
               );
             })}
           </div>

@@ -245,6 +245,8 @@ export function SidebarNav({
                       pathname={pathname}
                       onNavigate={onNavigate}
                       trigger={content}
+                      plan={user?.plan as PlanId | undefined}
+                      subscriptionPastDue={user?.subscriptionStatus === "past_due"}
                     />
                   ) : (
                     <SidebarTooltip label={item.label} active={isCollapsed}>
