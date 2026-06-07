@@ -225,6 +225,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         label: "Sales summary",
         href: "/dashboard/reports/sales-summary",
       },
+      {
+        id: "reports-product-report",
+        label: "Product report",
+        href: "/dashboard/reports/product-report",
+      },
     ],
   },
   {

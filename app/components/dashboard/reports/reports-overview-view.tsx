@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ProductsPageShell } from "../products/products-page-shell";
-import { TrendingUp, Package, Calculator, Clock } from "lucide-react";
+import { TrendingUp, Package, Calculator, Clock, BarChart3 } from "lucide-react";
 
 const REPORTS = [
     {
@@ -10,6 +10,13 @@ const REPORTS = [
         description: "View gross sales, net sales, profit margins, and top selling items.",
         icon: TrendingUp,
         href: "/dashboard/reports/sales-summary",
+        colorClass: "bg-[#006c49]/08 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]",
+    },
+    {
+        title: "Product Report",
+        description: "Search products and view daily, weekly, monthly, and lifetime sales analytics.",
+        icon: BarChart3,
+        href: "/dashboard/reports/product-report",
         colorClass: "bg-[#006c49]/08 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]",
     },
     {

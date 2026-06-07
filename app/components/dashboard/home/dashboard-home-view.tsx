@@ -1,6 +1,6 @@
 import { HomeGreeting } from "./home-greeting";
 import { HomeKpiCards } from "./home-kpi-cards";
-import { HomeQuickActions } from "./home-quick-actions";
+import { HomeQuickSaleProducts } from "./home-quick-sale-products";
 import { HomeRecentActivity } from "./home-recent-activity";
 
 export function DashboardHomeView() {
@@ -26,17 +26,7 @@ export function DashboardHomeView() {
           </div>
         </section>
 
-        <section className="space-y-3 sm:space-y-4">
-          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Quick actions
-          </h2>
-          <div
-            data-tour-target="home-quick-actions"
-            data-tour-mount="main"
-          >
-            <HomeQuickActions />
-          </div>
-        </section>
+        <HomeQuickSaleProducts />
 
         <HomeRecentActivity />
       </div>

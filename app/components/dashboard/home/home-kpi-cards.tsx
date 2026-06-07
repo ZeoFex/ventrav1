@@ -39,7 +39,14 @@ export function HomeKpiCards() {
 
   const todaySalesGhs = data?.todaySalesGhs ?? 0;
   const transactionCount = data?.transactionCount ?? 0;
-  const vsYesterdayPercent = data?.vsYesterdayPercent ?? 0;
+  const vsYesterdayDiffGhs =
+    data?.vsYesterdayDiffGhs ?? todaySalesGhs - (data?.yesterdaySalesGhs ?? 0);
+  const vsYesterdayDiffClass =
+    vsYesterdayDiffGhs > 0
+      ? "text-[#006c49] dark:text-[#6ffbbe]"
+      : vsYesterdayDiffGhs < 0
+        ? "text-red-600 dark:text-red-400"
+        : "text-muted-foreground";
 
   return (
     <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
@@ -72,10 +79,9 @@ export function HomeKpiCards() {
         <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground group-hover:text-foreground transition-colors">
           vs yesterday
         </p>
-        <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight text-foreground sm:text-[1.65rem]">
-          <span className={vsYesterdayPercent >= 0 ? "text-[#006c49] dark:text-[#6ffbbe]" : "text-red-600 dark:text-red-400"}>
-            {vsYesterdayPercent >= 0 ? "+" : ""}{vsYesterdayPercent}%
-          </span>
+        <p className={`mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight sm:text-[1.65rem] ${vsYesterdayDiffClass}`}>
+          {vsYesterdayDiffGhs > 0 ? "+" : ""}
+          {formatGhs(vsYesterdayDiffGhs)}
         </p>
       </Link>
     </div>

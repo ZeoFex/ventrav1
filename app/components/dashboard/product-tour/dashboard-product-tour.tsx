@@ -19,7 +19,7 @@ import { useDashboardNav } from "../dashboard-nav-context";
 const MAIN_HOME_TARGETS = [
   `[data-tour-target="home-greeting"][data-tour-mount="main"]`,
   `[data-tour-target="home-kpis"][data-tour-mount="main"]`,
-  `[data-tour-target="home-quick-actions"][data-tour-mount="main"]`,
+  `[data-tour-target="home-quick-sale"][data-tour-mount="main"]`,
 ];
 
 function pathnameIsDashboardHome(p: string | null): boolean {
