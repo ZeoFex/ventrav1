@@ -15,6 +15,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { CatalogProductImage } from "../products/catalog-product-image";
+import { ProductAnalyticsModal } from "../reports/product-analytics-modal";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -93,6 +94,10 @@ export function TransactionsDetailView() {
     const [exportOpen, setExportOpen] = useState(false);
     const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [analyticsTarget, setAnalyticsTarget] = useState<{
+        productId: string;
+        referenceDate: string;
+    } | null>(null);
 
     // Fetch transactions with staff filter
     const { data, isLoading } = useSWR(`/api/sales/transactions${staffId ? `?staffId=${staffId}` : ""}`, fetcher);
@@ -520,10 +525,24 @@ export function TransactionsDetailView() {
                             </p>
                             <ul className="divide-y divide-[#eef0f2] rounded-xl border border-[#eef0f2] dark:divide-white/[0.06] dark:border-white/[0.08]">
                                 {saleDetail.lines.map((line) => (
-                                    <li
-                                        key={line.id}
-                                        className="flex gap-3 p-3 first:rounded-t-[inherit] last:rounded-b-[inherit]"
-                                    >
+                                    <li key={line.id}>
+                                        <button
+                                            type="button"
+                                            disabled={!line.productId}
+                                            onClick={() => {
+                                                if (line.productId && saleDetail) {
+                                                    setAnalyticsTarget({
+                                                        productId: line.productId,
+                                                        referenceDate: saleDetail.sale.createdAt,
+                                                    });
+                                                }
+                                            }}
+                                            className={`flex w-full gap-3 p-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] ${
+                                                line.productId
+                                                    ? "cursor-pointer transition-colors hover:bg-muted/30 active:bg-muted/50 dark:hover:bg-white/[0.03]"
+                                                    : "cursor-default opacity-90"
+                                            }`}
+                                        >
                                         <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
                                             {line.imageSrc ? (
                                                 <CatalogProductImage
@@ -555,6 +574,7 @@ export function TransactionsDetailView() {
                                                 {formatGhs(Number(line.lineTotalGhs))}
                                             </p>
                                         </div>
+                                        </button>
                                     </li>
                                 ))}
                             </ul>
@@ -563,6 +583,13 @@ export function TransactionsDetailView() {
                 )}
             </DialogContent>
         </Dialog>
+
+        <ProductAnalyticsModal
+            open={!!analyticsTarget}
+            onOpenChange={(open) => !open && setAnalyticsTarget(null)}
+            productId={analyticsTarget?.productId ?? null}
+            referenceDate={analyticsTarget?.referenceDate ?? null}
+        />
         </>
     );
 }

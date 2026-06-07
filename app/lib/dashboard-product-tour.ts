@@ -165,11 +165,11 @@ export function buildDashboardTourSteps(opts: BuildTourStepsOpts): DriveStep[] {
       },
     },
     {
-      element: `[data-tour-target="home-quick-actions"][data-tour-mount="main"]`,
+      element: `[data-tour-target="home-quick-sale"][data-tour-mount="main"]`,
       popover: {
-        title: "Quick actions",
+        title: "Quick sale",
         description:
-          "Jump to common tasks like a new sale or adding products without hunting the sidebar.",
+          "Tap a best-selling product to add it to your cart instantly—checkout from the floating cart button.",
         side: "top",
         align: "start",
       },

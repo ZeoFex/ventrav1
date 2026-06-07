@@ -400,11 +400,93 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
     return overview;
 }
 
+const QUICK_SALE_LIMIT = 20;
+const QUICK_SALE_PERIOD_DAYS = 30;
+
+/**
+ * Top product IDs by net units sold in the last 30 days (branch-scoped when set).
+ */
+async function getTopSellingProductIds(
+    businessId: string,
+    branchId?: string | null,
+    limit = QUICK_SALE_LIMIT,
+): Promise<{ productId: string; qtySold: number }[]> {
+    const periodStart = new Date(Date.now() - QUICK_SALE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+    const sellableQty = sql<number>`(${saleItems.quantity} - ${saleItems.quantityReturned})::int`;
+
+    const filters = [
+        eq(sales.businessId, businessId),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
+        gte(sales.createdAt, periodStart),
+        branchFilter(branchId),
+    ].filter(Boolean);
+
+    const rows = await db
+        .select({
+            productId: saleItems.productId,
+            qtySold: sql<number>`COALESCE(SUM(${sellableQty}), 0)::int`,
+        })
+        .from(saleItems)
+        .innerJoin(sales, eq(saleItems.saleId, sales.id))
+        .where(and(...filters))
+        .groupBy(saleItems.productId)
+        .having(sql`COALESCE(SUM(${sellableQty}), 0) > 0`)
+        .orderBy(desc(sql`COALESCE(SUM(${sellableQty}), 0)`))
+        .limit(limit);
+
+    return rows.map((r) => ({ productId: r.productId, qtySold: Number(r.qtySold) }));
+}
+
+function productHasSellableStock(p: {
+    stock?: number;
+    stockAvailable?: number;
+    variations?: { stock: number; stockAvailable?: number }[];
+}): boolean {
+    if ((p.stockAvailable ?? p.stock ?? 0) > 0) return true;
+    return Boolean(p.variations?.some((v) => (v.stockAvailable ?? v.stock) > 0));
+}
+
+/** Active in-stock products ordered by recent sales volume, with catalog fallback. */
+async function resolveQuickSaleProducts(businessId: string, branchId?: string | null) {
+    const { getProducts } = await import("../products/product-service");
+    const catalog = (await getProducts(businessId, branchId)) as Array<{
+        id: string;
+        name: string;
+        status: string;
+        stock?: number;
+        stockAvailable?: number;
+        variations?: { stock: number; stockAvailable?: number }[];
+    }>;
+
+    const activeInStock = catalog.filter(
+        (p) => p.status === "active" && productHasSellableStock(p),
+    );
+
+    const topIds = await getTopSellingProductIds(businessId, branchId);
+    const rankById = new Map(topIds.map((t, i) => [t.productId, i]));
+
+    const ranked = activeInStock
+        .filter((p) => rankById.has(p.id))
+        .sort((a, b) => (rankById.get(a.id) ?? 999) - (rankById.get(b.id) ?? 999));
+
+    if (ranked.length >= 6) {
+        return ranked.slice(0, QUICK_SALE_LIMIT);
+    }
+
+    const rankedIds = new Set(ranked.map((p) => p.id));
+    const fillers = activeInStock
+        .filter((p) => !rankedIds.has(p.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    return [...ranked, ...fillers].slice(0, QUICK_SALE_LIMIT);
+}
+
 /**
  * Fetch data for the dashboard home landing page:
  * - Today's total sales and transaction count
  * - Comparison with yesterday
  * - 10 most recent transactions
+ * - Quick-sale carousel products (best sellers, last 30 days)
  */
 export async function getDashboardHomeData(businessId: string, branchId?: string | null) {
     const cacheKey = CACHE_KEYS.DASHBOARD_HOME(businessId, branchId);
@@ -422,7 +504,8 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
     const [
         [todayTotals],
         [yesterdayTotals],
-        recentSales
+        recentSales,
+        quickSaleProducts,
     ] = await Promise.all([
         // 1. Today's stats
         db.select({
@@ -460,11 +543,15 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
             .from(sales)
             .where(and(eq(sales.businessId, businessId), branchFilter(branchId)))
             .orderBy(desc(sales.createdAt))
-            .limit(10)
+            .limit(10),
+
+        // 4. Quick-sale carousel (best sellers in last 30 days)
+        resolveQuickSaleProducts(businessId, branchId),
     ]);
 
     const todayRev = Number(todayTotals.totalRevenue);
     const yesterdayRev = Number(yesterdayTotals.totalRevenue);
+    const vsYesterdayDiffGhs = todayRev - yesterdayRev;
 
     let vsYesterdayPercent = 0;
     if (yesterdayRev > 0) {
@@ -475,7 +562,9 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
 
     const homeData = {
         todaySalesGhs: todayRev,
+        yesterdaySalesGhs: yesterdayRev,
         transactionCount: todayTotals.totalTransactions,
+        vsYesterdayDiffGhs,
         vsYesterdayPercent,
         recentSales: recentSales.map(s => ({
             id: s.id,
@@ -483,6 +572,7 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
             totalGhs: Number(s.totalGhs),
             createdAt: s.createdAt,
         })),
+        quickSaleProducts,
     };
 
     await redis.setex(cacheKey, 30, JSON.stringify(homeData));

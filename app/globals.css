@@ -140,6 +140,11 @@
     100% { transform: translateX(100%); }
   }
   --animate-shimmer: shimmer 2s infinite linear;
+
+  @keyframes quick-sale-marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
 }
 
 /* Dashboard sidebar: thin scrollbar, thumb only while pointer is over the sidebar */
@@ -281,3 +286,17 @@
   }
 }
 @media print { .dashboard-sidebar, nav, header, button, .no-print, [role='button'], .breadcrumb, aside { display: none !important; } body { background: white !important; color: black !important; margin: 0 !important; } main, .print-container { margin: 0 !important; width: 100% !important; border: none !important; } table { width: 100% !important; border-collapse: collapse !important; } th, td { border-bottom: 1px solid #ddd !important; } }
+
+.quick-sale-marquee-track {
+  animation: quick-sale-marquee 90s linear infinite;
+}
+
+.quick-sale-marquee:hover .quick-sale-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-sale-marquee-track {
+    animation: none;
+  }
+}
