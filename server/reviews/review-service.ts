@@ -68,3 +68,34 @@ export async function createReview(input: {
         });
     return row ?? null;
 }
+
+export async function updateReview(
+    id: string,
+    input: {
+        name: string;
+        role?: string | null;
+        rating: number;
+        content: string;
+    },
+) {
+    const [row] = await db
+        .update(reviews)
+        .set({
+            name: input.name.trim().slice(0, 100),
+            role: input.role?.trim().slice(0, 150) || null,
+            rating: input.rating,
+            content: input.content.trim().slice(0, 2000),
+        })
+        .where(and(eq(reviews.id, id), eq(reviews.status, "approved")))
+        .returning({
+            id: reviews.id,
+            name: reviews.name,
+            role: reviews.role,
+            rating: reviews.rating,
+            content: reviews.content,
+            page: reviews.page,
+            status: reviews.status,
+            createdAt: reviews.createdAt,
+        });
+    return row ?? null;
+}

@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Quote } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { StarRating } from "./star-rating";
-import { ReviewForm } from "./review-form";
+import { ReviewForm, type EditableReview } from "./review-form";
+import { ReviewsCarousel, ReviewsCarouselSkeleton } from "./reviews-carousel";
+import type { ReviewCardData } from "./review-card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    getMyReviewEditToken,
+    getMyReviewIds,
+} from "@/app/lib/reviews/my-reviews-storage";
 import type { ReviewPage } from "@/server/db/schema/reviews";
-
-type Review = {
-    id: string;
-    name: string;
-    role: string | null;
-    rating: number;
-    content: string;
-    page: string | null;
-    createdAt: string;
-};
 
 type ReviewsSectionProps = {
     page?: ReviewPage;
@@ -24,53 +25,79 @@ type ReviewsSectionProps = {
     showForm?: boolean;
 };
 
-function formatReviewDate(iso: string) {
-    return new Date(iso).toLocaleDateString("en-US", {
-        month: "short",
-        year: "numeric",
-    });
-}
-
 export function ReviewsSection({
     page,
     title = "What Businesses Are Saying",
     description = "Real feedback from shop owners and managers using VentraPOS to run their operations.",
     showForm = true,
 }: ReviewsSectionProps) {
-    const [reviews, setReviews] = useState<Review[]>([]);
+    const [reviews, setReviews] = useState<ReviewCardData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [myReviewIds, setMyReviewIds] = useState<Set<string>>(new Set());
+    const [editingReview, setEditingReview] = useState<EditableReview | null>(null);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+    const refreshMyReviews = useCallback(() => {
+        setMyReviewIds(new Set(getMyReviewIds()));
+    }, []);
 
     useEffect(() => {
-        let cancelled = false;
+        refreshMyReviews();
+    }, [refreshMyReviews, refreshKey]);
 
-        (async () => {
-            try {
-                const params = new URLSearchParams({ limit: "12" });
-                if (page) params.set("page", page);
+    const loadReviews = useCallback(async (signal?: { cancelled: boolean }) => {
+        try {
+            const params = new URLSearchParams({ limit: "12" });
+            if (page) params.set("page", page);
 
-                const res = await fetch(`/api/reviews?${params.toString()}`, {
-                    cache: "no-store",
-                });
-                if (cancelled) return;
+            const res = await fetch(`/api/reviews?${params.toString()}`, {
+                cache: "no-store",
+            });
+            if (signal?.cancelled) return;
 
-                if (res.ok) {
-                    const data = await res.json();
-                    setReviews(data);
-                } else {
-                    setReviews([]);
-                }
-            } catch {
-                if (!cancelled) setReviews([]);
-            } finally {
-                if (!cancelled) setIsLoading(false);
+            if (res.ok) {
+                const data = await res.json();
+                setReviews(data);
+            } else {
+                setReviews([]);
             }
-        })();
+        } catch {
+            if (!signal?.cancelled) setReviews([]);
+        } finally {
+            if (!signal?.cancelled) setIsLoading(false);
+        }
+    }, [page]);
 
+    useEffect(() => {
+        const signal = { cancelled: false };
+        setIsLoading(true);
+        void loadReviews(signal);
         return () => {
-            cancelled = true;
+            signal.cancelled = true;
         };
-    }, [page, refreshKey]);
+    }, [loadReviews, refreshKey]);
+
+    const handleReviewClick = (review: ReviewCardData) => {
+        const editToken = getMyReviewEditToken(review.id);
+        if (!editToken) return;
+
+        setEditingReview({
+            id: review.id,
+            editToken,
+            name: review.name,
+            role: review.role ?? "",
+            content: review.content,
+            rating: review.rating,
+        });
+        setEditDialogOpen(true);
+    };
+
+    const handleEditComplete = () => {
+        setRefreshKey((k) => k + 1);
+        setEditDialogOpen(false);
+        setEditingReview(null);
+    };
 
     return (
         <section className="relative overflow-hidden border-t border-border/40 bg-background py-16 text-foreground lg:py-24">
@@ -103,49 +130,13 @@ export function ReviewsSection({
 
                 <div className="mt-10 sm:mt-12">
                     {isLoading ? (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {Array.from({ length: 3 }).map((_, i) => (
-                                <div
-                                    key={i}
-                                    className="h-48 animate-pulse rounded-2xl border border-border/40 bg-muted/30"
-                                />
-                            ))}
-                        </div>
+                        <ReviewsCarouselSkeleton />
                     ) : reviews.length > 0 ? (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {reviews.map((review, idx) => (
-                                <motion.article
-                                    key={review.id}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true, margin: "-60px" }}
-                                    transition={{ duration: 0.4, delay: idx * 0.05 }}
-                                    className="flex flex-col rounded-2xl border border-border/50 bg-surface-elevated p-6 shadow-sm transition-colors hover:border-[#006c49]/25 dark:hover:border-[#6ffbbe]/20"
-                                >
-                                    <Quote
-                                        className="mb-3 size-5 text-[#006c49]/60 dark:text-[#6ffbbe]/60"
-                                        aria-hidden
-                                    />
-                                    <p className="flex-1 text-[14px] leading-relaxed text-foreground sm:text-[15px]">
-                                        &ldquo;{review.content}&rdquo;
-                                    </p>
-                                    <div className="mt-5 border-t border-border/40 pt-4">
-                                        <StarRating value={review.rating} size="sm" />
-                                        <p className="mt-2 text-sm font-semibold text-foreground">
-                                            {review.name}
-                                        </p>
-                                        {review.role && (
-                                            <p className="text-xs text-muted-foreground">
-                                                {review.role}
-                                            </p>
-                                        )}
-                                        <p className="mt-1 text-xs text-muted-foreground/70">
-                                            {formatReviewDate(review.createdAt)}
-                                        </p>
-                                    </div>
-                                </motion.article>
-                            ))}
-                        </div>
+                        <ReviewsCarousel
+                            reviews={reviews}
+                            myReviewIds={myReviewIds}
+                            onEditReview={handleReviewClick}
+                        />
                     ) : (
                         <div className="rounded-2xl border border-dashed border-border/50 bg-muted/20 px-6 py-12 text-center">
                             <p className="text-muted-foreground">
@@ -164,6 +155,34 @@ export function ReviewsSection({
                     </div>
                 )}
             </div>
+
+            <Dialog
+                open={editDialogOpen}
+                onOpenChange={(open) => {
+                    setEditDialogOpen(open);
+                    if (!open) setEditingReview(null);
+                }}
+            >
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Edit your review</DialogTitle>
+                        <DialogDescription>
+                            Update your rating or feedback. Changes are published immediately.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {editingReview && (
+                        <ReviewForm
+                            editingReview={editingReview}
+                            variant="plain"
+                            onSubmitted={handleEditComplete}
+                            onCancelEdit={() => {
+                                setEditDialogOpen(false);
+                                setEditingReview(null);
+                            }}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
         </section>
     );
 }

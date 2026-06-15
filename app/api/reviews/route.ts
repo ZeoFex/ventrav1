@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { REVIEW_PAGES } from "@/server/db/schema/reviews";
+import { signReviewEditToken } from "@/server/reviews/edit-token";
+import { submitReviewSchema } from "@/server/reviews/review-schemas";
 import { createReview, listApprovedReviews } from "@/server/reviews/review-service";
 
 const REVIEWS_SETUP_MESSAGE =
@@ -16,16 +18,7 @@ function isMissingReviewsTableError(e: unknown): boolean {
     return false;
 }
 
-const submitSchema = z.object({
-    name: z.string().min(2, "Name must be at least 2 characters").max(100),
-    role: z.string().max(150).optional().nullable(),
-    rating: z.coerce.number().int().min(1).max(5),
-    content: z
-        .string()
-        .min(10, "Review must be at least 10 characters")
-        .max(2000),
-    page: z.enum(REVIEW_PAGES).optional().nullable(),
-});
+const submitSchema = submitReviewSchema;
 
 const listQuerySchema = z.object({
     page: z.enum(REVIEW_PAGES).optional(),
@@ -88,11 +81,14 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Failed to submit review" }, { status: 500 });
         }
 
+        const editToken = await signReviewEditToken(row.id);
+
         return NextResponse.json(
             {
                 success: true,
                 message: "Thank you! Your review has been published.",
                 review: row,
+                editToken,
             },
             { status: 201 },
         );
