@@ -1,4 +1,4 @@
-import { and, desc, eq, or, isNull } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { reviews, type ReviewPage } from "../db/schema/reviews";
 
@@ -12,18 +12,7 @@ export async function listApprovedReviews(options?: {
     const limit = Math.min(Math.max(options?.limit ?? 20, 1), 50);
     const page = options?.page;
 
-    const conditions = [eq(reviews.status, "approved")];
-    if (page) {
-        conditions.push(
-            or(
-                eq(reviews.page, page),
-                eq(reviews.page, "general"),
-                isNull(reviews.page),
-            )!,
-        );
-    }
-
-    return db
+    const query = db
         .select({
             id: reviews.id,
             name: reviews.name,
@@ -34,9 +23,22 @@ export async function listApprovedReviews(options?: {
             createdAt: reviews.createdAt,
         })
         .from(reviews)
-        .where(and(...conditions))
-        .orderBy(desc(reviews.createdAt))
-        .limit(limit);
+        .where(eq(reviews.status, "approved"));
+
+    if (page) {
+        return query
+            .orderBy(
+                sql`CASE
+                    WHEN ${reviews.page} = ${page} THEN 0
+                    WHEN ${reviews.page} = 'general' OR ${reviews.page} IS NULL THEN 1
+                    ELSE 2
+                END`,
+                desc(reviews.createdAt),
+            )
+            .limit(limit);
+    }
+
+    return query.orderBy(desc(reviews.createdAt)).limit(limit);
 }
 
 export async function createReview(input: {
