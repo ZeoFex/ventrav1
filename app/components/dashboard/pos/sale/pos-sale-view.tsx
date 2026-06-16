@@ -728,13 +728,25 @@ function PosSaleViewInner() {
               .join(" ")
           : "";
 
-        const haystack = `${p.name ?? ""} ${p.sku ?? ""} ${p.description ?? ""} ${variationText}`
+        const haystack = `${p.name ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""} ${p.categoryName ?? ""} ${p.subcategoryName ?? ""} ${p.description ?? ""} ${variationText}`
           .toLowerCase()
           .replace(/\s+/g, " ")
           .trim();
 
         if (haystack.includes(q)) return true;
         return tokens.every((t) => haystack.includes(t));
+      });
+
+      list = [...list].sort((a: any, b: any) => {
+        const score = (p: any) => {
+          const name = (p.name ?? "").toLowerCase();
+          const sku = (p.sku ?? "").toLowerCase();
+          if (name === q || sku === q) return 0;
+          if (name.startsWith(q) || sku.startsWith(q)) return 1;
+          if (name.includes(q) || sku.includes(q)) return 2;
+          return 3;
+        };
+        return score(a) - score(b);
       });
     }
     return list;

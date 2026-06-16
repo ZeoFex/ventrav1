@@ -49,7 +49,16 @@ export function dashboardTourShowsNavParent(
 
   if (user.subscriptionStatus === "past_due" && item.id !== "home") return false;
 
-  if (!canAccess(user.plan as PlanId, item.id)) return false;
+  if (
+    !canAccess(
+      user.plan as PlanId,
+      item.id,
+      user.subscriptionStatus,
+      user.currentPeriodEnd,
+    )
+  ) {
+    return false;
+  }
 
   if (user.role !== "owner" && user.permissions.length > 0) {
     if (item.id === "home") return true;
@@ -118,7 +127,12 @@ export function filterResolvableTourSteps(steps: DriveStep[]): DriveStep[] {
 
 export function dashboardTourShowsCopilotEntry(user: SessionUser): boolean {
   if (user.subscriptionStatus === "past_due") return false;
-  return canAccess(user.plan as PlanId, "copilot");
+  return canAccess(
+    user.plan as PlanId,
+    "copilot",
+    user.subscriptionStatus,
+    user.currentPeriodEnd,
+  );
 }
 
 export type BuildTourStepsOpts = {

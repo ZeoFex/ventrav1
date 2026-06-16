@@ -28,6 +28,7 @@ describe("POST /api/auth/signup endpoint", () => {
         fullName: "John Doe",
         email: "john@freshmart.local",
         password: "Password123!",
+        plan: "starter",
     };
 
     beforeEach(() => {
@@ -45,6 +46,7 @@ describe("POST /api/auth/signup endpoint", () => {
         expect(data.details.email).toBeDefined();
         expect(data.details.password).toBeDefined();
         expect(data.details.businessName).toBeDefined();
+        expect(data.details.plan).toBeDefined();
     });
 
     it("should enforce strong password rules in Zod", async () => {

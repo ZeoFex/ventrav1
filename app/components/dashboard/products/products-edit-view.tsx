@@ -46,7 +46,7 @@ export function ProductsEditView({ productId }: { productId: string }) {
         : "",
     stock: product.stock,
     reorderAt: product.reorderAt,
-    categoryId: product.categoryId || "all",
+    categoryId: product.categoryId || "",
     tagIds: product.tagIds || [],
     status: product.status,
     imageSrc: product.imageSrc || null,

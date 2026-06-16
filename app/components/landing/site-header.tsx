@@ -69,7 +69,7 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
                 </Link>
                 <ThemeToggle />
                 <Link
-                  href="/signup"
+                  href="/pricing"
                   className="inline-flex items-center justify-center rounded-full bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_4px_20px_rgba(0,53,39,0.2)] transition-[filter] hover:brightness-105 dark:shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
                 >
                   Get started

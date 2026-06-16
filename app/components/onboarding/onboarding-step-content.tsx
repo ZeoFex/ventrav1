@@ -157,10 +157,10 @@ export function OnboardingStepContent({
               <p className={label}>{formStepLabel}</p>
             ) : null}
             <h2 className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-              What kind of business is this?
+              Shop type
             </h2>
             <p className="mt-2 text-[15px] text-muted-foreground">
-              We use this to suggest defaults for tax and receipts.
+              We load default product categories for your shop and tailor receipts and tax defaults.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

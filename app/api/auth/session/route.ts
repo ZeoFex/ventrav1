@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAccessTokenStringFromRequest } from "@/server/auth/api-request-auth";
 import { verifyAccessToken } from "@/server/auth/token-service";
-import { STARTER_TRIAL_DAYS } from "@/config/plans";
 
 export async function GET(req: NextRequest) {
     try {
@@ -37,14 +36,9 @@ export async function GET(req: NextRequest) {
             .limit(1);
 
         const isEpoch = userDb?.currentPeriodEnd && new Date(userDb.currentPeriodEnd).getTime() === 0;
-        const computedPeriodEnd = (userDb?.currentPeriodEnd && !isEpoch)
+        const computedPeriodEnd = userDb?.currentPeriodEnd && !isEpoch
             ? userDb.currentPeriodEnd
-            : (userDb?.createdAt
-                  ? new Date(
-                        new Date(userDb.createdAt).getTime() +
-                            STARTER_TRIAL_DAYS * 24 * 60 * 60 * 1000,
-                    ).toISOString()
-                  : null);
+            : null;
 
         const response = NextResponse.json({
             user: {

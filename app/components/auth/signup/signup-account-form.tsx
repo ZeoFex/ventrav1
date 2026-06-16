@@ -9,7 +9,8 @@ import {
   IconUser,
 } from "@/app/components/auth/auth-icons";
 import { inputBase, inputPassword } from "@/app/components/auth/auth-input-classes";
-import { CheckCircle2, Phone } from "lucide-react";
+import { getPlanSignupLabel, isValidPlanId, type PlanId } from "@/config/plans";
+import { Phone } from "lucide-react";
 
 export type PasswordChecks = {
   minLen: boolean;
@@ -107,17 +108,19 @@ export function SignupAccountForm({
           Create your account
         </h2>
 
-        {isPaid && (
-          <div className="mt-6 flex items-center gap-3 rounded-2xl bg-[#006c49]/5 p-4 border border-[#006c49]/20 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe] dark:border-[#6ffbbe]/20 animate-in fade-in slide-in-from-top-1">
-            <CheckCircle2 className="size-5 shrink-0" />
-            <div>
-              <p className="text-sm font-bold uppercase tracking-wider">
-                {selectedPlan} Plan Paid
+        {selectedPlan && isValidPlanId(selectedPlan) && (
+          <div className="mt-6 rounded-2xl border border-[#006c49]/20 bg-[#006c49]/5 p-4 dark:border-[#6ffbbe]/20 dark:bg-[#6ffbbe]/10">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Selected plan
+            </p>
+            <p className="mt-1 text-[15px] font-bold text-[#006c49] dark:text-[#6ffbbe]">
+              {getPlanSignupLabel(selectedPlan as PlanId)}
+            </p>
+            {isPaid && (
+              <p className="mt-1 text-[12px] text-muted-foreground">
+                Payment received — plan activates after email verification.
               </p>
-              <p className="text-[12px] opacity-80 mt-0.5">
-                Plan will be activated automatically after verification.
-              </p>
-            </div>
+            )}
           </div>
         )}
 
@@ -356,7 +359,7 @@ export function SignupAccountForm({
                 href="/legal/terms"
                 className="font-medium text-[#006c49] underline-offset-2 hover:underline dark:text-[#6ffbbe]"
               >
-                Terms
+                Terms of Service
               </Link>{" "}
               and{" "}
               <Link

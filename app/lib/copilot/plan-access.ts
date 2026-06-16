@@ -14,14 +14,23 @@ export async function businessHasCopilotAccess(
   businessId: string,
 ): Promise<boolean> {
   const [row] = await db
-    .select({ plan: businesses.plan })
+    .select({
+      plan: businesses.plan,
+      subscriptionStatus: businesses.subscriptionStatus,
+      currentPeriodEnd: businesses.currentPeriodEnd,
+    })
     .from(businesses)
     .where(eq(businesses.id, businessId))
     .limit(1);
 
   const plan = row?.plan as PlanId | undefined;
   if (!plan) return false;
-  return canAccess(plan, COPILOT_FEATURE_ID);
+  return canAccess(
+    plan,
+    COPILOT_FEATURE_ID,
+    row.subscriptionStatus,
+    row.currentPeriodEnd,
+  );
 }
 
 export function copilotProRequiredResponse(): Response {

@@ -16,6 +16,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:check": "drizzle-kit check",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "electron:dev": "concurrently --kill-others \"pnpm dev\" \"wait-on http://localhost:3000 && electron .\"",
     "icons:prepare": "node electron/build/prepare-icons.js",
     "electron:build": "pnpm icons:prepare && pnpm build && electron-builder --config electron-builder.json --win"

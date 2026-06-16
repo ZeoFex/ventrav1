@@ -158,7 +158,7 @@ export function LoginForm({
         <p className="mt-8 text-center text-[14px] text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link
-            href="/signup"
+            href="/pricing"
             className="font-semibold text-[#006c49] hover:underline dark:text-[#6ffbbe]"
           >
             Create one

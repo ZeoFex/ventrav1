@@ -59,7 +59,17 @@ function createOfflineFetcher(cacheKey: "products" | "categories") {
 
 const productsFetcher = createOfflineFetcher("products");
 const categoriesFetcher = createOfflineFetcher("categories");
-const tagsFetcher = (url: string) => fetch(url).then((res) => res.json());
+
+/** Ensures list endpoints always resolve to an array (avoids .map on error objects). */
+async function listFetcher(url: string) {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) {
+        console.warn(`[listFetcher] ${url} → HTTP ${res.status}`, data);
+        return [];
+    }
+    return Array.isArray(data) ? data : [];
+}
 
 export function useProducts(enabled = true) {
     const { branchId } = useBranchContext();
@@ -75,14 +85,16 @@ export function useProducts(enabled = true) {
     };
 }
 
-export function useCategories() {
+export function useCategories(searchQuery = "") {
     const { branchId } = useBranchContext();
-    const { data, error, mutate } = useSWR(
-        `/api/products/categories?b=${branchId}`,
-        categoriesFetcher,
-    );
+    const q = searchQuery.trim();
+    const url =
+        q.length > 0
+            ? `/api/products/categories?b=${branchId}&q=${encodeURIComponent(q)}`
+            : `/api/products/categories?b=${branchId}`;
+    const { data, error, mutate } = useSWR(url, categoriesFetcher);
     return {
-        categories: data,
+        categories: Array.isArray(data) ? data : [],
         isLoading: !error && !data,
         isError: error,
         mutate,
@@ -91,9 +103,9 @@ export function useCategories() {
 
 export function useTags() {
     const { branchId } = useBranchContext();
-    const { data, error, mutate } = useSWR(`/api/products/tags?b=${branchId}`, tagsFetcher);
+    const { data, error, mutate } = useSWR(`/api/products/tags?b=${branchId}`, listFetcher);
     return {
-        tags: data,
+        tags: Array.isArray(data) ? data : [],
         isLoading: !error && !data,
         isError: error,
         mutate,
