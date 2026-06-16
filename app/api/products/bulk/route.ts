@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { saveProductsBulk } from "@/server/products/product-service";
+import { syncTenantProductsBulk } from "@/server/catalog/master-catalog-service";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { generateSlug } from "@/app/lib/catalog-utils";
 
@@ -35,7 +36,12 @@ export async function POST(req: Request) {
 
         const result = await saveProductsBulk(payload.bid, branchId, preparedItems);
 
-        return NextResponse.json({ 
+        syncTenantProductsBulk(
+            result.map((r) => r.id),
+            payload.bid
+        );
+
+        return NextResponse.json({
             success: true, 
             count: result.length,
             message: `Successfully imported ${result.length} products.` 
