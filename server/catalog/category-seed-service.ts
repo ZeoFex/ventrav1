@@ -2,7 +2,7 @@
  * Seeds default categories and subcategories for a business based on shop type.
  */
 import { and, eq } from "drizzle-orm";
-import { db } from "../db";
+import { db, type Database } from "../db";
 import { categories, subcategories } from "../db/schema/products";
 import {
     resolveShopTypeSlug,
@@ -26,9 +26,12 @@ export interface SeedCategoriesResult {
     skipped: boolean;
 }
 
+/** DB client or transaction — only the query methods this service uses. */
+type CategorySeedExecutor = Pick<Database, "select" | "insert">;
+
 export async function seedDefaultCategoriesForBusiness(
     input: SeedCategoriesInput,
-    executor: typeof db = db,
+    executor: CategorySeedExecutor = db,
 ): Promise<SeedCategoriesResult> {
     const runner = executor;
     const shopType: ShopTypeSlug = resolveShopTypeSlug(input.businessType);

@@ -161,7 +161,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
                     businessType: input.businessType,
                     skipIfExists: true,
                 },
-                tx as typeof db,
+                tx,
             );
         }
 
