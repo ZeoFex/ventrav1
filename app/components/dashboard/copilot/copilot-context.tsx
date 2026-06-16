@@ -33,7 +33,13 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/dashboard";
   const { user } = useSession();
   const copilotEnabled =
-    user != null && canAccess(user.plan as PlanId, COPILOT_FEATURE_ID);
+    user != null &&
+    canAccess(
+      user.plan as PlanId,
+      COPILOT_FEATURE_ID,
+      user.subscriptionStatus,
+      user.currentPeriodEnd,
+    );
 
   const setOpenGuarded = useCallback(
     (v: boolean) => {
