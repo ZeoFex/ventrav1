@@ -174,7 +174,7 @@ function SignupViewContent() {
 
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
-    if (!otpComplete || isSubmitting) return;
+    if (!otpComplete || isSubmitting || !selectedPlan) return;
 
     setIsSubmitting(true);
     setApiError(null);
