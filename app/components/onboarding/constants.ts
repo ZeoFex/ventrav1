@@ -100,15 +100,11 @@ export type OnboardingStepId =
   | "complete";
 
 /** Dynamic list: after `structure`, multi-branch adds branch steps, then checklist → guided → complete. */
-export function buildOnboardingSteps(structure: StoreStructure, plan: string): string[] {
+export function buildOnboardingSteps(structure: StoreStructure, _plan: string): string[] {
   const prefix = [...ONBOARDING_PREFIX];
   const tail: string[] = [];
   if (structure === "multi") {
     tail.push(...BRANCH_STEP_IDS);
-  }
-
-  if (plan !== "starter") {
-    tail.push("billing");
   }
 
   tail.push("checklist", "guided", "complete");

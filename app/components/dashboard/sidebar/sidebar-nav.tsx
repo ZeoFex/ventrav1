@@ -183,10 +183,15 @@ export function SidebarNav({
               className={`flex min-h-[2.75rem] items-stretch gap-0.5 ${rowClass}`}
             >
               {(() => {
-                const hasAccess = user 
-                  ? (user.subscriptionStatus === "past_due" && item.id !== "home" 
-                      ? false 
-                      : canAccess(user.plan as PlanId, item.id)) 
+                const hasAccess = user
+                  ? user.subscriptionStatus === "past_due" && item.id !== "home"
+                    ? false
+                    : canAccess(
+                        user.plan as PlanId,
+                        item.id,
+                        user.subscriptionStatus,
+                        user.currentPeriodEnd,
+                      )
                   : false;
 
                 const content = item.collapsibleOnly ? (
@@ -303,7 +308,12 @@ export function SidebarNav({
                   const hasAccess = user 
                     ? (user.subscriptionStatus === "past_due" 
                         ? false 
-                        : canAccess(user.plan as PlanId, child.id)) 
+                        : canAccess(
+                            user.plan as PlanId,
+                            child.id,
+                            user.subscriptionStatus,
+                            user.currentPeriodEnd,
+                          )) 
                     : false;
                   
                   const handleMouseEnter = () => {

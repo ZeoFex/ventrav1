@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { writeOnboardingPrefill } from "@/app/lib/onboarding-prefill";
+import { isValidPlanId } from "@/config/plans";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { AuthSplitVisual } from "@/app/components/auth/auth-split-visual";
 import { SignupAccountForm } from "./signup-account-form";
@@ -42,7 +43,14 @@ function SignupViewContent() {
   const [resendSeconds, setResendSeconds] = useState(0);
   
   const isPaid = searchParams.get("paid") === "true";
-  const selectedPlan = searchParams.get("plan") || "starter";
+  const planParam = searchParams.get("plan") || "";
+  const selectedPlan = isValidPlanId(planParam) ? planParam : null;
+
+  useEffect(() => {
+    if (!selectedPlan) {
+      router.replace("/pricing");
+    }
+  }, [selectedPlan, router]);
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
@@ -128,7 +136,7 @@ function SignupViewContent() {
 
   async function handleSignupSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!passwordValid || !passwordsMatch || !acceptTerms || isSubmitting) return;
+    if (!passwordValid || !passwordsMatch || !acceptTerms || isSubmitting || !selectedPlan) return;
 
     setIsSubmitting(true);
     setApiError(null);
@@ -141,7 +149,9 @@ function SignupViewContent() {
           businessName: businessName.trim(),
           fullName: fullName.trim(),
           email: email.trim(),
+          phone: phone.trim() || undefined,
           password,
+          plan: selectedPlan,
           referralCode: searchParams.get("ref")?.trim() || undefined,
         }),
       });
@@ -197,8 +207,8 @@ function SignupViewContent() {
         email: email.trim(),
         storeName: businessName.trim(),
         legalName: fullName.trim(),
-        plan: searchParams.get("plan") || "starter",
-        cycle: searchParams.get("cycle") || "annually",
+        plan: selectedPlan,
+        cycle: searchParams.get("cycle") || "monthly",
         paid: isPaid,
       });
       router.push("/onboarding");
@@ -258,6 +268,10 @@ function SignupViewContent() {
     setStep("signup");
     setOtp(Array(6).fill(""));
     setOtpChannel("email");
+  }
+
+  if (!selectedPlan) {
+    return <div className="min-h-screen bg-background" />;
   }
 
   return (

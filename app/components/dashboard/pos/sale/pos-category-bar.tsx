@@ -34,7 +34,12 @@ export function PosCategoryBar({
 
   const { user } = useSession();
   const plan = user?.plan || "starter";
-  const hasScanAccess = canAccess(plan, "pos-scan");
+  const hasScanAccess = canAccess(
+    plan,
+    "pos-scan",
+    user?.subscriptionStatus,
+    user?.currentPeriodEnd,
+  );
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

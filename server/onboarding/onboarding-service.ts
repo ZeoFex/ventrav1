@@ -4,7 +4,7 @@
  * Runs in a single transaction for atomicity.
  */
 import { eq, and } from "drizzle-orm";
-import { STARTER_TRIAL_DAYS } from "@/config/plans";
+import { PREMIUM_TRIAL_DAYS } from "@/config/plans";
 import { db } from "../db";
 import { businesses } from "../db/schema/businesses";
 import { branches } from "../db/schema/branches";
@@ -75,12 +75,18 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
                 schedule: input.schedule,
                 structure: input.structure,
                 plan: input.plan,
-                ...(input.plan === "starter" ? {
-                    subscriptionStatus: "active",
-                    currentPeriodEnd: new Date(
-                        now.getTime() + STARTER_TRIAL_DAYS * 24 * 60 * 60 * 1000,
-                    ),
-                } : {}),
+                ...(input.plan === "growth" || input.plan === "pro"
+                    ? {
+                          subscriptionStatus: "active" as const,
+                          currentPeriodEnd: new Date(
+                              now.getTime() +
+                                  PREMIUM_TRIAL_DAYS * 24 * 60 * 60 * 1000,
+                          ),
+                      }
+                    : {
+                          subscriptionStatus: "active" as const,
+                          currentPeriodEnd: null,
+                      }),
                 onboardingCompleted: true,
                 onboardingProgress: null,
                 updatedAt: now,

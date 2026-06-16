@@ -376,7 +376,7 @@ export function DownloadPageContent({ downloadMatrix, appVersion }: Props) {
 
         <p className="mx-auto mt-12 max-w-2xl text-center text-sm text-muted-foreground">
           Need the browser version?{" "}
-          <Link href="/signup" className="font-medium text-[#006c49] underline-offset-4 hover:underline">
+          <Link href="/pricing" className="font-medium text-[#006c49] underline-offset-4 hover:underline">
             Create an account
           </Link>{" "}
           or{" "}
