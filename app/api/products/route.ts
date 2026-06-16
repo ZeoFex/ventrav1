@@ -122,6 +122,7 @@ export async function PUT(req: Request) {
                 .update(products)
                 .set({
                     categoryId: data.categoryId || null,
+                    subcategoryId: data.subcategoryId || null,
                     name: data.name,
                     slug: data.slug,
                     sku: data.sku,

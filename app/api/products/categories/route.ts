@@ -3,27 +3,75 @@ import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-r
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { db } from "@/server/db";
 import { categories } from "@/server/db/schema/products";
-import { eq } from "drizzle-orm";
+import { businesses } from "@/server/db/schema/businesses";
+import { eq, and, ilike } from "drizzle-orm";
+import { z } from "zod";
+import { slugifyCategoryName } from "@/server/catalog/shop-type-defaults";
+import { seedDefaultCategoriesForBusiness } from "@/server/catalog/category-seed-service";
 
-export async function GET() {
+const createSchema = z.object({
+    name: z.string().min(1).max(255),
+    slug: z.string().max(255).optional(),
+    description: z.string().max(2000).optional(),
+});
+
+export async function GET(req: Request) {
     try {
         const auth = await requireUserAuthFromContext();
         if (auth instanceof NextResponse) return auth;
         const { payload } = auth;
         const branchId = await getActiveBranchIdFromContext();
 
-        let query = db.select().from(categories).where(eq(categories.businessId, payload.bid));
+        const { searchParams } = new URL(req.url);
+        const q = searchParams.get("q")?.trim();
+
+        const conditions = [eq(categories.businessId, payload.bid)];
+
         if (branchId && branchId !== "all") {
-            const { and } = await import("drizzle-orm");
-            query = db.select().from(categories).where(and(
-                eq(categories.businessId, payload.bid),
-                eq(categories.branchId, branchId)
-            )) as any;
+            conditions.push(eq(categories.branchId, branchId));
+        }
+        if (q) {
+            conditions.push(ilike(categories.name, `%${q.replace(/[%_\\]/g, "\\$&")}%`));
         }
 
-        const data = await query;
+        let data = await db
+            .select()
+            .from(categories)
+            .where(and(...conditions))
+            .limit(q ? 50 : 500);
+
+        // Auto-seed shop-type defaults for existing accounts with no categories yet
+        if (
+            data.length === 0 &&
+            !q &&
+            branchId &&
+            branchId !== "all"
+        ) {
+            const [biz] = await db
+                .select({ businessType: businesses.businessType })
+                .from(businesses)
+                .where(eq(businesses.id, payload.bid))
+                .limit(1);
+
+            if (biz?.businessType) {
+                await seedDefaultCategoriesForBusiness({
+                    businessId: payload.bid,
+                    branchId,
+                    businessType: biz.businessType,
+                    skipIfExists: true,
+                });
+
+                data = await db
+                    .select()
+                    .from(categories)
+                    .where(and(...conditions))
+                    .limit(500);
+            }
+        }
+
         return NextResponse.json(data);
     } catch (error) {
+        console.error("GET /api/products/categories failed:", error);
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }
@@ -38,7 +86,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Cannot create category in Global View. Select a branch first." }, { status: 400 });
         }
 
-        const { name, slug, description } = await req.json();
+        const { name, slug, description } = createSchema.parse(await req.json());
 
         const [inserted] = await db
             .insert(categories)
@@ -46,7 +94,7 @@ export async function POST(req: Request) {
                 businessId: payload.bid,
                 branchId: branchId || null,
                 name,
-                slug: slug || name.toLowerCase().replace(/\s+/g, "-"),
+                slug: slug || slugifyCategoryName(name),
                 description,
             })
             .returning();
@@ -69,7 +117,7 @@ export async function PUT(req: Request) {
             .update(categories)
             .set({
                 name,
-                slug: slug || name.toLowerCase().replace(/\s+/g, "-"),
+                slug: slug || slugifyCategoryName(name),
                 description,
                 updatedAt: new Date(),
             })

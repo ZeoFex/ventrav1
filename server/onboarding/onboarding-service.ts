@@ -9,6 +9,7 @@ import { db } from "../db";
 import { businesses } from "../db/schema/businesses";
 import { branches } from "../db/schema/branches";
 import { auditLogs } from "../db/schema/audit-logs";
+import { seedDefaultCategoriesForBusiness } from "../catalog/category-seed-service";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -134,7 +135,31 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
             }
         }
 
-        // 4. Audit log
+        // 4. Seed default categories for the main branch (shop type defaults)
+        const [mainBranch] = await tx
+            .select({ id: branches.id })
+            .from(branches)
+            .where(
+                and(
+                    eq(branches.businessId, input.businessId),
+                    eq(branches.isMain, true),
+                ),
+            )
+            .limit(1);
+
+        if (mainBranch) {
+            await seedDefaultCategoriesForBusiness(
+                {
+                    businessId: input.businessId,
+                    branchId: mainBranch.id,
+                    businessType: input.businessType,
+                    skipIfExists: true,
+                },
+                tx as typeof db,
+            );
+        }
+
+        // 5. Audit log
         await tx.insert(auditLogs).values({
             userId: input.userId,
             businessId: input.businessId,
