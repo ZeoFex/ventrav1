@@ -4,12 +4,12 @@
  * Runs in a single transaction for atomicity.
  */
 import { eq, and } from "drizzle-orm";
-import { STARTER_TRIAL_DAYS } from "@/config/plans";
+import { PREMIUM_TRIAL_DAYS } from "@/config/plans";
 import { db } from "../db";
 import { businesses } from "../db/schema/businesses";
 import { branches } from "../db/schema/branches";
 import { auditLogs } from "../db/schema/audit-logs";
-import { notifyShopOnboarded } from "../platform/platform-notification-service";
+import { seedDefaultCategoriesForBusiness } from "../catalog/category-seed-service";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -75,12 +75,18 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
                 schedule: input.schedule,
                 structure: input.structure,
                 plan: input.plan,
-                ...(input.plan === "starter" ? {
-                    subscriptionStatus: "active",
-                    currentPeriodEnd: new Date(
-                        now.getTime() + STARTER_TRIAL_DAYS * 24 * 60 * 60 * 1000,
-                    ),
-                } : {}),
+                ...(input.plan === "growth" || input.plan === "pro"
+                    ? {
+                          subscriptionStatus: "active" as const,
+                          currentPeriodEnd: new Date(
+                              now.getTime() +
+                                  PREMIUM_TRIAL_DAYS * 24 * 60 * 60 * 1000,
+                          ),
+                      }
+                    : {
+                          subscriptionStatus: "active" as const,
+                          currentPeriodEnd: null,
+                      }),
                 onboardingCompleted: true,
                 onboardingProgress: null,
                 updatedAt: now,
@@ -135,7 +141,31 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
             }
         }
 
-        // 4. Audit log
+        // 4. Seed default categories for the main branch (shop type defaults)
+        const [mainBranch] = await tx
+            .select({ id: branches.id })
+            .from(branches)
+            .where(
+                and(
+                    eq(branches.businessId, input.businessId),
+                    eq(branches.isMain, true),
+                ),
+            )
+            .limit(1);
+
+        if (mainBranch) {
+            await seedDefaultCategoriesForBusiness(
+                {
+                    businessId: input.businessId,
+                    branchId: mainBranch.id,
+                    businessType: input.businessType,
+                    skipIfExists: true,
+                },
+                tx,
+            );
+        }
+
+        // 5. Audit log
         await tx.insert(auditLogs).values({
             userId: input.userId,
             businessId: input.businessId,

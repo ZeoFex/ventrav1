@@ -43,8 +43,38 @@ export const categories = pgTable(
     },
     (t) => [
         index("categories_business_id_idx").on(t.businessId),
-        index("categories_branch_id_idx").on(t.branchId)
-    ]
+        index("categories_branch_id_idx").on(t.branchId),
+    ],
+);
+
+/** Subcategories nested under a category (e.g., Smartphones under Electronics). */
+export const subcategories = pgTable(
+    "subcategories",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        businessId: uuid("business_id")
+            .notNull()
+            .references(() => businesses.id, { onDelete: "cascade" }),
+        categoryId: uuid("category_id")
+            .notNull()
+            .references(() => categories.id, { onDelete: "cascade" }),
+        branchId: uuid("branch_id").references(() => branches.id, {
+            onDelete: "set null",
+        }),
+        name: varchar("name", { length: 255 }).notNull(),
+        slug: varchar("slug", { length: 255 }).notNull(),
+        createdAt: timestamp("created_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+        updatedAt: timestamp("updated_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+    },
+    (t) => [
+        index("subcategories_business_id_idx").on(t.businessId),
+        index("subcategories_category_id_idx").on(t.categoryId),
+        index("subcategories_branch_id_idx").on(t.branchId),
+    ],
 );
 
 /** Tags for granular filtering (e.g., "Trending", "Special Offer") */
@@ -79,6 +109,9 @@ export const products = pgTable(
             .notNull()
             .references(() => businesses.id, { onDelete: "cascade" }),
         categoryId: uuid("category_id").references(() => categories.id, {
+            onDelete: "set null",
+        }),
+        subcategoryId: uuid("subcategory_id").references(() => subcategories.id, {
             onDelete: "set null",
         }),
         branchId: uuid("branch_id").references(() => branches.id, {
@@ -120,6 +153,7 @@ export const products = pgTable(
         index("products_sku_idx").on(t.sku),
         index("products_barcode_idx").on(t.barcode),
         index("products_category_id_idx").on(t.categoryId),
+        index("products_subcategory_id_idx").on(t.subcategoryId),
         index("products_branch_id_idx").on(t.branchId),
     ]
 );

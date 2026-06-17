@@ -24,11 +24,13 @@ export { passwordResets } from "./password-resets";
 export {
     products,
     categories,
+    subcategories,
     tags,
     productTags,
     productVariations,
     productStatusEnum,
 } from "./products";
+export { shopTypes } from "./shop-types";
 export {
     sales,
     saleItems,

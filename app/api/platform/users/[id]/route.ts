@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requirePlatformAccess } from "@/server/auth/api-request-auth";
 import { assertUserInBusiness, setPlatformUserStatus } from "@/server/platform/platform-user-write";
 import { updateStaff } from "@/server/staff/staff-service";
+import { createPasswordSchema } from "@/lib/password-requirements";
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema/users";
 import { roles, userRoles } from "@/server/db/schema/roles";
@@ -22,9 +23,8 @@ const fullBody = z
         businessId: z.string().uuid(),
         firstName: z.string().min(1),
         lastName: z.string().optional().default(""),
-        email: z.string().email(),
         phone: z.string().min(1),
-        password: z.string().min(6).optional(),
+        password: createPasswordSchema().optional(),
         roleName: z.string().min(1),
         branchId: z.string().uuid(),
     })
@@ -128,7 +128,6 @@ export async function PATCH(
             await updateStaff(userId, f.data.businessId, {
                 firstName: f.data.firstName,
                 lastName: f.data.lastName,
-                email: f.data.email,
                 phone: f.data.phone,
                 passwordRaw: f.data.password,
                 roleName: f.data.roleName,
@@ -152,7 +151,7 @@ export async function PATCH(
 
     return NextResponse.json(
         {
-            error: "Body must be either { businessId, status } (suspend, etc.) or full staff update (firstName, email, phone, roleName, branchId, businessId, …).",
+            error: "Body must be either { businessId, status } (suspend, etc.) or full staff update (firstName, phone, roleName, branchId, businessId, …).",
             details: s.error.flatten(),
         },
         { status: 400 }

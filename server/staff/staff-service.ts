@@ -1,39 +1,44 @@
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema/users";
 import { roles, permissions, rolePermissions, userRoles } from "@/server/db/schema/roles";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { eq, and, sql, inArray, ne } from "drizzle-orm";
 import { hashPassword } from "@/server/auth/password-service";
+import {
+    phoneNormalizedKey,
+    staffInternalEmail,
+    normalizeGhanaPhone,
+} from "@/server/auth/phone-utils";
 
 export async function createStaff(payload: {
     businessId: string;
     branchId: string;
     firstName: string;
     lastName: string;
-    email: string;
     phone: string;
     passwordRaw: string;
     roleName: string;
-    // permissionKeys only used if we need to create/update role on the fly
     permissionKeys?: string[];
 }) {
-    // 1. Hash password via project-standard Argon2id
+    const phoneKey = phoneNormalizedKey(payload.phone);
+    const internalEmail = staffInternalEmail(payload.businessId, phoneKey);
+    const displayPhone = normalizeGhanaPhone(payload.phone);
+
     const hash = await hashPassword(payload.passwordRaw);
 
     return await db.transaction(async (tx) => {
-        // 2. Create User
         const [user] = await tx.insert(users).values({
             businessId: payload.businessId,
-            email: payload.email,
-            emailNormalized: payload.email.toLowerCase().trim(),
+            email: internalEmail,
+            emailNormalized: internalEmail.toLowerCase(),
             passwordHash: hash,
             firstName: payload.firstName,
             lastName: payload.lastName,
-            phone: payload.phone,
+            phone: displayPhone,
+            phoneNormalized: phoneKey,
             status: "active",
             emailVerified: true,
         }).returning();
 
-        // 3. Find or Create Role
         let role = await tx.query.roles.findFirst({
             where: and(eq(roles.businessId, payload.businessId), eq(roles.name, payload.roleName))
         });
@@ -45,7 +50,6 @@ export async function createStaff(payload: {
                 isSystem: false,
             }).returning();
 
-            // Map Permissions if provided
             if (payload.permissionKeys && payload.permissionKeys.length > 0) {
                 const dbPermissions = await tx.select().from(permissions)
                     .where(inArray(permissions.key, payload.permissionKeys));
@@ -60,7 +64,6 @@ export async function createStaff(payload: {
             }
         }
 
-        // 5. Assign User to Role + Branch
         await tx.insert(userRoles).values({
             userId: user.id,
             roleId: role.id,
@@ -77,7 +80,6 @@ export async function saveBusinessRole(payload: {
     permissionKeys: string[];
 }) {
     return await db.transaction(async (tx) => {
-        // Check if exists
         let role = await tx.query.roles.findFirst({
             where: and(eq(roles.businessId, payload.businessId), eq(roles.name, payload.name))
         });
@@ -90,10 +92,8 @@ export async function saveBusinessRole(payload: {
             }).returning();
         }
 
-        // Delete existing permissions for this role
         await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, role.id));
 
-        // Add new permissions
         if (payload.permissionKeys.length > 0) {
             const dbPermissions = await tx.select().from(permissions)
                 .where(inArray(permissions.key, payload.permissionKeys));
@@ -112,7 +112,7 @@ export async function saveBusinessRole(payload: {
 }
 
 export async function getStaffByBusiness(businessId: string, branchId?: string) {
-    const filters = [eq(users.businessId, businessId)];
+    const filters = [eq(users.businessId, businessId), ne(roles.name, "owner")];
 
     if (branchId && branchId !== "all") {
         filters.push(eq(userRoles.branchId, branchId));
@@ -161,36 +161,36 @@ export async function getRoleWithPermissions(roleId: string, businessId: string)
 export async function updateStaff(id: string, businessId: string, payload: {
     firstName: string;
     lastName?: string;
-    email: string;
     phone: string;
     passwordRaw?: string;
     roleName: string;
     branchId: string;
 }) {
-    // 1. Hash password if provided
+    const phoneKey = phoneNormalizedKey(payload.phone);
+    const internalEmail = staffInternalEmail(businessId, phoneKey);
+    const displayPhone = normalizeGhanaPhone(payload.phone);
+
     let hash: string | undefined;
     if (payload.passwordRaw) {
         hash = await hashPassword(payload.passwordRaw);
     }
 
     return await db.transaction(async (tx) => {
-        // 2. Update User
         await tx.update(users).set({
             firstName: payload.firstName,
             lastName: payload.lastName,
-            email: payload.email,
-            emailNormalized: payload.email.toLowerCase().trim(),
-            phone: payload.phone,
+            email: internalEmail,
+            emailNormalized: internalEmail.toLowerCase(),
+            phone: displayPhone,
+            phoneNormalized: phoneKey,
             ...(hash ? { passwordHash: hash } : {}),
         }).where(and(eq(users.id, id), eq(users.businessId, businessId)));
 
-        // 3. Find Role (must exist or be created via modal first)
         const role = await tx.query.roles.findFirst({
             where: and(eq(roles.businessId, businessId), eq(roles.name, payload.roleName))
         });
 
         if (role) {
-            // 4. Update User Role and Branch
             await tx.update(userRoles).set({
                 roleId: role.id,
                 branchId: payload.branchId,

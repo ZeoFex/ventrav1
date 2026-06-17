@@ -17,29 +17,30 @@ export function HeaderBranchSelector() {
 
   const isLoading = branchesLoading || sessionLoading;
   const isLocked = Boolean(user?.branchId);
-  const hasSingleBranch = branches?.length === 1;
-  const singleBranch = hasSingleBranch ? branches[0] : null;
+  const branchList = Array.isArray(branches) ? branches : [];
+  const hasSingleBranch = branchList.length === 1;
+  const singleBranch = hasSingleBranch ? branchList[0] : null;
 
   // Auto-select locked branch; single-branch businesses; drop stale IDs (e.g. cookie cleared but LS survived)
   useEffect(() => {
-    if (isLoading || !branches || branches.length === 0) return;
+    if (isLoading || branchList.length === 0) return;
 
     if (isLocked && user?.branchId && branchId !== user.branchId) {
       setBranchId(user.branchId);
       return;
     }
 
-    const validIds = new Set(branches.map((b: { id: string }) => b.id));
+    const validIds = new Set(branchList.map((b: { id: string }) => b.id));
 
-    if (branches.length === 1 && branchId === "all") {
-      setBranchId(branches[0].id);
+    if (branchList.length === 1 && branchId === "all") {
+      setBranchId(branchList[0].id);
       return;
     }
 
     if (branchId !== "all" && !validIds.has(branchId)) {
-      setBranchId(branches.length === 1 ? branches[0].id : "all");
+      setBranchId(branchList.length === 1 ? branchList[0].id : "all");
     }
-  }, [branches, branchId, setBranchId, isLocked, user?.branchId, isLoading]);
+  }, [branchList, branchId, setBranchId, isLocked, user?.branchId, isLoading]);
 
   return (
     <div className={`relative w-full min-w-0 shrink-0 sm:w-auto sm:max-w-[14rem] ${isLocked ? "opacity-80" : ""}`}>
@@ -70,8 +71,8 @@ export function HeaderBranchSelector() {
             {!isLocked && <option value="all">All Branches</option>}
             {isLoading ? (
               <option value="" disabled>Loading branches...</option>
-            ) : branches && branches.length > 0 ? (
-              branches.map((b: any) => (
+            ) : branchList.length > 0 ? (
+              branchList.map((b: { id: string; name: string }) => (
                 <option key={b.id} value={b.id}>
                   {b.name} {b.id === user?.branchId ? "(Assigned)" : ""}
                 </option>

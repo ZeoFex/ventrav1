@@ -2,7 +2,6 @@
  * VentraPOS — Plan-Based Feature Access Matrix
  *
  * SINGLE SOURCE OF TRUTH for sidebar gating, API guards, and upgrade prompts.
- * Aligned 1:1 with the compare table in app/components/landing/pricing.tsx.
  */
 
 export type PlanId = "starter" | "growth" | "pro";
@@ -11,63 +10,52 @@ export type PlanId = "starter" | "growth" | "pro";
 export const COPILOT_FEATURE_ID = "copilot" as const;
 
 export const PLAN_LIMITS = {
-  starter: { maxBranches: 1, maxStaff: 3, maxProducts: 500, maxTerminals: 1 },
-  growth:  { maxBranches: 3, maxStaff: 15, maxProducts: 5000, maxTerminals: 3 },
-  pro:     { maxBranches: 5, maxStaff: -1, maxProducts: -1, maxTerminals: -1 },
+  starter: { maxBranches: 1, maxStaff: 2, maxProducts: 500, maxTerminals: 1 },
+  growth: { maxBranches: 3, maxStaff: 15, maxProducts: 5000, maxTerminals: 3 },
+  pro: { maxBranches: 5, maxStaff: -1, maxProducts: -1, maxTerminals: -1 },
 } as const;
 
 export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
 
-  // ── STARTER ── 1 branch · basic POS · basic stock · basic reports
+  // ── STARTER — Free forever: POS, catalog, basic stock view/adjust only
   starter: {
     "home": true,
-    // POS (Checkout ✓, barcode ✗, register ✗)
-    "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
+    "pos": true, "new-sale": true, "held-sales": true,
+    "customer-orders": false,
     "open-register": false, "pos-scan": false,
-    // Sales (basic ✓)
-    "sales": true, "sales-overview": true, "sales-transactions": true,
+    "sales": false, "sales-overview": false, "sales-transactions": false,
     "sales-revenue": false, "sales-profit": false,
     "sales-average-order-value": false, "sales-refunds": false,
-    // Products (stock ✓, transfers ✗, expiry ✗)
     "products": true, "product-list": true, "categories": true,
-    "tags": true, "stock": true, "stock-take": true,
+    "tags": true, "stock": true, "stock-take": false,
     "stock-transfers": false, "expiry-batch-tracking": false,
-    // Customers
-    "customers": true, "customer-list": true, "customer-add": true,
-    "suppliers-list": true, "supplier-add": true,
-    // Staff (basic roles ✓, advanced ✗, performance ✗)
+    "customers": false, "customer-list": false, "customer-add": false,
+    "suppliers-list": false, "supplier-add": false,
     "staff": true, "staff-list": true, "add-staff": true,
     "staff-advanced-roles": false, "staff-performance": false,
-    // Finance (expenses ✓, profit trends ✗)
-    "finance": true, "finance-overview": true, "finance-pnl": true,
-    "finance-expenses": true,
-    "finance-expense-schedules": true,
-    "finance-expense-reports": true,
-    "finance-reminders": true,
+    "finance": false, "finance-overview": false, "finance-pnl": false,
+    "finance-expenses": false,
+    "finance-expense-schedules": false,
+    "finance-expense-reports": false,
+    "finance-reminders": false,
     "finance-profit-trends": false,
-    // Branches (single only → locked)
     "branches": false, "branches-all": false,
-    // Reports (basic ✓)
-    "reports": true, "reports-sales-summary": true,
+    "reports": false, "reports-sales-summary": false,
     "reports-product-report": false,
     "reports-inventory-valuation": false, "reports-taxes": false,
     "reports-z-report": false, "reports-branch-profitability": false,
-    // Marketing (✗)
     "marketing": false, "marketing-discounts": false,
-    // Settings (always)
     "settings": true, "settings-profile": true, "settings-receipt": true,
     "settings-notifications": true, "settings-account": true,
     "settings-security": true, "settings-billing": true,
     "settings-referrals": true,
     "support": true,
-    // Pro governance
     "audit-logs": false, "approval-workflows": false,
     "restricted-discounts": false, "cash-reconciliation": false,
-    // AI
     "copilot": false,
   },
 
-  // ── GROWTH ── Multi-branch · adv roles · barcode · refunds · deeper reports
+  // ── GROWTH — Multi-branch, customers, suppliers, expenses, reports, barcode
   growth: {
     "home": true,
     "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
@@ -82,16 +70,17 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "suppliers-list": true, "supplier-add": true,
     "staff": true, "staff-list": true, "add-staff": true,
     "staff-advanced-roles": true, "staff-performance": true,
-    "finance": true, "finance-overview": true, "finance-pnl": true, "finance-expenses": true,
+    "finance": true, "finance-overview": true, "finance-pnl": true,
+    "finance-expenses": true,
     "finance-expense-schedules": true,
     "finance-expense-reports": true,
     "finance-reminders": true,
     "finance-profit-trends": true,
     "branches": true, "branches-all": true,
     "reports": true, "reports-sales-summary": true,
-    "reports-product-report": false,
+    "reports-product-report": true,
     "reports-inventory-valuation": true, "reports-taxes": true,
-    "reports-z-report": false, "reports-branch-profitability": false,
+    "reports-z-report": false, "reports-branch-profitability": true,
     "marketing": true, "marketing-discounts": true,
     "settings": true, "settings-profile": true, "settings-receipt": true,
     "settings-notifications": true, "settings-account": true,
@@ -103,7 +92,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "copilot": false,
   },
 
-  // ── PRO ── Everything unlocked
+  // ── PRO — Everything unlocked
   pro: {
     "home": true,
     "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
@@ -118,7 +107,8 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "suppliers-list": true, "supplier-add": true,
     "staff": true, "staff-list": true, "add-staff": true,
     "staff-advanced-roles": true, "staff-performance": true,
-    "finance": true, "finance-overview": true, "finance-pnl": true, "finance-expenses": true,
+    "finance": true, "finance-overview": true, "finance-pnl": true,
+    "finance-expenses": true,
     "finance-expense-schedules": true,
     "finance-expense-reports": true,
     "finance-reminders": true,
@@ -140,9 +130,28 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
   },
 };
 
+/** Effective plan for feature access — expired premium trials fall back to Starter. */
+export function getEffectivePlan(
+  plan: PlanId,
+  subscriptionStatus: string | null | undefined,
+  currentPeriodEnd: string | Date | null | undefined,
+): PlanId {
+  if (plan === "starter") return "starter";
+  const expired =
+    subscriptionStatus === "past_due" ||
+    (currentPeriodEnd != null && new Date(currentPeriodEnd).getTime() < Date.now());
+  return expired ? "starter" : plan;
+}
+
 /** Check if a specific feature is accessible for the given plan. */
-export function canAccess(plan: PlanId, featureId: string): boolean {
-  return PLAN_FEATURE_ACCESS[plan]?.[featureId] ?? false;
+export function canAccess(
+  plan: PlanId,
+  featureId: string,
+  subscriptionStatus?: string | null,
+  currentPeriodEnd?: string | Date | null,
+): boolean {
+  const effective = getEffectivePlan(plan, subscriptionStatus, currentPeriodEnd);
+  return PLAN_FEATURE_ACCESS[effective]?.[featureId] ?? false;
 }
 
 /** Get all feature IDs that are gated (locked) for a given plan. */

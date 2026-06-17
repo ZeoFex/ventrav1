@@ -7,6 +7,7 @@ import {
   useRef,
   useMemo,
   useState,
+  useEffect,
   type FormEvent,
 } from "react";
 import { ArrowLeft, ImageIcon, Loader2, Printer, RefreshCw, X, Camera } from "lucide-react";
@@ -17,6 +18,7 @@ import { generateProductSku } from "./product-catalog-codes";
 import { ProductsPageShell } from "./products-page-shell";
 import { BarcodeGridModal } from "./barcode-grid-modal";
 import { useCategories, useTags } from "./products-data-hooks";
+import { SearchableCombobox, type ComboboxOption } from "@/components/ui/searchable-combobox";
 import { useUploadThing } from "@/app/lib/uploadthing";
 import { useSWRConfig } from "swr";
 import {
@@ -79,7 +81,12 @@ export function ProductForm({
     initial.stock === 0 ? "" : initial.stock,
   );
   const [reorderAt, setReorderAt] = useState<number | "">(initial.reorderAt);
-  const [categoryId, setCategoryId] = useState(initial.categoryId);
+  const [categoryId, setCategoryId] = useState(
+    initial.categoryId === "all" ? "" : initial.categoryId,
+  );
+  const [categorySearch, setCategorySearch] = useState("");
+  const [nameSuggestions, setNameSuggestions] = useState<ComboboxOption[]>([]);
+  const [nameSearchLoading, setNameSearchLoading] = useState(false);
   const [tagIds, setTagIds] = useState<string[]>(initial.tagIds);
   const [status, setStatus] = useState<string>(initial.status);
   const [variations, setVariations] = useState<any[]>(initial.variations || []);
@@ -106,12 +113,13 @@ export function ProductForm({
   const { user } = useSession();
 
   const suggestedTypes = useMemo(() => {
-    const bType = user?.businessType || "retail";
-    if (bType === "boutique") return ["Size", "Color"];
-    if (bType === "agro_chemicals")
+    const bType = user?.businessType || "general_retail_store";
+    if (bType === "boutique_fashion" || bType === "boutique") return ["Size", "Color"];
+    if (bType === "agrochemical_shop" || bType === "agro_chemicals")
       return ["Pack size", "Volume / weight", "Concentration"];
     if (bType === "pharmacy") return ["Dosage", "Pack Size"];
-    if (bType === "electronics") return ["Storage", "Color", "Model"];
+    if (bType === "electronics_store" || bType === "electronics")
+      return ["Storage", "Color", "Model"];
     if (bType === "cold_store") return ["Cut", "Weight", "Pack Size"];
     return ["Size", "Color", "Material", "Style"];
   }, [user?.businessType]);
@@ -137,8 +145,57 @@ export function ProductForm({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initial.imageSrc);
 
-  const { categories = [] } = useCategories();
+  const { categories, mutate: mutateCategories } = useCategories(categorySearch);
   const { tags = [] } = useTags();
+
+  const categoryOptions: ComboboxOption[] = useMemo(
+    () =>
+      (Array.isArray(categories) ? categories : []).map(
+        (c: { id: string; name: string }) => ({ value: c.id, label: c.name }),
+      ),
+    [categories],
+  );
+
+  const handleCreateCategory = useCallback(
+    async (catName: string): Promise<ComboboxOption | null> => {
+      const res = await fetch("/api/products/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: catName }),
+      });
+      if (!res.ok) return null;
+      const created = await res.json();
+      await mutateCategories();
+      return { value: created.id, label: created.name };
+    },
+    [mutateCategories],
+  );
+
+  const searchProductNames = useCallback(async (q: string) => {
+    if (q.trim().length < 2) {
+      setNameSuggestions([]);
+      return;
+    }
+    setNameSearchLoading(true);
+    try {
+      const res = await fetch(`/api/products/search?q=${encodeURIComponent(q)}&limit=8`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setNameSuggestions(
+        (data.results ?? []).map((p: { id: string; name: string; sku: string }) => ({
+          value: p.id,
+          label: `${p.name} (${p.sku})`,
+        })),
+      );
+    } finally {
+      setNameSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => searchProductNames(name), 200);
+    return () => window.clearTimeout(t);
+  }, [name, searchProductNames]);
   const { startUpload, isUploading } = useUploadThing("productImage");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -251,7 +308,7 @@ export function ProductForm({
       stock: stockNum,
       reorderAt: Number(reorderAt) || 0,
       unit: cleanUnit,
-      categoryId: categoryId === "all" ? null : categoryId,
+      categoryId: categoryId || null,
       tagIds,
       status,
       imageSrc: imagePreview,
@@ -380,7 +437,44 @@ export function ProductForm({
           <div className="grid sm:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Product Name *</label>
-              <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="e.g. Coca Cola 500ml" />
+              <div className="relative">
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onFocus={() => {
+                    if (name.trim().length >= 2) searchProductNames(name);
+                  }}
+                  className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                  placeholder="e.g. Amoxicillin 500mg"
+                  autoComplete="off"
+                />
+                {nameSuggestions.length > 0 && name.trim().length >= 2 && (
+                  <ul
+                    role="listbox"
+                    className="absolute z-40 mt-1 max-h-48 w-full overflow-y-auto rounded-2xl border border-border bg-white shadow-lg dark:border-white/10 dark:bg-[#111]"
+                  >
+                    {nameSearchLoading && (
+                      <li className="px-3 py-2 text-[13px] text-muted-foreground">Searching…</li>
+                    )}
+                    {nameSuggestions.map((s) => (
+                      <li key={s.value}>
+                        <button
+                          type="button"
+                          role="option"
+                          className="w-full px-3 py-2.5 text-left text-[14px] hover:bg-muted"
+                          onClick={() => {
+                            setName(s.label.replace(/\s*\([^)]*\)$/, ""));
+                            setNameSuggestions([]);
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Barcode / SKU *</label>
@@ -658,13 +752,18 @@ export function ProductForm({
 
         <section className="space-y-4 border-t pt-8 dark:border-white/5">
           <div className="grid sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">Category</label>
-              <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 appearance-none">
-                <option value="all">Uncategorized</option>
-                {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
+            <SearchableCombobox
+              id="product-category"
+              label="Category"
+              placeholder="Search categories…"
+              value={categoryId || null}
+              onValueChange={(val) => setCategoryId(val ?? "")}
+              options={categoryOptions}
+              onSearch={setCategorySearch}
+              onCreate={handleCreateCategory}
+              allowClear
+              clearLabel="Uncategorized"
+            />
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Status</label>
               <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 appearance-none">

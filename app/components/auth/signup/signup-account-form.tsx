@@ -1,23 +1,17 @@
 import Link from "next/link";
 import {
-  CheckMini,
   IconBuilding,
   IconEnvelope,
   IconEye,
   IconEyeSlash,
   IconLock,
   IconUser,
+  CheckMini,
 } from "@/app/components/auth/auth-icons";
 import { inputBase, inputPassword } from "@/app/components/auth/auth-input-classes";
-import { CheckCircle2, Phone } from "lucide-react";
-
-export type PasswordChecks = {
-  minLen: boolean;
-  upper: boolean;
-  lower: boolean;
-  number: boolean;
-  special: boolean;
-};
+import { PasswordRequirements } from "@/app/components/auth/password-requirements";
+import { getPlanSignupLabel, isValidPlanId, type PlanId } from "@/config/plans";
+import { Phone } from "lucide-react";
 
 type SignupAccountFormProps = {
   businessName: string;
@@ -38,7 +32,6 @@ type SignupAccountFormProps = {
   setShowConfirmPassword: (v: boolean | ((s: boolean) => boolean)) => void;
   acceptTerms: boolean;
   setAcceptTerms: (v: boolean) => void;
-  passwordChecks: PasswordChecks;
   passwordValid: boolean;
   passwordsMatch: boolean;
   confirmHasError: boolean;
@@ -48,14 +41,6 @@ type SignupAccountFormProps = {
   isPaid?: boolean;
   selectedPlan?: string;
 };
-
-const ruleRows: { key: keyof PasswordChecks; label: string }[] = [
-  { key: "minLen", label: "At least 8 characters" },
-  { key: "upper", label: "One uppercase letter" },
-  { key: "lower", label: "One lowercase letter" },
-  { key: "number", label: "One number" },
-  { key: "special", label: "One special character" },
-];
 
 export function SignupAccountForm({
   businessName,
@@ -76,7 +61,6 @@ export function SignupAccountForm({
   setShowConfirmPassword,
   acceptTerms,
   setAcceptTerms,
-  passwordChecks,
   passwordValid,
   passwordsMatch,
   confirmHasError,
@@ -107,17 +91,19 @@ export function SignupAccountForm({
           Create your account
         </h2>
 
-        {isPaid && (
-          <div className="mt-6 flex items-center gap-3 rounded-2xl bg-[#006c49]/5 p-4 border border-[#006c49]/20 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe] dark:border-[#6ffbbe]/20 animate-in fade-in slide-in-from-top-1">
-            <CheckCircle2 className="size-5 shrink-0" />
-            <div>
-              <p className="text-sm font-bold uppercase tracking-wider">
-                {selectedPlan} Plan Paid
+        {selectedPlan && isValidPlanId(selectedPlan) && (
+          <div className="mt-6 rounded-2xl border border-[#006c49]/20 bg-[#006c49]/5 p-4 dark:border-[#6ffbbe]/20 dark:bg-[#6ffbbe]/10">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Selected plan
+            </p>
+            <p className="mt-1 text-[15px] font-bold text-[#006c49] dark:text-[#6ffbbe]">
+              {getPlanSignupLabel(selectedPlan as PlanId)}
+            </p>
+            {isPaid && (
+              <p className="mt-1 text-[12px] text-muted-foreground">
+                Payment received — plan activates after email verification.
               </p>
-              <p className="text-[12px] opacity-80 mt-0.5">
-                Plan will be activated automatically after verification.
-              </p>
-            </div>
+            )}
           </div>
         )}
 
@@ -234,56 +220,11 @@ export function SignupAccountForm({
               </button>
             </div>
             {password.length > 0 && (
-              <div className="mt-2 border-t border-[#bfc9c3]/20 pt-2 dark:border-white/[0.08]">
-                <div
-                  className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
-                  style={{
-                    gridTemplateRows: passwordValid ? "0fr" : "1fr",
-                  }}
-                >
-                  <div
-                    className="min-h-0 overflow-hidden"
-                    aria-hidden={passwordValid}
-                  >
-                    <ul className="space-y-1.5" aria-live="polite">
-                      {ruleRows.map(({ key, label }) => (
-                        <li
-                          key={key}
-                          className="flex items-start gap-2 text-[12px] leading-tight text-muted-foreground"
-                        >
-                          <CheckMini passed={passwordChecks[key]} />
-                          <span
-                            className={
-                              passwordChecks[key]
-                                ? "text-[#006c49] dark:text-[#6ffbbe]"
-                                : ""
-                            }
-                          >
-                            {label}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                <div
-                  className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
-                  style={{
-                    gridTemplateRows: passwordValid ? "1fr" : "0fr",
-                  }}
-                >
-                  <div className="min-h-0 overflow-hidden">
-                    <p
-                      className="flex items-center gap-2 text-[12px] font-medium leading-tight text-[#006c49] dark:text-[#6ffbbe]"
-                      role="status"
-                      aria-live="polite"
-                    >
-                      <CheckMini passed />
-                      All requirements met
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <PasswordRequirements
+                password={password}
+                collapseWhenValid
+                collapsible={false}
+              />
             )}
           </div>
 
@@ -356,7 +297,7 @@ export function SignupAccountForm({
                 href="/legal/terms"
                 className="font-medium text-[#006c49] underline-offset-2 hover:underline dark:text-[#6ffbbe]"
               >
-                Terms
+                Terms of Service
               </Link>{" "}
               and{" "}
               <Link

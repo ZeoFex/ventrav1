@@ -1,12 +1,14 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { AuthSplitVisual } from "@/app/components/auth/auth-split-visual";
 import { inputPassword } from "@/app/components/auth/auth-input-classes";
 import { IconEye, IconEyeSlash, IconLock } from "@/app/components/auth/auth-icons";
+import { PasswordRequirements } from "@/app/components/auth/password-requirements";
+import { isPasswordValid } from "@/lib/password-requirements";
 
 const SPLIT_IMAGE_LIGHT = "/landing/security-light.png";
 const SPLIT_IMAGE_DARK = "/landing/security-dark.png";
@@ -22,12 +24,14 @@ export function ResetPasswordView() {
     const [apiError, setApiError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
+    const passwordValid = useMemo(() => isPasswordValid(password), [password]);
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!token || !password || isSubmitting) return;
 
-        if (password.length < 8) {
-            setApiError("Password must be at least 8 characters.");
+        if (!passwordValid) {
+            setApiError("Password does not meet all requirements.");
             return;
         }
 
@@ -139,9 +143,11 @@ export function ResetPasswordView() {
                                     </button>
                                 </div>
 
+                                <PasswordRequirements password={password} showWhenEmpty />
+
                                 <button
                                     type="submit"
-                                    disabled={!password || isSubmitting}
+                                    disabled={!passwordValid || isSubmitting}
                                     className="w-full mt-2 flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#003527] to-[#064e3b] py-3.5 text-[15px] font-semibold text-white shadow-[0_16px_40px_-12px_rgba(0,53,39,0.35)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.6)]"
                                 >
                                     {isSubmitting ? (

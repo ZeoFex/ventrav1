@@ -1,15 +1,9 @@
 import { env } from "../config/env";
+import { normalizeGhanaPhone } from "./phone-utils";
 
 interface SendOtpSmsProps {
   to: string;
   code: string;
-}
-
-function normalizeGhanaPhone(phone: string): string {
-  const digits = phone.replace(/\s+/g, "");
-  if (digits.startsWith("+233")) return digits;
-  if (digits.startsWith("0")) return `+233${digits.slice(1)}`;
-  return digits;
 }
 
 export async function sendOtpSms({ to, code }: SendOtpSmsProps) {

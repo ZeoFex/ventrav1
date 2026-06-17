@@ -1,13 +1,16 @@
 export type BusinessTypeId =
-  | "retail"
-  | "agro_chemicals"
   | "pharmacy"
+  | "agrochemical_shop"
+  | "building_construction"
+  | "boutique_fashion"
   | "supermarket"
-  | "mini_mart"
-  | "boutique"
-  | "electronics"
   | "cold_store"
-  | "other";
+  | "electronics_store"
+  | "hardware_store"
+  | "stationery_bookshop"
+  | "furniture_store"
+  | "cosmetics_beauty"
+  | "general_retail_store";
 
 export type StoreStructure = "single" | "multi" | null;
 
@@ -30,7 +33,7 @@ export type WeeklySchedule = {
 export type TaxType = "standard_21_9" | "flat_4" | "flat_3" | "custom" | "none";
 
 export type BranchData = {
-  id: string; // unique internal id for the form
+  id: string;
   name: string;
   region: string;
   isMain: boolean;
@@ -59,7 +62,6 @@ export type OnboardingData = {
   plan: "starter" | "growth" | "pro";
   cycle: "monthly" | "annually";
   billingComplete: boolean;
-  /** Multi-branch flow: Array of branches. */
   branches: BranchData[];
 };
 
@@ -94,7 +96,5 @@ export const defaultOnboardingData = (): OnboardingData => ({
   plan: "starter",
   cycle: "annually",
   billingComplete: false,
-  branches: [
-    { id: "main-1", name: "", region: "", isMain: true }
-  ],
+  branches: [{ id: "main-1", name: "", region: "", isMain: true }],
 });

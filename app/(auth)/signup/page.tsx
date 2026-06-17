@@ -4,11 +4,11 @@ import { SignupView } from "@/app/components/auth/signup";
 export const metadata: Metadata = {
   title: "Create Account",
   description:
-    "Create your free VentraPOS account. Start managing sales, inventory, and staff in minutes.",
+    "Create your VentraPOS account. Choose Starter free forever, or start a Growth or Pro trial.",
   openGraph: {
     title: "Create Account — VentraPOS",
     description:
-      "First month on us — start your 30-day free trial. Cloud POS for supermarkets, pharmacies, and restaurants.",
+      "Select a plan and create your account. Starter is free forever; Growth and Pro include a 14-day trial.",
   },
 };
 

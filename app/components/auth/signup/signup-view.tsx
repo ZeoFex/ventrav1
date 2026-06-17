@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { writeOnboardingPrefill } from "@/app/lib/onboarding-prefill";
+import { isValidPlanId } from "@/config/plans";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { AuthSplitVisual } from "@/app/components/auth/auth-split-visual";
 import { SignupAccountForm } from "./signup-account-form";
-import type { PasswordChecks } from "./signup-account-form";
+import type { PasswordChecks } from "@/lib/password-requirements";
+import { getPasswordChecks, isPasswordValid } from "@/lib/password-requirements";
 import { SignupOtpForm } from "./signup-otp-form";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -42,7 +44,14 @@ function SignupViewContent() {
   const [resendSeconds, setResendSeconds] = useState(0);
   
   const isPaid = searchParams.get("paid") === "true";
-  const selectedPlan = searchParams.get("plan") || "starter";
+  const planParam = searchParams.get("plan") || "";
+  const selectedPlan = isValidPlanId(planParam) ? planParam : null;
+
+  useEffect(() => {
+    if (!selectedPlan) {
+      router.replace("/pricing");
+    }
+  }, [selectedPlan, router]);
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
@@ -59,20 +68,14 @@ function SignupViewContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const passwordChecks = useMemo((): PasswordChecks => {
-    const p = password;
-    return {
-      minLen: p.length >= 8,
-      upper: /[A-Z]/.test(p),
-      lower: /[a-z]/.test(p),
-      number: /\d/.test(p),
-      special: /[^A-Za-z0-9]/.test(p),
-    };
-  }, [password]);
+  const passwordChecks = useMemo(
+    (): PasswordChecks => getPasswordChecks(password),
+    [password]
+  );
 
   const passwordValid = useMemo(
-    () => Object.values(passwordChecks).every(Boolean),
-    [passwordChecks],
+    () => isPasswordValid(passwordChecks),
+    [passwordChecks]
   );
 
   const passwordsMatch =
@@ -128,7 +131,7 @@ function SignupViewContent() {
 
   async function handleSignupSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!passwordValid || !passwordsMatch || !acceptTerms || isSubmitting) return;
+    if (!passwordValid || !passwordsMatch || !acceptTerms || isSubmitting || !selectedPlan) return;
 
     setIsSubmitting(true);
     setApiError(null);
@@ -141,7 +144,9 @@ function SignupViewContent() {
           businessName: businessName.trim(),
           fullName: fullName.trim(),
           email: email.trim(),
+          phone: phone.trim() || undefined,
           password,
+          plan: selectedPlan,
           referralCode: searchParams.get("ref")?.trim() || undefined,
         }),
       });
@@ -164,7 +169,7 @@ function SignupViewContent() {
 
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
-    if (!otpComplete || isSubmitting) return;
+    if (!otpComplete || isSubmitting || !selectedPlan) return;
 
     setIsSubmitting(true);
     setApiError(null);
@@ -197,8 +202,8 @@ function SignupViewContent() {
         email: email.trim(),
         storeName: businessName.trim(),
         legalName: fullName.trim(),
-        plan: searchParams.get("plan") || "starter",
-        cycle: searchParams.get("cycle") || "annually",
+        plan: selectedPlan,
+        cycle: searchParams.get("cycle") || "monthly",
         paid: isPaid,
       });
       router.push("/onboarding");
@@ -260,6 +265,10 @@ function SignupViewContent() {
     setOtpChannel("email");
   }
 
+  if (!selectedPlan) {
+    return <div className="min-h-screen bg-background" />;
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       <div className="absolute right-4 top-4 z-30 flex items-center gap-2 sm:right-6 sm:top-6">
@@ -296,7 +305,6 @@ function SignupViewContent() {
             setShowConfirmPassword={setShowConfirmPassword}
             acceptTerms={acceptTerms}
             setAcceptTerms={setAcceptTerms}
-            passwordChecks={passwordChecks}
             passwordValid={passwordValid}
             passwordsMatch={passwordsMatch}
             confirmHasError={confirmHasError}

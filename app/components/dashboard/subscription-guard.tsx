@@ -12,8 +12,11 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
         return <>{children}</>;
     }
 
-    const isExpired = user.subscriptionStatus === "past_due" || 
-        (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getTime() < Date.now());
+    const isExpired =
+        user.subscriptionStatus === "past_due" ||
+        (user.plan !== "starter" &&
+            user.currentPeriodEnd &&
+            new Date(user.currentPeriodEnd).getTime() < Date.now());
 
     // Allow access to Home and Billing Settings
     if (pathname === "/dashboard" || pathname.startsWith("/dashboard/settings/billing")) {

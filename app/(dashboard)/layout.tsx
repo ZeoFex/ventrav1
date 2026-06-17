@@ -20,14 +20,19 @@ async function ensureOnboarded() {
   if (!token) return; // proxy middleware already redirects unauthenticated users
 
   let businessId: string | null = null;
+  let role: string | null = null;
   try {
     const payload = await verifyAccessToken(token);
     businessId = payload.bid || null;
+    role = payload.role || null;
   } catch {
     return; // invalid token — let normal auth flow handle it
   }
 
   if (!businessId) return;
+
+  // Staff skip owner onboarding — they inherit the business setup from the owner.
+  if (role && role !== "owner") return;
 
   try {
     const [row] = await db

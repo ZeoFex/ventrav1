@@ -4,7 +4,7 @@
  */
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db";
-import { products, productTags, tags, categories, productVariations } from "../db/schema/products";
+import { products, productTags, tags, categories, subcategories, productVariations } from "../db/schema/products";
 import { redis } from "../lib/redis";
 import { sellableUnits } from "../stock/sellable-stock";
 import {
@@ -43,6 +43,7 @@ export interface ProductInput {
     businessId: string;
     branchId?: string | null;
     categoryId?: string | null;
+    subcategoryId?: string | null;
     name: string;
     slug: string;
     sku: string;
@@ -105,9 +106,12 @@ export async function getProducts(businessId: string, branchId?: string | null) 
             imageSrc: products.imageSrc,
             categoryName: categories.name,
             categoryId: products.categoryId,
+            subcategoryName: subcategories.name,
+            subcategoryId: products.subcategoryId,
         })
         .from(products)
         .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
         .where(
             and(
                 eq(products.businessId, businessId),
@@ -172,6 +176,7 @@ export async function saveProduct(input: ProductInput) {
                 businessId: input.businessId,
                 branchId: input.branchId || null,
                 categoryId: input.categoryId || null,
+                subcategoryId: input.subcategoryId || null,
                 name: input.name,
                 slug: input.slug,
                 sku: input.sku,

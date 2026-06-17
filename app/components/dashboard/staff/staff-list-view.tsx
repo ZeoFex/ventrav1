@@ -27,11 +27,11 @@ export function StaffListView() {
 
       if (q) {
         const name = s.name || "";
-        const email = s.email || "";
+        const phone = s.phone || "";
         const roleName = s.roleName || "";
         return (
           name.toLowerCase().includes(q) ||
-          email.toLowerCase().includes(q) ||
+          phone.toLowerCase().includes(q) ||
           roleName.toLowerCase().includes(q)
         );
       }
@@ -166,7 +166,7 @@ export function StaffListView() {
                         {staff.name}
                       </p>
                       <p className="truncate text-[12px] text-muted-foreground">
-                        {staff.email}
+                        {staff.phone || "No phone"}
                       </p>
                     </div>
                   </div>

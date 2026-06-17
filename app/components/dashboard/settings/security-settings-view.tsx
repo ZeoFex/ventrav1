@@ -1,11 +1,25 @@
 "use client";
 
-import { Shield, Key, Smartphone, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Key, Smartphone, AlertTriangle } from "lucide-react";
+import { PasswordRequirements } from "@/app/components/auth/password-requirements";
+import { isPasswordValid } from "@/lib/password-requirements";
 
 export function SecuritySettingsView() {
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+
+    const newPasswordValid = useMemo(() => isPasswordValid(newPassword), [newPassword]);
+    const passwordsMatch =
+        confirmPassword.length > 0 && newPassword === confirmPassword;
+    const canUpdate =
+        currentPassword.length > 0 &&
+        newPasswordValid &&
+        passwordsMatch;
+
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
-            {/* Change Password */}
             <div className="rounded-[2rem] border border-[#eef0f2] bg-white p-8 shadow-sm dark:border-white/[0.08] dark:bg-[#111]">
                 <div className="flex items-center gap-3 mb-8">
                     <div className="rounded-2xl bg-[#006c49]/5 p-3 dark:bg-[#6ffbbe]/5">
@@ -18,41 +32,58 @@ export function SecuritySettingsView() {
                 </div>
 
                 <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2">
+                    <div className="space-y-2 sm:col-span-2 sm:max-w-md">
                         <label className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground ml-1">Current Password</label>
                         <input
                             type="password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            autoComplete="current-password"
                             className="w-full rounded-2xl border border-[#e5e7eb] bg-transparent py-3 px-4 text-[15px] outline-none ring-[#006c49]/15 transition-all focus:border-[#006c49]/40 focus:ring-4 dark:border-white/[0.12] dark:focus:border-[#6ffbbe]"
                             placeholder="••••••••"
                         />
                     </div>
-                    <div className="hidden sm:block" />
                     <div className="space-y-2">
                         <label className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground ml-1">New Password</label>
                         <input
                             type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            autoComplete="new-password"
                             className="w-full rounded-2xl border border-[#e5e7eb] bg-transparent py-3 px-4 text-[15px] outline-none ring-[#006c49]/15 transition-all focus:border-[#006c49]/40 focus:ring-4 dark:border-white/[0.12] dark:focus:border-[#6ffbbe]"
                             placeholder="••••••••"
                         />
+                        <PasswordRequirements password={newPassword} showWhenEmpty />
                     </div>
                     <div className="space-y-2">
                         <label className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground ml-1">Confirm New Password</label>
                         <input
                             type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            autoComplete="new-password"
                             className="w-full rounded-2xl border border-[#e5e7eb] bg-transparent py-3 px-4 text-[15px] outline-none ring-[#006c49]/15 transition-all focus:border-[#006c49]/40 focus:ring-4 dark:border-white/[0.12] dark:focus:border-[#6ffbbe]"
                             placeholder="••••••••"
                         />
+                        {confirmPassword.length > 0 && !passwordsMatch && (
+                            <p className="text-[12px] text-red-600 dark:text-red-400">
+                                Passwords do not match.
+                            </p>
+                        )}
                     </div>
                 </div>
 
                 <div className="mt-8 flex justify-end">
-                    <button className="flex items-center gap-2 rounded-xl bg-[#006c49] px-6 py-3 text-[14px] font-bold text-white shadow-xl shadow-[#006c49]/20 transition-all hover:brightness-110">
+                    <button
+                        type="button"
+                        disabled={!canUpdate}
+                        className="flex items-center gap-2 rounded-xl bg-[#006c49] px-6 py-3 text-[14px] font-bold text-white shadow-xl shadow-[#006c49]/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                         Update Password
                     </button>
                 </div>
             </div>
 
-            {/* Two Factor Auth */}
             <div className="rounded-[2rem] border border-[#eef0f2] bg-white p-8 shadow-sm dark:border-white/[0.08] dark:bg-[#111]">
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -62,7 +93,7 @@ export function SecuritySettingsView() {
                         <div>
                             <h3 className="text-[16px] font-semibold tracking-tight">Two-Factor Authentication (2FA)</h3>
                             <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-md">
-                                Add an extra layer of security to your account. We'll ask for a code whenever you log in from a new device.
+                                Add an extra layer of security to your account. We&apos;ll ask for a code whenever you log in from a new device.
                             </p>
                         </div>
                     </div>
@@ -72,7 +103,6 @@ export function SecuritySettingsView() {
                 </div>
             </div>
 
-            {/* Account Deletion / Danger Zone */}
             <div className="rounded-[2rem] border border-red-100 bg-red-50/30 p-8 dark:border-red-900/30 dark:bg-red-900/10">
                 <div className="flex items-start gap-4">
                     <div className="rounded-2xl bg-red-100 p-3 dark:bg-red-900/40">

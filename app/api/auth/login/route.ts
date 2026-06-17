@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { login, AuthError } from "@/server/auth/auth-service";
-import { signAccessToken } from "@/server/auth/token-service";
-import { ACCESS_TOKEN_TTL, COOKIE_NAMES } from "@/server/config/auth-config";
+import { createAuthenticatedLoginResponse } from "@/server/auth/login-response";
 import { env } from "@/server/config/env";
 import { rateLimitKey } from "@/server/lib/rate-limit";
 
@@ -37,7 +36,6 @@ export async function POST(req: NextRequest) {
         }
 
         const userAgent = req.headers.get("user-agent") || "Unknown";
-        // Attempt to get IP from standard proxy headers, fallback to Unknown
         const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "Unknown";
 
         const result = await login({
@@ -47,76 +45,14 @@ export async function POST(req: NextRequest) {
             ipAddress,
         });
 
-        // Generate JWT Access Token
-        const accessToken = await signAccessToken({
-            userId: result.userId,
-            firstName: result.firstName,
-            email: result.email || parsed.data.email, // Use email from result or parsed body
-            businessId: result.businessId,
-            role: result.role,
-            branchId: result.branchId,
-            permissions: result.permissions,
-            plan: result.plan,
-        });
-
-        const isProduction = process.env.NODE_ENV === "production";
-
-        const bodyJson: {
-            message: string;
-            user: {
-                id: string;
-                businessId: string;
-                firstName: string;
-                role: string;
-                branchId: string | null | undefined;
-                plan: string;
-                onboardingCompleted: boolean;
-            };
-            accessToken?: string;
-        } = {
-            message: "Logged in successfully",
-            user: {
-                id: result.userId,
-                businessId: result.businessId,
-                firstName: result.firstName,
-                role: result.role,
-                branchId: result.branchId,
-                plan: result.plan,
-                onboardingCompleted: result.onboardingCompleted,
-            },
-        };
-        if (env.INCLUDE_ACCESS_TOKEN_IN_LOGIN === "true") {
-            bodyJson.accessToken = accessToken;
-        }
-        const response = NextResponse.json(bodyJson, { status: 200 });
-
-        // Set HttpOnly Cookie for access token
-        response.cookies.set(COOKIE_NAMES.ACCESS, accessToken, {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: "lax",
-            path: "/",
-            maxAge: ACCESS_TOKEN_TTL,
-        });
-
-        // If user is locked to a branch, set the branch cookie
-        if (result.branchId) {
-            response.cookies.set(COOKIE_NAMES.BRANCH, result.branchId, {
-                httpOnly: false, // Accessible by client-side branch context
-                secure: isProduction,
-                sameSite: "lax",
-                path: "/",
-                maxAge: ACCESS_TOKEN_TTL,
-            });
-        }
-
-        return response;
+        return createAuthenticatedLoginResponse(result, parsed.data.email);
     } catch (error) {
         if (error instanceof AuthError) {
             const statusMap: Record<string, number> = {
                 INVALID_CREDENTIALS: 401,
                 ACCOUNT_SUSPENDED: 403,
                 ACCOUNT_NOT_VERIFIED: 403,
+                USE_STAFF_LOGIN: 403,
             };
             const status = statusMap[error.code] || 400;
 

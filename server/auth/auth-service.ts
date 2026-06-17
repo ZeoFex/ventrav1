@@ -17,7 +17,7 @@ import { generateOtp, verifyOtp } from "./otp-service";
 import { sendOtpEmail, sendPasswordResetEmail } from "./email-service";
 import { sendOtpSms } from "./sms-service";
 import { OTP_TTL, OTP_MAX_ATTEMPTS, RESET_TOKEN_TTL } from "../config/auth-config";
-import { STARTER_TRIAL_DAYS } from "@/config/plans";
+import { PREMIUM_TRIAL_DAYS, type PlanId, isValidPlanId } from "@/config/plans";
 import crypto from "crypto";
 import {
     resolveReferrerBusinessIdFromCode,
@@ -32,6 +32,8 @@ export interface SignupInput {
     fullName: string;
     email: string;
     password: string;
+    plan: PlanId;
+    phone?: string;
     /** Optional referral code from ?ref= (referrer business). */
     referralCode?: string;
 }
@@ -110,23 +112,27 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
     }
 
     // 5. Transaction: create everything atomically
+    const plan: PlanId = input.plan;
+    const isPremiumTrial = plan === "growth" || plan === "pro";
+    const trialEnd = isPremiumTrial
+        ? new Date(Date.now() + PREMIUM_TRIAL_DAYS * 24 * 60 * 60 * 1000)
+        : null;
+
     const result = await db.transaction(async (tx) => {
-        // Create business (Starter trial window — see STARTER_TRIAL_DAYS)
         const [business] = await tx
             .insert(businesses)
             .values({
                 name: input.businessName.trim(),
                 slug,
                 contactEmail: emailNormalized,
+                phone: input.phone?.trim() || null,
+                plan,
                 subscriptionStatus: "active",
-                currentPeriodEnd: new Date(
-                    Date.now() + STARTER_TRIAL_DAYS * 24 * 60 * 60 * 1000,
-                ),
+                currentPeriodEnd: trialEnd,
                 referredByBusinessId,
             })
             .returning({ id: businesses.id });
 
-        // Create user
         const [user] = await tx
             .insert(users)
             .values({
@@ -136,6 +142,7 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
                 passwordHash,
                 firstName,
                 lastName,
+                phone: input.phone?.trim() || null,
                 status: "pending_verification",
             })
             .returning({ id: users.id });
@@ -519,12 +526,21 @@ export async function login(input: LoginInput): Promise<LoginResult> {
         .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
         .where(eq(userRoles.userId, user.id));
 
+    const roleName = roleData[0]?.roleName || "owner";
+
+    if (roleName !== "owner") {
+        throw new AuthError(
+            "USE_STAFF_LOGIN",
+            "Please sign in as Staff using your phone number and password."
+        );
+    }
+
     return {
         userId: user.id,
         businessId: user.businessId,
         firstName: user.firstName,
         email: emailNormalized,
-        role: roleData[0]?.roleName || "owner",
+        role: roleName,
         branchId: roleData[0]?.branchId || undefined,
         permissions: roleData.map(r => r.permissionKey).filter((p): p is string => !!p),
         plan: user.plan,
@@ -654,6 +670,8 @@ export type AuthErrorCode =
     | "INVALID_CREDENTIALS"
     | "ACCOUNT_SUSPENDED"
     | "ACCOUNT_NOT_VERIFIED"
+    | "USE_STAFF_LOGIN"
+    | "AMBIGUOUS_PHONE"
     | "RATE_LIMITED"
     | "SUPERADMIN_AUTH_DISABLED";
 
