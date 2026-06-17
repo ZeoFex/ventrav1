@@ -169,6 +169,8 @@ export async function getProducts(businessId: string, branchId?: string | null) 
  */
 export async function saveProduct(input: ProductInput) {
     const result = await db.transaction(async (tx) => {
+        const subcategoryId = input.subcategoryId?.trim() || null;
+
         // 1. Insert product
         const [inserted] = await tx
             .insert(products)
@@ -176,15 +178,15 @@ export async function saveProduct(input: ProductInput) {
                 businessId: input.businessId,
                 branchId: input.branchId || null,
                 categoryId: input.categoryId || null,
-                subcategoryId: input.subcategoryId || null,
+                ...(subcategoryId ? { subcategoryId } : {}),
                 name: input.name,
                 slug: input.slug,
                 sku: input.sku,
-                barcode: input.barcode,
-                description: input.description,
-                imageSrc: input.imageSrc,
+                barcode: input.barcode || null,
+                description: input.description || null,
+                imageSrc: input.imageSrc || null,
                 priceGhs: input.priceGhs,
-                costPriceGhs: input.costPriceGhs,
+                costPriceGhs: input.costPriceGhs || null,
                 stock: input.stock,
                 reorderAt: input.reorderAt,
                 unit: input.unit || "piece",
