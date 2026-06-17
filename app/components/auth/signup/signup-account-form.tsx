@@ -1,24 +1,17 @@
 import Link from "next/link";
 import {
-  CheckMini,
   IconBuilding,
   IconEnvelope,
   IconEye,
   IconEyeSlash,
   IconLock,
   IconUser,
+  CheckMini,
 } from "@/app/components/auth/auth-icons";
 import { inputBase, inputPassword } from "@/app/components/auth/auth-input-classes";
+import { PasswordRequirements } from "@/app/components/auth/password-requirements";
 import { getPlanSignupLabel, isValidPlanId, type PlanId } from "@/config/plans";
 import { Phone } from "lucide-react";
-
-export type PasswordChecks = {
-  minLen: boolean;
-  upper: boolean;
-  lower: boolean;
-  number: boolean;
-  special: boolean;
-};
 
 type SignupAccountFormProps = {
   businessName: string;
@@ -39,7 +32,6 @@ type SignupAccountFormProps = {
   setShowConfirmPassword: (v: boolean | ((s: boolean) => boolean)) => void;
   acceptTerms: boolean;
   setAcceptTerms: (v: boolean) => void;
-  passwordChecks: PasswordChecks;
   passwordValid: boolean;
   passwordsMatch: boolean;
   confirmHasError: boolean;
@@ -49,14 +41,6 @@ type SignupAccountFormProps = {
   isPaid?: boolean;
   selectedPlan?: string;
 };
-
-const ruleRows: { key: keyof PasswordChecks; label: string }[] = [
-  { key: "minLen", label: "At least 8 characters" },
-  { key: "upper", label: "One uppercase letter" },
-  { key: "lower", label: "One lowercase letter" },
-  { key: "number", label: "One number" },
-  { key: "special", label: "One special character" },
-];
 
 export function SignupAccountForm({
   businessName,
@@ -77,7 +61,6 @@ export function SignupAccountForm({
   setShowConfirmPassword,
   acceptTerms,
   setAcceptTerms,
-  passwordChecks,
   passwordValid,
   passwordsMatch,
   confirmHasError,
@@ -237,56 +220,11 @@ export function SignupAccountForm({
               </button>
             </div>
             {password.length > 0 && (
-              <div className="mt-2 border-t border-[#bfc9c3]/20 pt-2 dark:border-white/[0.08]">
-                <div
-                  className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
-                  style={{
-                    gridTemplateRows: passwordValid ? "0fr" : "1fr",
-                  }}
-                >
-                  <div
-                    className="min-h-0 overflow-hidden"
-                    aria-hidden={passwordValid}
-                  >
-                    <ul className="space-y-1.5" aria-live="polite">
-                      {ruleRows.map(({ key, label }) => (
-                        <li
-                          key={key}
-                          className="flex items-start gap-2 text-[12px] leading-tight text-muted-foreground"
-                        >
-                          <CheckMini passed={passwordChecks[key]} />
-                          <span
-                            className={
-                              passwordChecks[key]
-                                ? "text-[#006c49] dark:text-[#6ffbbe]"
-                                : ""
-                            }
-                          >
-                            {label}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                <div
-                  className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
-                  style={{
-                    gridTemplateRows: passwordValid ? "1fr" : "0fr",
-                  }}
-                >
-                  <div className="min-h-0 overflow-hidden">
-                    <p
-                      className="flex items-center gap-2 text-[12px] font-medium leading-tight text-[#006c49] dark:text-[#6ffbbe]"
-                      role="status"
-                      aria-live="polite"
-                    >
-                      <CheckMini passed />
-                      All requirements met
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <PasswordRequirements
+                password={password}
+                collapseWhenValid
+                collapsible={false}
+              />
             )}
           </div>
 

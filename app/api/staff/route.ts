@@ -5,14 +5,14 @@ import {
     requireUserAuth,
 } from "@/server/auth/api-request-auth";
 import { createStaff, getStaffByBusiness } from "@/server/staff/staff-service";
+import { createPasswordSchema } from "@/lib/password-requirements";
 import { z } from "zod";
 
 const createStaffSchema = z.object({
     firstName: z.string().min(1),
     lastName: z.string().optional().default(""),
-    email: z.string().email(),
     phone: z.string().min(1),
-    password: z.string().min(6),
+    password: createPasswordSchema(),
     roleName: z.string().min(1),
     branchId: z.string().uuid(),
     permissionKeys: z.array(z.string()),
@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
             branchId: parsed.branchId,
             firstName: parsed.firstName,
             lastName: parsed.lastName,
-            email: parsed.email,
             phone: parsed.phone,
             passwordRaw: parsed.password,
             roleName: parsed.roleName,

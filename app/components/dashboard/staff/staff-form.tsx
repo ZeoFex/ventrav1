@@ -1,19 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
-import { ArrowLeft, ImageIcon, X, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, ImageIcon, X, Loader2, Eye, EyeOff } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { AddRoleModal } from "./staff-role-modal";
 import useSWR, { mutate as globalMutate } from "swr";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { PasswordRequirements } from "@/app/components/auth/password-requirements";
+import { isPasswordValid } from "@/lib/password-requirements";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -21,7 +17,6 @@ export type StaffFormInitialValues = {
   firstName: string;
   lastName: string;
   phone: string;
-  email: string;
   role: string;
   branchId: string;
   status: "active" | "inactive";
@@ -50,12 +45,22 @@ export function StaffForm({
   const [firstName, setFirstName] = useState(initial.firstName);
   const [lastName, setLastName] = useState(initial.lastName);
   const [phone, setPhone] = useState(initial.phone);
-  const [email, setEmail] = useState(initial.email);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [roleName, setRoleName] = useState(initial.role);
   const [permissionKeys, setPermissionKeys] = useState<string[]>([]);
   const [branchId, setBranchId] = useState(initial.branchId);
   const [status, setStatus] = useState(initial.status);
+
+  const passwordRequired = mode === "new";
+  const passwordProvided = password.length > 0;
+  const passwordMeetsRequirements = useMemo(
+    () => isPasswordValid(password),
+    [password]
+  );
+  const passwordFieldInvalid =
+    (passwordRequired && !passwordMeetsRequirements) ||
+    (!passwordRequired && passwordProvided && !passwordMeetsRequirements);
 
   // Dynamic Data
   const { data: branches, isLoading: branchesLoading } = useSWR<any[]>("/api/branches", fetcher);
@@ -104,6 +109,10 @@ export function StaffForm({
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (passwordFieldInvalid) {
+      setError("Password does not meet all requirements.");
+      return;
+    }
     setIsSaving(true);
     setError(null);
 
@@ -117,7 +126,6 @@ export function StaffForm({
         body: JSON.stringify({
           firstName,
           lastName,
-          email,
           phone,
           password: password || undefined,
           roleName,
@@ -286,40 +294,53 @@ export function StaffForm({
                 className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
               />
             </div>
-
-            <input
-              required
-              placeholder="Phone number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
-            />
           </section>
 
           {/* ================= LOGIN CREDENTIALS ================= */}
           <section className="space-y-4 border-t border-[#f0f2f4] pt-6 dark:border-white/[0.06]">
             <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Login Credentials
+              Login credentials
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <input
-                required
-                type="email"
-                placeholder="Staff login email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
-              />
+            <p className="text-[13px] text-muted-foreground">
+              Staff sign in with this phone number and password, then verify with an SMS code.
+            </p>
 
+            <input
+              required
+              type="tel"
+              placeholder="Phone number (login ID)"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
+            />
+
+            <div className="relative max-w-md">
               <input
                 required={mode === "new"}
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder={mode === "new" ? "Set password" : "Leave blank to keep current"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
+                className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 pr-11 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground hover:bg-[#f4f5f7] hover:text-foreground dark:hover:bg-[#262626]"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
+              </button>
             </div>
+
+            <PasswordRequirements
+              password={password}
+              showWhenEmpty={mode === "new"}
+            />
           </section>
 
           {/* ================= ROLE & BRANCH ================= */}
@@ -398,7 +419,7 @@ export function StaffForm({
 
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || passwordFieldInvalid}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-5 py-2.5 text-[14px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,53,39,0.45)] hover:brightness-105 disabled:opacity-70"
             >
               {isSaving && <Loader2 className="size-4 animate-spin" />}

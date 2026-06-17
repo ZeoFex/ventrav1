@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { resetPassword, AuthError } from "@/server/auth/auth-service";
+import { createPasswordSchema } from "@/lib/password-requirements";
 
 const resetPasswordSchema = z.object({
     token: z.string().min(1, "Token is required"),
-    newPassword: z.string().min(8, "Password must be at least 8 characters long"),
+    newPassword: createPasswordSchema(),
 });
 
 export async function POST(req: NextRequest) {

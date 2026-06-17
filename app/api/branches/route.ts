@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasMinRole, requireOwner, requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
+import { requireOwner, requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getBranches, saveBranch, BranchLimitExceededError } from "@/server/branches/branch-service";
 
 /**
@@ -11,12 +11,16 @@ export async function GET() {
         const auth = await requireUserAuthFromContext();
         if (auth instanceof NextResponse) return auth;
         const { payload } = auth;
-        if (!hasMinRole(payload, "manager")) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
+
         const branches = await getBranches(payload.bid);
 
-        return NextResponse.json(branches, {
+        // Branch-scoped staff only need their assigned branch in the header/POS context.
+        const scoped =
+            payload.brn && payload.role !== "owner"
+                ? branches.filter((b: { id: string }) => b.id === payload.brn)
+                : branches;
+
+        return NextResponse.json(scoped.length > 0 ? scoped : branches, {
             headers: { "Cache-Control": "no-store" },
         });
     } catch (error) {

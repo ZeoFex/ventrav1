@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requirePlatformAccess } from "@/server/auth/api-request-auth";
 import { parsePlatformListRequest } from "@/server/platform/platform-list";
 import { createStaff } from "@/server/staff/staff-service";
+import { createPasswordSchema } from "@/lib/password-requirements";
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema/users";
 
@@ -14,9 +15,8 @@ const platformCreateUserSchema = z.object({
     branchId: z.string().uuid(),
     firstName: z.string().min(1),
     lastName: z.string().optional().default(""),
-    email: z.string().email(),
     phone: z.string().min(1),
-    password: z.string().min(6),
+    password: createPasswordSchema(),
     roleName: z.string().min(1),
     permissionKeys: z.array(z.string()).default([]),
 });
@@ -99,7 +99,6 @@ export async function POST(req: NextRequest) {
             branchId: p.branchId,
             firstName: p.firstName,
             lastName: p.lastName,
-            email: p.email,
             phone: p.phone,
             passwordRaw: p.password,
             roleName: p.roleName,
@@ -109,7 +108,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
         console.error("[POST /api/platform/users]", e);
         return NextResponse.json(
-            { error: "Failed to create user (duplicate email or bad branch/role?)" },
+            { error: "Failed to create user (duplicate phone or bad branch/role?)" },
             { status: 400 }
         );
     }

@@ -169,13 +169,21 @@ const ROLE_LEVEL: Record<string, number> = {
     cashier: 2,
 };
 
-/** Owner always passes; else needs `atLeast` role level. */
+/** Owner always passes; else needs `atLeast` role level. Custom roles with permissions count as cashier. */
 export function hasMinRole(
     payload: AuthTokenPayload,
     atLeast: "owner" | "manager" | "cashier"
 ): boolean {
     if (payload.role === "owner") return true;
-    return (ROLE_LEVEL[payload.role] ?? 0) >= (ROLE_LEVEL[atLeast] ?? 0);
+    const normalized = payload.role.toLowerCase();
+    let level =
+        ROLE_LEVEL[payload.role] ??
+        ROLE_LEVEL[normalized] ??
+        0;
+    if (level === 0 && (payload.perms?.length ?? 0) > 0) {
+        level = ROLE_LEVEL.cashier;
+    }
+    return level >= (ROLE_LEVEL[atLeast] ?? 0);
 }
 
 export function isOwner(payload: AuthTokenPayload): boolean {

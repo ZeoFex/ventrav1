@@ -42,7 +42,6 @@ export function StaffEditView({ staffId }: { staffId: string }) {
     firstName: staff.firstName,
     lastName: staff.lastName ?? "",
     phone: staff.phone,
-    email: staff.email,
     role: staff.roleName,
     branchId: staff.branchId,
     status: staff.status,

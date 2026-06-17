@@ -1,2 +1,2 @@
 export { SignupView } from "./signup-view";
-export type { PasswordChecks } from "./signup-account-form";
+export type { PasswordChecks } from "@/lib/password-requirements";

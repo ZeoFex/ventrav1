@@ -9,7 +9,6 @@ function buildInitial(): StaffFormInitialValues {
     firstName: "",
     lastName: "",
     phone: "",
-    email: "",
     role: "",
     branchId: "",
     status: "active",

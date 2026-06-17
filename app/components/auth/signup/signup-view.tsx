@@ -7,7 +7,8 @@ import { isValidPlanId } from "@/config/plans";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { AuthSplitVisual } from "@/app/components/auth/auth-split-visual";
 import { SignupAccountForm } from "./signup-account-form";
-import type { PasswordChecks } from "./signup-account-form";
+import type { PasswordChecks } from "@/lib/password-requirements";
+import { getPasswordChecks, isPasswordValid } from "@/lib/password-requirements";
 import { SignupOtpForm } from "./signup-otp-form";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -67,20 +68,14 @@ function SignupViewContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const passwordChecks = useMemo((): PasswordChecks => {
-    const p = password;
-    return {
-      minLen: p.length >= 8,
-      upper: /[A-Z]/.test(p),
-      lower: /[a-z]/.test(p),
-      number: /\d/.test(p),
-      special: /[^A-Za-z0-9]/.test(p),
-    };
-  }, [password]);
+  const passwordChecks = useMemo(
+    (): PasswordChecks => getPasswordChecks(password),
+    [password]
+  );
 
   const passwordValid = useMemo(
-    () => Object.values(passwordChecks).every(Boolean),
-    [passwordChecks],
+    () => isPasswordValid(passwordChecks),
+    [passwordChecks]
   );
 
   const passwordsMatch =
@@ -310,7 +305,6 @@ function SignupViewContent() {
             setShowConfirmPassword={setShowConfirmPassword}
             acceptTerms={acceptTerms}
             setAcceptTerms={setAcceptTerms}
-            passwordChecks={passwordChecks}
             passwordValid={passwordValid}
             passwordsMatch={passwordsMatch}
             confirmHasError={confirmHasError}
