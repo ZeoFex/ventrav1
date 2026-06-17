@@ -1,7 +1,15 @@
 /**
  * Multi-source barcode lookup — queries public product APIs in parallel
  * and merges the best name, image, and metadata available.
+ *
+ * Configure providers in `.env.local` (see `server/config/barcode-lookup-config.ts`).
  */
+
+import {
+    barcodeLookupConfig,
+    upcItemDbLookupUrl,
+    upcItemDbRequestHeaders,
+} from "@/server/config/barcode-lookup-config";
 
 export type BarcodeWebLookup = {
     found: boolean;
@@ -83,7 +91,10 @@ function mergeFields(
     return out;
 }
 
-async function fetchJson(url: string): Promise<unknown | null> {
+async function fetchJson(
+    url: string,
+    headers?: Record<string, string>
+): Promise<unknown | null> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
@@ -92,6 +103,7 @@ async function fetchJson(url: string): Promise<unknown | null> {
             headers: {
                 Accept: "application/json",
                 "User-Agent": "VentraPOS/1.0 (product-catalog-lookup)",
+                ...headers,
             },
             cache: "no-store",
         });
@@ -106,7 +118,8 @@ async function fetchJson(url: string): Promise<unknown | null> {
 
 async function lookupUpcItemDb(barcode: string): Promise<PartialFields | null> {
     const data = (await fetchJson(
-        `https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(barcode)}`
+        upcItemDbLookupUrl(barcode),
+        upcItemDbRequestHeaders()
     )) as {
         code?: string;
         items?: Array<{
@@ -127,6 +140,80 @@ async function lookupUpcItemDb(barcode: string): Promise<PartialFields | null> {
         brand: (item.brand ?? "").trim() || null,
         category: (item.category ?? "").trim() || null,
         imageUrl,
+    };
+}
+
+async function lookupBarcodeLookupCom(barcode: string): Promise<PartialFields | null> {
+    const apiKey = barcodeLookupConfig.barcodeLookupApiKey;
+    if (!apiKey) return null;
+
+    const url = `https://api.barcodelookup.com/v3/products?barcode=${encodeURIComponent(barcode)}&formatted=y&key=${encodeURIComponent(apiKey)}`;
+    const data = (await fetchJson(url)) as {
+        products?: Array<{
+            title?: string;
+            description?: string;
+            brand?: string;
+            category?: string;
+            images?: string[];
+        }>;
+    } | null;
+
+    const item = data?.products?.[0];
+    if (!item) return null;
+    const imageUrl = item.images?.find((u) => isHttpsUrl(u)) ?? null;
+    return {
+        name: pickName(item.title),
+        description: (item.description ?? "").trim() || null,
+        brand: (item.brand ?? "").trim() || null,
+        category: (item.category ?? "").trim() || null,
+        imageUrl,
+    };
+}
+
+async function lookupGoUpc(barcode: string): Promise<PartialFields | null> {
+    const apiKey = barcodeLookupConfig.goUpcApiKey;
+    if (!apiKey) return null;
+
+    const data = (await fetchJson(
+        `https://go-upc.com/api/v1/code/${encodeURIComponent(barcode)}`,
+        { Authorization: `Bearer ${apiKey}` }
+    )) as {
+        product?: {
+            name?: string;
+            description?: string;
+            brand?: string;
+            category?: string;
+            imageUrl?: string;
+        };
+    } | null;
+
+    const item = data?.product;
+    if (!item) return null;
+    return {
+        name: pickName(item.name),
+        description: (item.description ?? "").trim() || null,
+        brand: (item.brand ?? "").trim() || null,
+        category: (item.category ?? "").trim() || null,
+        imageUrl: isHttpsUrl(item.imageUrl) ? item.imageUrl : null,
+    };
+}
+
+async function lookupEanSearch(barcode: string): Promise<PartialFields | null> {
+    const token = barcodeLookupConfig.eanSearchToken;
+    if (!token) return null;
+
+    const url = `https://api.ean-search.org/api?op=barcode-lookup&format=json&ean=${encodeURIComponent(barcode)}&token=${encodeURIComponent(token)}`;
+    const data = (await fetchJson(url)) as {
+        name?: string;
+        categoryName?: string;
+        issuingCountry?: string;
+    } | null;
+
+    if (!data?.name) return null;
+    return {
+        name: pickName(data.name),
+        category: (data.categoryName ?? "").trim() || null,
+        description: (data.issuingCountry ?? "").trim() || null,
     };
 }
 
@@ -190,20 +277,30 @@ export async function lookupBarcodeFromWeb(barcodeRaw: string): Promise<BarcodeW
         };
     }
 
+    const { openFoodFactsHost, openBeautyFactsHost, openProductsFactsHost } =
+        barcodeLookupConfig;
+
     const sources: string[] = [];
     let merged: PartialFields = {};
 
     const lookups = await Promise.allSettled([
         lookupUpcItemDb(barcode).then((r) => ({ source: "UPCitemdb", data: r })),
-        lookupOpenFactsHost("world.openfoodfacts.org", "Open Food Facts", barcode).then(
-            (r) => ({ source: "Open Food Facts", data: r })
-        ),
-        lookupOpenFactsHost("world.openbeautyfacts.org", "Open Beauty Facts", barcode).then(
+        lookupOpenFactsHost(openFoodFactsHost, "Open Food Facts", barcode).then((r) => ({
+            source: "Open Food Facts",
+            data: r,
+        })),
+        lookupOpenFactsHost(openBeautyFactsHost, "Open Beauty Facts", barcode).then(
             (r) => ({ source: "Open Beauty Facts", data: r })
         ),
-        lookupOpenFactsHost("world.openproductsfacts.org", "Open Products Facts", barcode).then(
+        lookupOpenFactsHost(openProductsFactsHost, "Open Products Facts", barcode).then(
             (r) => ({ source: "Open Products Facts", data: r })
         ),
+        lookupBarcodeLookupCom(barcode).then((r) => ({
+            source: "Barcode Lookup",
+            data: r,
+        })),
+        lookupGoUpc(barcode).then((r) => ({ source: "Go-UPC", data: r })),
+        lookupEanSearch(barcode).then((r) => ({ source: "EAN-Search", data: r })),
     ]);
 
     for (const result of lookups) {

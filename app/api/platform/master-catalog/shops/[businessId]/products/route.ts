@@ -81,7 +81,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         });
         return NextResponse.json({ success: true, ...result }, { status: 201 });
     } catch (e) {
-        const message = e instanceof Error ? e.message : "Failed to add product";
+        console.error("[POST /api/platform/.../products]", e);
+        const message =
+            e instanceof Error && e.message.includes("Failed query")
+                ? "Could not save product to shop inventory. If this persists, run pending database migrations."
+                : e instanceof Error
+                  ? e.message
+                  : "Failed to add product";
         return NextResponse.json({ error: message }, { status: 400 });
     }
 }
