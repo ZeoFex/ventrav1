@@ -36,7 +36,12 @@ function requestMeta(req: NextRequest) {
     return { ipAddress: ip, userAgent };
 }
 
-async function authorizeManager(req: NextRequest) {
+type ManagerAuthResult =
+    | { ok: true; mode: "platform_key" }
+    | { ok: true; mode: "superadmin"; superadminId: string }
+    | NextResponse;
+
+async function authorizeManager(req: NextRequest): Promise<ManagerAuthResult> {
     const pk =
         req.headers.get(PLATFORM_KEY_HEADER) ??
         req.headers.get(PLATFORM_KEY_HEADER.toLowerCase());
@@ -66,7 +71,7 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const auth = await authorizeManager(req);
-    if (!("ok" in auth)) return auth;
+    if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
     if (!uuidParam.safeParse(id).success) {
@@ -86,7 +91,7 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const auth = await authorizeManager(req);
-    if (!("ok" in auth)) return auth;
+    if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
     if (!uuidParam.safeParse(id).success) {
@@ -113,7 +118,8 @@ export async function PATCH(
     try {
         const updated = await updateSuperadminByAdmin({
             targetId: id,
-            actorSuperadminId: auth.superadminId,
+            actorSuperadminId:
+                auth.mode === "superadmin" ? auth.superadminId : undefined,
             actorLabel:
                 auth.mode === "platform_key" ? "platform_api_key" : "superadmin_portal",
             email: parsed.data.email,
@@ -144,7 +150,7 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const auth = await authorizeManager(req);
-    if (!("ok" in auth)) return auth;
+    if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
     if (!uuidParam.safeParse(id).success) {
@@ -156,7 +162,8 @@ export async function DELETE(
     try {
         await deleteSuperadmin({
             targetId: id,
-            actorSuperadminId: auth.superadminId,
+            actorSuperadminId:
+                auth.mode === "superadmin" ? auth.superadminId : undefined,
             actorLabel:
                 auth.mode === "platform_key" ? "platform_api_key" : "superadmin_portal",
             ...meta,

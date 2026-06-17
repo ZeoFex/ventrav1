@@ -673,7 +673,12 @@ export type AuthErrorCode =
     | "USE_STAFF_LOGIN"
     | "AMBIGUOUS_PHONE"
     | "RATE_LIMITED"
-    | "SUPERADMIN_AUTH_DISABLED";
+    | "SUPERADMIN_AUTH_DISABLED"
+    | "BOOTSTRAP_CLOSED"
+    | "NOT_FOUND"
+    | "WEAK_PASSWORD"
+    | "CANNOT_DELETE_SELF"
+    | "LAST_ADMIN";
 
 export class AuthError extends Error {
     code: AuthErrorCode;

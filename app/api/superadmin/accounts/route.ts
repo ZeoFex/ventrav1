@@ -69,7 +69,7 @@ async function authorizeAccountManagement(req: NextRequest): Promise<
 /** List platform admin accounts (platform key or signed-in superadmin). */
 export async function GET(req: NextRequest) {
     const auth = await authorizeAccountManagement(req);
-    if (!("ok" in auth)) return auth;
+    if (auth instanceof NextResponse) return auth;
     if (auth.mode === "bootstrap") {
         return NextResponse.json({ items: [] });
     }
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     }
 
     const auth = await authorizeAccountManagement(req);
-    if (!("ok" in auth)) return auth;
+    if (auth instanceof NextResponse) return auth;
 
     if (auth.mode === "bootstrap") {
         const { ip } = requestMeta(req);
@@ -156,7 +156,8 @@ export async function POST(req: NextRequest) {
                     : auth.mode === "bootstrap"
                       ? "bootstrap"
                       : "superadmin_portal",
-            createdBySuperadminId: auth.superadminId,
+            createdBySuperadminId:
+                auth.mode === "superadmin" ? auth.superadminId : undefined,
             ipAddress,
             userAgent,
         });

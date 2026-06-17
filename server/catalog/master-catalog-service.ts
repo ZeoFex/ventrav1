@@ -171,7 +171,7 @@ export function mapMasterProductRow(
     };
 }
 
-async function enrichMasterProductRows(
+export async function enrichMasterProductRows(
     rows: MasterProductRow[]
 ): Promise<MasterProductDto[]> {
     const missingIds = rows
