@@ -10,6 +10,7 @@ import { businesses } from "../db/schema/businesses";
 import { branches } from "../db/schema/branches";
 import { auditLogs } from "../db/schema/audit-logs";
 import { seedDefaultCategoriesForBusiness } from "../catalog/category-seed-service";
+import { notifyShopOnboarded } from "../platform/platform-notification-service";
 
 // ─── Types ──────────────────────────────────────────────────────
 
