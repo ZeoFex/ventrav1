@@ -197,6 +197,12 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
         console.error("[signup] ensureReferralCodeForBusiness:", err),
     );
 
+    notifyShopCreated(
+        result.businessId,
+        input.businessName.trim(),
+        emailNormalized
+    );
+
     return {
         userId: result.userId,
         businessId: result.businessId,

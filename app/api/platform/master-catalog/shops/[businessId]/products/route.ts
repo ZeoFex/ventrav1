@@ -58,7 +58,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const priceGhs =
         typeof body.priceGhs === "string" || typeof body.priceGhs === "number"
             ? String(body.priceGhs)
-            : "0";
+            : "";
+
+    if (!priceGhs.trim()) {
+        return badRequest("priceGhs is required for shop inventory (master catalog stores no price)");
+    }
 
     try {
         const result = await addProductToShopAndMasterCatalog(businessId, {

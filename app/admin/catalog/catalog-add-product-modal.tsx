@@ -19,6 +19,20 @@ import { cn } from "@/lib/utils";
 
 type Suggestion = MasterProduct & { _source: "master" | "registry" };
 
+type LookupPayload = {
+    found: boolean;
+    barcode: string;
+    source: "master" | "web" | "none";
+    name: string | null;
+    description: string | null;
+    brand: string | null;
+    category: string | null;
+    imageUrl: string | null;
+    unit: string | null;
+    sources: string[];
+    masterProduct?: MasterProduct;
+};
+
 function authHeaders(token: string) {
     return { Authorization: `Bearer ${token}` };
 }
@@ -44,6 +58,7 @@ export function CatalogAddProductModal({
     const [nameQuery, setNameQuery] = useState("");
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [lookupInfo, setLookupInfo] = useState<string | null>(null);
 
     const [name, setName] = useState("");
     const [barcode, setBarcode] = useState("");
@@ -70,6 +85,7 @@ export function CatalogAddProductModal({
         setNameQuery("");
         setSuggestions([]);
         setError(null);
+        setLookupInfo(null);
     }, []);
 
     useEffect(() => {
@@ -79,14 +95,51 @@ export function CatalogAddProductModal({
         }
     }, [open, resetForm]);
 
+    const applyLookup = (data: LookupPayload) => {
+        setBarcode(data.barcode);
+        if (data.name) {
+            setName(data.name);
+            setNameQuery(data.name);
+        }
+        if (data.description) setDescription(data.description);
+        if (data.imageUrl) setImageSrc(data.imageUrl);
+        if (data.category) setCategoryName(data.category);
+        if (data.unit) setUnit(data.unit.slice(0, 20));
+        if (data.masterProduct?.sku) setSku(data.masterProduct.sku);
+
+        if (data.found) {
+            const via = data.sources.length ? data.sources.join(", ") : data.source;
+            setLookupInfo(
+                data.imageUrl && data.name
+                    ? `Loaded “${data.name}” with image via ${via}. Enter shop price below.`
+                    : data.name
+                      ? `Loaded “${data.name}” via ${via}. Add image URL manually if needed.`
+                      : `Partial data from ${via}. Enter product name and image if missing.`
+            );
+            setError(null);
+        } else {
+            setLookupInfo(null);
+            setError(
+                "Barcode not found online — enter product name manually. Image will not be auto-filled."
+            );
+        }
+    };
+
     const applySuggestion = (item: Suggestion) => {
-        setName(item.name);
-        setNameQuery(item.name);
-        setBarcode(item.barcode ?? "");
-        setSku(item.sku ?? "");
-        setDescription(item.description ?? "");
-        setImageSrc(item.imageSrc ?? "");
-        setCategoryName(item.categoryName ?? "");
+        applyLookup({
+            found: true,
+            barcode: item.barcode ?? barcode,
+            source: "master",
+            name: item.name,
+            description: item.description,
+            brand: null,
+            category: item.categoryName,
+            imageUrl: item.imageSrc,
+            unit: item.unit,
+            sources: ["Master catalog"],
+            masterProduct: item,
+        });
+        if (item.sku) setSku(item.sku);
         setShowSuggestions(false);
     };
 
@@ -94,47 +147,17 @@ export function CatalogAddProductModal({
         async (code: string) => {
             const trimmed = code.trim();
             if (!trimmed) return;
-            setBarcode(trimmed);
             setLookingUp(true);
             setError(null);
+            setLookupInfo(null);
             try {
-                const masterRes = await fetch(
-                    `/api/platform/master-catalog/products/search?q=${encodeURIComponent(trimmed)}&limit=5`,
+                const res = await fetch(
+                    `/api/platform/master-catalog/lookup/barcode?barcode=${encodeURIComponent(trimmed)}`,
                     { headers: authHeaders(token) }
                 );
-                const masterData = await masterRes.json();
-                const masterHit = (masterData.items as MasterProduct[] | undefined)?.find(
-                    (p) => p.barcode?.toUpperCase() === trimmed.toUpperCase()
-                );
-                if (masterHit) {
-                    applySuggestion({ ...masterHit, _source: "master" });
-                    return;
-                }
-
-                const registryRes = await fetch(
-                    `/api/products/lookup?barcode=${encodeURIComponent(trimmed)}`
-                );
-                const registryData = await registryRes.json();
-                if (registryRes.ok && registryData.found && registryData.data) {
-                    const d = registryData.data as {
-                        name: string;
-                        description?: string;
-                        imageUrl?: string;
-                        barcode: string;
-                        category?: string;
-                    };
-                    setName(d.name);
-                    setNameQuery(d.name);
-                    setDescription(d.description ?? "");
-                    setImageSrc(d.imageUrl ?? "");
-                    setCategoryName(d.category ?? "");
-                    setBarcode(d.barcode);
-                    return;
-                }
-
-                setError(
-                    "Barcode not in master catalog or global registry — fill in the details manually."
-                );
+                const data = (await res.json()) as LookupPayload & { error?: string };
+                if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                applyLookup(data);
             } catch {
                 setError("Lookup failed. You can still enter product details manually.");
             } finally {
@@ -198,7 +221,12 @@ export function CatalogAddProductModal({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) {
-            setError("Product name is required");
+            setError("Product name is required — scan again or type manually");
+            return;
+        }
+        const priceNum = parseFloat(priceGhs.replace(",", "."));
+        if (!Number.isFinite(priceNum) || priceNum <= 0) {
+            setError("Shop price (GHS) is required. Master catalog does not store price.");
             return;
         }
         setSaving(true);
@@ -219,7 +247,7 @@ export function CatalogAddProductModal({
                         description: description.trim() || null,
                         imageSrc: imageSrc.trim() || null,
                         categoryName: categoryName.trim() || null,
-                        priceGhs: priceGhs || "0",
+                        priceGhs: String(priceNum),
                         costPriceGhs: costPriceGhs.trim() || null,
                         stock: Number(stock) || 0,
                         unit: unit.trim() || "piece",
@@ -295,6 +323,37 @@ export function CatalogAddProductModal({
                                 </span>
                             </label>
                         </div>
+
+                        {lookingUp ? (
+                            <div className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                                <Loader2 className="h-8 w-8 animate-spin shrink-0" />
+                                Searching master catalog and web product APIs…
+                            </div>
+                        ) : null}
+
+                        {(imageSrc || name) && !lookingUp ? (
+                            <div className="flex items-start gap-4 rounded-xl border border-border bg-muted/30 p-4">
+                                <CatalogProductThumb
+                                    product={{ name: name || "Product", imageSrc }}
+                                    size="lg"
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-foreground">
+                                        {name || "Unnamed product"}
+                                    </p>
+                                    {barcode ? (
+                                        <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                            {barcode}
+                                        </p>
+                                    ) : null}
+                                    {lookupInfo ? (
+                                        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                                            {lookupInfo}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </div>
+                        ) : null}
 
                         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                             <label className="grid gap-1 text-sm">
@@ -387,17 +446,23 @@ export function CatalogAddProductModal({
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-3">
-                            <label className="grid gap-1 text-sm">
-                                <span className="font-medium">Price (GHS) *</span>
+                            <label className="grid gap-1 text-sm sm:col-span-1">
+                                <span className="font-medium">
+                                    Shop price (GHS) <span className="text-destructive">*</span>
+                                </span>
                                 <input
                                     type="number"
-                                    min="0"
+                                    min="0.01"
                                     step="0.01"
                                     value={priceGhs}
                                     onChange={(e) => setPriceGhs(e.target.value)}
                                     required
+                                    placeholder="Required for this shop"
                                     className="rounded-lg border border-input bg-background px-3 py-2"
                                 />
+                                <span className="text-[11px] text-muted-foreground">
+                                    Master catalog stores no price — shop only
+                                </span>
                             </label>
                             <label className="grid gap-1 text-sm">
                                 <span className="font-medium">Cost (GHS)</span>
@@ -423,7 +488,12 @@ export function CatalogAddProductModal({
                         </div>
 
                         <label className="grid gap-1 text-sm">
-                            <span className="font-medium">Image URL</span>
+                            <span className="font-medium">
+                                Image URL{" "}
+                                <span className="font-normal text-muted-foreground">
+                                    (auto-filled from scan when available)
+                                </span>
+                            </span>
                             <input
                                 value={imageSrc}
                                 onChange={(e) => setImageSrc(e.target.value)}
@@ -442,16 +512,6 @@ export function CatalogAddProductModal({
                             />
                         </label>
 
-                        {imageSrc ? (
-                            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
-                                <CatalogProductThumb
-                                    product={{ name, imageSrc }}
-                                    size="lg"
-                                />
-                                <p className="text-xs text-muted-foreground">Image preview</p>
-                            </div>
-                        ) : null}
-
                         {error ? (
                             <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                                 {error}
@@ -459,8 +519,10 @@ export function CatalogAddProductModal({
                         ) : null}
 
                         <p className="text-xs text-muted-foreground">
-                            Saves to this shop&apos;s VentraPOS product list and the master
-                            catalog. Fill any fields the scanner did not capture.
+                            Scan fills name and image from the master catalog or public web APIs
+                            (UPCitemdb, Open Food Facts, Open Beauty Facts, Open Products Facts).
+                            You must enter the shop selling price; master catalog keeps name, image,
+                            and description only.
                         </p>
                     </div>
 

@@ -4,9 +4,9 @@ import { CatalogAdminClient } from "./catalog-admin-client";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-    title: "Master Product Catalog — VentraPOS Admin",
+    title: "Platform Admin — VentraPOS",
     description:
-        "Centralized product catalog grouped by shop type and category. Aggregated from tenant inventories.",
+        "Manage shops, subscriptions, product catalog, and platform operations across all VentraPOS tenants.",
     robots: { index: false, follow: false },
 };
 

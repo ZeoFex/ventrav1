@@ -1,7 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
     Building2,
+    CreditCard,
     FolderTree,
+    LayoutDashboard,
     LayoutGrid,
     Layers3,
     Package,
@@ -11,12 +13,18 @@ import {
 } from "lucide-react";
 
 export type TabId =
+    | "overview"
     | "shops"
-    | "shop-types"
+    | "subscriptions"
     | "catalog"
     | "categories"
     | "products"
+    | "shop-types"
     | "sync-logs";
+
+export type BusinessPlan = "starter" | "growth" | "pro";
+export type BusinessStatus = "active" | "suspended" | "deactivated";
+export type SubscriptionStatus = "active" | "past_due" | "canceled";
 
 export type MasterProduct = {
     id: string;
@@ -45,9 +53,18 @@ export type CatalogShop = {
     shopTypeLabel: string;
     city: string | null;
     region: string | null;
+    phone: string | null;
     contactEmail: string | null;
     registeredEmails: string[];
     productCount: number;
+    branchCount: number;
+    plan: BusinessPlan;
+    status: BusinessStatus;
+    subscriptionStatus: SubscriptionStatus;
+    currentPeriodEnd: string | null;
+    createdAt: string;
+    updatedAt: string;
+    onboardingCompleted: boolean;
 };
 
 export type ShopProduct = {
@@ -59,6 +76,7 @@ export type ShopProduct = {
     categoryName: string;
     unit: string | null;
     priceGhs: string;
+    stock: number;
     status: string;
     businessId: string;
     businessName: string;
@@ -95,13 +113,17 @@ export type HierarchyNode = {
     }[];
 };
 
-export const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
-    { id: "shops", label: "All Shops", icon: StoreIcon },
-    { id: "catalog", label: "Product Catalog", icon: LayoutGrid },
-    { id: "products", label: "Master Products", icon: Package },
-    { id: "shop-types", label: "Shop Types", icon: Store },
-    { id: "categories", label: "Categories", icon: FolderTree },
-    { id: "sync-logs", label: "Sync Logs", icon: ScrollText },
+export type ShopDetailTab = "products" | "subscription" | "insights";
+
+export const TABS: { id: TabId; label: string; icon: LucideIcon; group?: string }[] = [
+    { id: "overview", label: "Overview", icon: LayoutDashboard, group: "Platform" },
+    { id: "shops", label: "All Shops", icon: StoreIcon, group: "Platform" },
+    { id: "subscriptions", label: "Subscriptions", icon: CreditCard, group: "Platform" },
+    { id: "catalog", label: "Product Catalog", icon: LayoutGrid, group: "Catalog" },
+    { id: "products", label: "Master Products", icon: Package, group: "Catalog" },
+    { id: "shop-types", label: "Shop Types", icon: Store, group: "Catalog" },
+    { id: "categories", label: "Categories", icon: FolderTree, group: "Catalog" },
+    { id: "sync-logs", label: "Sync Logs", icon: ScrollText, group: "Catalog" },
 ];
 
 export function shopTypeIcon(id: string): LucideIcon {

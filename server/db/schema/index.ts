@@ -87,3 +87,7 @@ export {
     masterProducts,
     masterCatalogSyncLogs,
 } from "./master-catalog";
+export {
+    platformNotifications,
+    platformNotificationTypeEnum,
+} from "./platform-notifications";

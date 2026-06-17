@@ -97,6 +97,11 @@ export async function addProductToShopAndMasterCatalog(
         throw new Error("Product name is required");
     }
 
+    const priceNum = parseFloat(String(input.priceGhs ?? "").replace(",", "."));
+    if (!Number.isFinite(priceNum) || priceNum <= 0) {
+        throw new Error("Shop selling price (GHS) is required and must be greater than zero");
+    }
+
     const sku = (input.sku?.trim() || generateSku()).slice(0, 100);
     const slugBase = slugifyCatalog(name) || "product";
     const slug = `${slugBase}-${Math.random().toString(36).slice(2, 7)}`;
@@ -116,7 +121,7 @@ export async function addProductToShopAndMasterCatalog(
         barcode: input.barcode?.trim() || null,
         description: input.description?.trim() || null,
         imageSrc: input.imageSrc?.trim() || null,
-        priceGhs: input.priceGhs || "0",
+        priceGhs: String(priceNum),
         costPriceGhs: input.costPriceGhs?.trim() || null,
         stock: Math.max(0, input.stock ?? 0),
         reorderAt: 5,

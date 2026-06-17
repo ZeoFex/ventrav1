@@ -7,6 +7,11 @@ import { db } from "../db";
 import { products, productTags, tags, categories, productVariations } from "../db/schema/products";
 import { redis } from "../lib/redis";
 import { sellableUnits } from "../stock/sellable-stock";
+import {
+    notifyProductAdded,
+    notifyProductsBulkAdded,
+    resolveBusinessName,
+} from "../platform/platform-notification-service";
 
 // Key formats
 const CACHE_KEYS = {

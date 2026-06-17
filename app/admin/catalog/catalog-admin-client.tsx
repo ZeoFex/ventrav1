@@ -8,9 +8,9 @@ import {
     LogOut,
     RefreshCw,
     Search,
-    ShieldCheck,
-    Sparkles,
     CloudDownload,
+    UserCircle,
+    Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,17 @@ import {
     CatalogProductThumb,
 } from "./catalog-product-display";
 import { CatalogShopsPanel } from "./catalog-shops-panel";
+import { CatalogOverviewPanel } from "./catalog-overview-panel";
+import { CatalogSubscriptionsPanel } from "./catalog-subscriptions-panel";
+import { CatalogAdminAuth } from "./catalog-admin-auth";
+import { CatalogAdminTeamModal } from "./catalog-admin-team-modal";
+import { CatalogAdminAccountModal } from "./catalog-admin-account-modal";
+import { formatWhen } from "./catalog-admin-utils";
+import {
+    CatalogPagination,
+    MASTER_PRODUCT_PAGE_SIZE,
+    pageOffset,
+} from "./catalog-pagination";
 import {
     TABS,
     shopTypeIcon,
@@ -34,22 +45,9 @@ function authHeaders(token: string) {
     return { Authorization: `Bearer ${token}` };
 }
 
-function formatWhen(iso: string) {
-    try {
-        return new Date(iso).toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
-        });
-    } catch {
-        return iso;
-    }
-}
-
 export function CatalogAdminClient() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
     const [token, setToken] = useState<string | null>(null);
-    const [tab, setTab] = useState<TabId>("shops");
+    const [tab, setTab] = useState<TabId>("overview");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -64,8 +62,11 @@ export function CatalogAdminClient() {
     const [search, setSearch] = useState("");
     const [shopTypeFilter, setShopTypeFilter] = useState("");
     const [sort, setSort] = useState<"name" | "updated">("name");
+    const [productPage, setProductPage] = useState(0);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [backfillBusy, setBackfillBusy] = useState(false);
+    const [teamOpen, setTeamOpen] = useState(false);
+    const [accountOpen, setAccountOpen] = useState(false);
 
     const authenticated = !!token;
 
@@ -73,27 +74,6 @@ export function CatalogAdminClient() {
         () => shopTypes.reduce((n, s) => n + s.productCount, 0),
         [shopTypes]
     );
-
-    const login = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetch("/api/superadmin/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email.trim(), password }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-            setToken(data.accessToken);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Login failed");
-        } finally {
-            setLoading(false);
-            setPassword("");
-        }
-    };
 
     const apiGet = useCallback(
         async <T,>(path: string): Promise<T> => {
@@ -133,8 +113,8 @@ export function CatalogAdminClient() {
 
     const loadProducts = useCallback(async () => {
         const params = new URLSearchParams({
-            limit: "200",
-            offset: "0",
+            limit: String(MASTER_PRODUCT_PAGE_SIZE),
+            offset: String(pageOffset(productPage, MASTER_PRODUCT_PAGE_SIZE)),
             sort: sort === "updated" ? "updated" : "name",
             order: "asc",
         });
@@ -145,7 +125,12 @@ export function CatalogAdminClient() {
         );
         setProducts(data.items);
         setProductTotal(data.total);
-    }, [apiGet, search, shopTypeFilter, sort]);
+        const maxPage = Math.max(
+            0,
+            Math.ceil(data.total / MASTER_PRODUCT_PAGE_SIZE) - 1
+        );
+        if (productPage > maxPage) setProductPage(maxPage);
+    }, [apiGet, search, shopTypeFilter, sort, productPage]);
 
     const loadSyncLogs = useCallback(async () => {
         const data = await apiGet<{ items: SyncLog[]; total: number }>(
@@ -214,6 +199,14 @@ export function CatalogAdminClient() {
         }
     };
 
+    const applyFilters = () => {
+        if (tab === "products" && productPage !== 0) {
+            setProductPage(0);
+            return;
+        }
+        void refresh();
+    };
+
     const toggleExpanded = (key: string) => {
         setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
     };
@@ -224,69 +217,7 @@ export function CatalogAdminClient() {
     );
 
     if (!authenticated) {
-        return (
-            <div className="min-h-dvh bg-gradient-to-b from-background via-background to-muted/40">
-                <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-16">
-                    <div className="mb-8 text-center">
-                        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-                            <Sparkles className="h-6 w-6" aria-hidden />
-                        </div>
-                        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-foreground">
-                            Master Product Catalog
-                        </h1>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            Platform admin — aggregated products from all VentraPOS shops
-                        </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                        <div className="mb-5 flex items-center gap-2 text-sm text-muted-foreground">
-                            <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
-                            Superadmin sign-in required
-                        </div>
-                        <form onSubmit={login} className="grid gap-4">
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="font-medium text-foreground">Email</span>
-                                <input
-                                    type="email"
-                                    autoComplete="username"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                    className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
-                                />
-                            </label>
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="font-medium text-foreground">Password</span>
-                                <input
-                                    type="password"
-                                    autoComplete="current-password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
-                                />
-                            </label>
-                            <Button type="submit" disabled={loading} className="mt-1 w-full">
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Signing in…
-                                    </>
-                                ) : (
-                                    "Sign in to catalog"
-                                )}
-                            </Button>
-                        </form>
-                        {error ? (
-                            <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
-                                {error}
-                            </p>
-                        ) : null}
-                    </div>
-                </main>
-            </div>
-        );
+        return <CatalogAdminAuth onAuthenticated={setToken} />;
     }
 
     return (
@@ -298,7 +229,7 @@ export function CatalogAdminClient() {
                             VentraPOS Platform
                         </p>
                         <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                            Master Product Catalog
+                            Platform Admin
                         </h1>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -329,6 +260,24 @@ export function CatalogAdminClient() {
                         </Button>
                         <Button
                             type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setAccountOpen(true)}
+                        >
+                            <UserCircle className="mr-1.5 h-4 w-4" />
+                            My account
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTeamOpen(true)}
+                        >
+                            <Users className="mr-1.5 h-4 w-4" />
+                            Admins
+                        </Button>
+                        <Button
+                            type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => setToken(null)}
@@ -347,31 +296,38 @@ export function CatalogAdminClient() {
                         <StatCard label="Shop types" value={shopTypes.length} />
                     </div>
                     <nav className="rounded-xl border border-border bg-card p-2">
-                        {TABS.map((t) => {
-                            const Icon = t.icon;
-                            const active = tab === t.id;
-                            return (
-                                <button
-                                    key={t.id}
-                                    type="button"
-                                    onClick={() => setTab(t.id)}
-                                    className={cn(
-                                        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                                        active
-                                            ? "bg-primary text-primary-foreground"
-                                            : "text-foreground hover:bg-muted"
-                                    )}
-                                >
-                                    <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                                    {t.label}
-                                </button>
-                            );
-                        })}
+                        {(["Platform", "Catalog"] as const).map((group) => (
+                            <div key={group} className="mb-1 last:mb-0">
+                                <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                    {group}
+                                </p>
+                                {TABS.filter((t) => t.group === group).map((t) => {
+                                    const Icon = t.icon;
+                                    const active = tab === t.id;
+                                    return (
+                                        <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => setTab(t.id)}
+                                            className={cn(
+                                                "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                                                active
+                                                    ? "bg-primary text-primary-foreground"
+                                                    : "text-foreground hover:bg-muted"
+                                            )}
+                                        >
+                                            <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                                            {t.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ))}
                     </nav>
                 </aside>
 
                 <main className="min-w-0 space-y-4">
-                    {tab !== "shops" ? (
+                    {tab !== "shops" && tab !== "overview" && tab !== "subscriptions" ? (
                     <div className="rounded-xl border border-border bg-card p-4">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                             <label className="grid flex-1 gap-1.5 text-sm">
@@ -382,7 +338,7 @@ export function CatalogAdminClient() {
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         onKeyDown={(e) => {
-                                            if (e.key === "Enter") void refresh();
+                                            if (e.key === "Enter") applyFilters();
                                         }}
                                         placeholder="Product, shop name, barcode, SKU…"
                                         className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-3 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -419,24 +375,32 @@ export function CatalogAdminClient() {
                                     </select>
                                 </label>
                             ) : null}
-                            <Button type="button" onClick={() => void refresh()} disabled={loading}>
+                            <Button type="button" onClick={applyFilters} disabled={loading}>
                                 Apply filters
                             </Button>
                         </div>
                     </div>
                     ) : null}
 
-                    {error && tab !== "shops" ? (
+                    {error && tab !== "shops" && tab !== "overview" && tab !== "subscriptions" ? (
                         <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
                             {error}
                         </p>
                     ) : null}
 
-                    {loading && tab !== "shops" ? (
+                    {loading && tab !== "shops" && tab !== "overview" && tab !== "subscriptions" ? (
                         <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card py-16 text-sm text-muted-foreground">
                             <Loader2 className="h-5 w-5 animate-spin" />
                             Loading catalog…
                         </div>
+                    ) : null}
+
+                    {tab === "overview" && token ? (
+                        <CatalogOverviewPanel token={token} />
+                    ) : null}
+
+                    {tab === "subscriptions" && token ? (
+                        <CatalogSubscriptionsPanel token={token} />
                     ) : null}
 
                     {tab === "shops" && token ? (
@@ -584,9 +548,6 @@ export function CatalogAdminClient() {
 
                     {!loading && tab === "products" ? (
                         <>
-                            <p className="text-sm text-muted-foreground">
-                                Showing {products.length} of {productTotal} master products
-                            </p>
                             <div className="overflow-hidden rounded-xl border border-border bg-card">
                                 <ul className="divide-y divide-border">
                                     {products.map((p) => (
@@ -622,6 +583,13 @@ export function CatalogAdminClient() {
                                     </div>
                                 ) : null}
                             </div>
+                            <CatalogPagination
+                                total={productTotal}
+                                page={productPage}
+                                pageSize={MASTER_PRODUCT_PAGE_SIZE}
+                                onPageChange={setProductPage}
+                                disabled={loading}
+                            />
                         </>
                     ) : null}
 
@@ -645,6 +613,21 @@ export function CatalogAdminClient() {
                     ) : null}
                 </main>
             </div>
+
+            {token ? (
+                <>
+                    <CatalogAdminAccountModal
+                        token={token}
+                        open={accountOpen}
+                        onClose={() => setAccountOpen(false)}
+                    />
+                    <CatalogAdminTeamModal
+                        token={token}
+                        open={teamOpen}
+                        onClose={() => setTeamOpen(false)}
+                    />
+                </>
+            ) : null}
         </div>
     );
 }

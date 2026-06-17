@@ -14,6 +14,7 @@ import {
     sql,
 } from "drizzle-orm";
 import { db } from "../db";
+import { branches } from "../db/schema/branches";
 import { businesses } from "../db/schema/businesses";
 import { users } from "../db/schema/users";
 import {
@@ -74,10 +75,19 @@ export type CatalogShopDto = {
     shopTypeLabel: string;
     city: string | null;
     region: string | null;
+    phone: string | null;
     contactEmail: string | null;
     /** Emails from registered tenant users for this shop. */
     registeredEmails: string[];
     productCount: number;
+    branchCount: number;
+    plan: "starter" | "growth" | "pro";
+    status: "active" | "suspended" | "deactivated";
+    subscriptionStatus: "active" | "past_due" | "canceled";
+    currentPeriodEnd: string | null;
+    createdAt: string;
+    updatedAt: string;
+    onboardingCompleted: boolean;
 };
 
 /** Product from a specific shop's inventory (read-only, for catalog admin). */
@@ -90,6 +100,7 @@ export type ShopProductDto = {
     categoryName: string;
     unit: string | null;
     priceGhs: string;
+    stock: number;
     status: string;
     businessId: string;
     businessName: string;
@@ -942,9 +953,60 @@ export async function syncTenantProductsBulk(
 
 export type CatalogShopListParams = {
     q?: string;
+    plan?: "starter" | "growth" | "pro";
+    status?: "active" | "suspended" | "deactivated";
+    subscriptionStatus?: "active" | "past_due" | "canceled";
+    sort?: "name" | "created" | "period_end";
+    order?: "asc" | "desc";
     limit: number;
     offset: number;
 };
+
+function mapCatalogShopRow(
+    r: {
+        id: string;
+        name: string;
+        slug: string;
+        businessType: string | null;
+        city: string | null;
+        region: string | null;
+        phone: string | null;
+        contactEmail: string | null;
+        plan: "starter" | "growth" | "pro";
+        status: "active" | "suspended" | "deactivated";
+        subscriptionStatus: "active" | "past_due" | "canceled";
+        currentPeriodEnd: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        onboardingCompleted: boolean | null;
+        productCount: number;
+    },
+    registeredEmails: string[],
+    branchCount: number
+): CatalogShopDto {
+    const shopType = resolveShopType(r.businessType);
+    return {
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        shopType,
+        shopTypeLabel: shopTypeLabel(shopType),
+        city: r.city,
+        region: r.region,
+        phone: r.phone,
+        contactEmail: r.contactEmail,
+        registeredEmails,
+        productCount: Number(r.productCount),
+        branchCount,
+        plan: r.plan,
+        status: r.status,
+        subscriptionStatus: r.subscriptionStatus,
+        currentPeriodEnd: r.currentPeriodEnd ? toIso(r.currentPeriodEnd) : null,
+        createdAt: toIso(r.createdAt),
+        updatedAt: toIso(r.updatedAt),
+        onboardingCompleted: r.onboardingCompleted ?? false,
+    };
+}
 
 /** All VentraPOS shops (businesses) with live product counts from tenant inventory. */
 export async function listCatalogShops(params: CatalogShopListParams) {
@@ -957,9 +1019,19 @@ export async function listCatalogShops(params: CatalogShopListParams) {
                 ilike(businesses.slug, term),
                 ilike(businesses.city, term),
                 ilike(businesses.region, term),
-                ilike(businesses.contactEmail, term)
+                ilike(businesses.contactEmail, term),
+                ilike(businesses.phone, term)
             )
         );
+    }
+    if (params.plan) {
+        conditions.push(eq(businesses.plan, params.plan));
+    }
+    if (params.status) {
+        conditions.push(eq(businesses.status, params.status));
+    }
+    if (params.subscriptionStatus) {
+        conditions.push(eq(businesses.subscriptionStatus, params.subscriptionStatus));
     }
 
     const where = conditions.length ? and(...conditions) : undefined;
@@ -967,6 +1039,14 @@ export async function listCatalogShops(params: CatalogShopListParams) {
     const [totalRow] = where
         ? await db.select({ n: count() }).from(businesses).where(where)
         : await db.select({ n: count() }).from(businesses);
+
+    const sortCol =
+        params.sort === "created"
+            ? businesses.createdAt
+            : params.sort === "period_end"
+              ? businesses.currentPeriodEnd
+              : businesses.name;
+    const orderFn = params.order === "desc" ? desc : asc;
 
     const grouped = db
         .select({
@@ -976,7 +1056,15 @@ export async function listCatalogShops(params: CatalogShopListParams) {
             businessType: businesses.businessType,
             city: businesses.city,
             region: businesses.region,
+            phone: businesses.phone,
             contactEmail: businesses.contactEmail,
+            plan: businesses.plan,
+            status: businesses.status,
+            subscriptionStatus: businesses.subscriptionStatus,
+            currentPeriodEnd: businesses.currentPeriodEnd,
+            createdAt: businesses.createdAt,
+            updatedAt: businesses.updatedAt,
+            onboardingCompleted: businesses.onboardingCompleted,
             productCount: sql<number>`count(${products.id})::int`,
         })
         .from(businesses)
@@ -988,9 +1076,17 @@ export async function listCatalogShops(params: CatalogShopListParams) {
             businesses.businessType,
             businesses.city,
             businesses.region,
-            businesses.contactEmail
+            businesses.phone,
+            businesses.contactEmail,
+            businesses.plan,
+            businesses.status,
+            businesses.subscriptionStatus,
+            businesses.currentPeriodEnd,
+            businesses.createdAt,
+            businesses.updatedAt,
+            businesses.onboardingCompleted
         )
-        .orderBy(asc(businesses.name))
+        .orderBy(orderFn(sortCol))
         .limit(params.limit)
         .offset(params.offset);
 
@@ -1008,6 +1104,18 @@ export async function listCatalogShops(params: CatalogShopListParams) {
                   .where(inArray(users.businessId, businessIds))
             : [];
 
+    const branchCountRows =
+        businessIds.length > 0
+            ? await db
+                  .select({
+                      businessId: branches.businessId,
+                      n: count(),
+                  })
+                  .from(branches)
+                  .where(inArray(branches.businessId, businessIds))
+                  .groupBy(branches.businessId)
+            : [];
+
     const emailsByBusiness = new Map<string, string[]>();
     for (const row of userEmailRows) {
         if (!row.businessId) continue;
@@ -1016,24 +1124,20 @@ export async function listCatalogShops(params: CatalogShopListParams) {
         emailsByBusiness.set(row.businessId, list);
     }
 
+    const branchesByBusiness = new Map(
+        branchCountRows.map((r) => [r.businessId, Number(r.n)])
+    );
+
     const items: CatalogShopDto[] = rows.map((r) => {
-        const shopType = resolveShopType(r.businessType);
         const registeredEmails = [...(emailsByBusiness.get(r.id) ?? [])];
         if (r.contactEmail && !registeredEmails.includes(r.contactEmail)) {
             registeredEmails.unshift(r.contactEmail);
         }
-        return {
-            id: r.id,
-            name: r.name,
-            slug: r.slug,
-            shopType,
-            shopTypeLabel: shopTypeLabel(shopType),
-            city: r.city,
-            region: r.region,
-            contactEmail: r.contactEmail,
+        return mapCatalogShopRow(
+            r,
             registeredEmails,
-            productCount: Number(r.productCount),
-        };
+            branchesByBusiness.get(r.id) ?? 0
+        );
     });
 
     return {
@@ -1055,7 +1159,15 @@ export async function getCatalogShopById(
             businessType: businesses.businessType,
             city: businesses.city,
             region: businesses.region,
+            phone: businesses.phone,
             contactEmail: businesses.contactEmail,
+            plan: businesses.plan,
+            status: businesses.status,
+            subscriptionStatus: businesses.subscriptionStatus,
+            currentPeriodEnd: businesses.currentPeriodEnd,
+            createdAt: businesses.createdAt,
+            updatedAt: businesses.updatedAt,
+            onboardingCompleted: businesses.onboardingCompleted,
         })
         .from(businesses)
         .where(eq(businesses.id, businessId))
@@ -1068,6 +1180,11 @@ export async function getCatalogShopById(
         .from(products)
         .where(eq(products.businessId, businessId));
 
+    const [branchRow] = await db
+        .select({ n: count() })
+        .from(branches)
+        .where(eq(branches.businessId, businessId));
+
     const userRows = await db
         .select({ email: users.email })
         .from(users)
@@ -1078,19 +1195,14 @@ export async function getCatalogShopById(
         registeredEmails.unshift(row.contactEmail);
     }
 
-    const shopType = resolveShopType(row.businessType);
-    return {
-        id: row.id,
-        name: row.name,
-        slug: row.slug,
-        shopType,
-        shopTypeLabel: shopTypeLabel(shopType),
-        city: row.city,
-        region: row.region,
-        contactEmail: row.contactEmail,
+    return mapCatalogShopRow(
+        {
+            ...row,
+            productCount: countRow?.n ?? 0,
+        },
         registeredEmails,
-        productCount: countRow?.n ?? 0,
-    };
+        branchRow?.n ?? 0
+    );
 }
 
 /** All products for one shop — pulled from tenant inventory (images, barcodes, categories). */
@@ -1141,6 +1253,7 @@ export async function listShopProducts(
             categoryName: categories.name,
             unit: products.unit,
             priceGhs: products.priceGhs,
+            stock: products.stock,
             status: products.status,
             businessId: products.businessId,
             businessName: businesses.name,
@@ -1165,6 +1278,7 @@ export async function listShopProducts(
             categoryName: categoryDisplayName(r.categoryName),
             unit: r.unit,
             priceGhs: r.priceGhs,
+            stock: Number(r.stock ?? 0),
             status: r.status,
             businessId: r.businessId,
             businessName: r.businessName,

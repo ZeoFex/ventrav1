@@ -17,6 +17,13 @@ export async function GET(req: NextRequest) {
 
     const result = await listCatalogShops({
         q: searchParams.get("q") ?? undefined,
+        plan: (searchParams.get("plan") as "starter" | "growth" | "pro" | null) ?? undefined,
+        status: (searchParams.get("status") as "active" | "suspended" | "deactivated" | null) ?? undefined,
+        subscriptionStatus:
+            (searchParams.get("subscriptionStatus") as "active" | "past_due" | "canceled" | null) ??
+            undefined,
+        sort: (searchParams.get("sort") as "name" | "created" | "period_end" | null) ?? undefined,
+        order: (searchParams.get("order") as "asc" | "desc" | null) ?? undefined,
         limit,
         offset,
     });

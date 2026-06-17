@@ -1,8 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { AuthError } from "@/server/auth/auth-service";
-import { requireValidPlatformKeyOnly } from "@/server/auth/api-request-auth";
-import { createSuperadmin } from "@/server/auth/superadmin-service";
+import {
+    resolveActiveSuperadminFromRequest,
+} from "@/server/auth/api-request-auth";
+import { isValidPlatformKey } from "@/server/auth/platform-key";
+import { PLATFORM_KEY_HEADER } from "@/server/config/auth-config";
+import {
+    countSuperadmins,
+    createSuperadmin,
+    listSuperadminsBrief,
+} from "@/server/auth/superadmin-service";
+import { isSuperadminJwtConfigured } from "@/server/auth/superadmin-token-service";
+import { env } from "@/server/config/env";
+import { rateLimitKey } from "@/server/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +26,94 @@ const createSchema = z
     })
     .strict();
 
+function requestMeta(req: NextRequest) {
+    const ip =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("x-real-ip") ||
+        "Unknown";
+    const userAgent = req.headers.get("user-agent") || "Unknown";
+    return { ip, userAgent, ipAddress: ip };
+}
+
+async function authorizeAccountManagement(req: NextRequest): Promise<
+    | {
+          ok: true;
+          mode: "platform_key" | "superadmin" | "bootstrap";
+          superadminId?: string;
+      }
+    | NextResponse
+> {
+    const pk =
+        req.headers.get(PLATFORM_KEY_HEADER) ??
+        req.headers.get(PLATFORM_KEY_HEADER.toLowerCase());
+    if (pk) {
+        if (!isValidPlatformKey(pk)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        return { ok: true, mode: "platform_key" };
+    }
+
+    const superadmin = await resolveActiveSuperadminFromRequest(req);
+    if (superadmin) {
+        return { ok: true, mode: "superadmin", superadminId: superadmin.id };
+    }
+
+    const total = await countSuperadmins();
+    if (total === 0) {
+        return { ok: true, mode: "bootstrap" };
+    }
+
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+/** List platform admin accounts (platform key or signed-in superadmin). */
+export async function GET(req: NextRequest) {
+    const auth = await authorizeAccountManagement(req);
+    if (!("ok" in auth)) return auth;
+    if (auth.mode === "bootstrap") {
+        return NextResponse.json({ items: [] });
+    }
+
+    const items = await listSuperadminsBrief();
+    return NextResponse.json({
+        items: items.map((row) => ({
+            ...row,
+            createdAt: row.createdAt.toISOString(),
+            lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
+        })),
+    });
+}
+
 /**
- * Provision a human superadmin. Requires `VENTRA_PLATFORM_API_KEYS` (`X-Ventra-Platform-Key`).
+ * Create a human superadmin:
+ * - Platform key (automation)
+ * - Signed-in superadmin (co-admin invite)
+ * - Bootstrap when no accounts exist yet (first setup)
  */
 export async function POST(req: NextRequest) {
-    const gate = requireValidPlatformKeyOnly(req);
-    if (gate !== true) {
-        return gate;
+    if (!isSuperadminJwtConfigured()) {
+        return NextResponse.json(
+            { error: "Superadmin auth is not configured on this server" },
+            { status: 503 }
+        );
+    }
+
+    const auth = await authorizeAccountManagement(req);
+    if (!("ok" in auth)) return auth;
+
+    if (auth.mode === "bootstrap") {
+        const { ip } = requestMeta(req);
+        const rate = await rateLimitKey(
+            `auth:superadmin-bootstrap:${ip}`,
+            env.RATE_LIMIT_SUPERADMIN_LOGIN_PER_IP,
+            env.RATE_LIMIT_AUTH_EMAIL_WINDOW_SEC
+        );
+        if (!rate.ok) {
+            return NextResponse.json(
+                { error: "Too many attempts. Please try again later." },
+                { status: 429 }
+            );
+        }
     }
 
     let body: unknown;
@@ -31,7 +123,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json(
                 {
                     error:
-                        "Missing JSON body. Send application/json with email, password (≥12 characters), firstName, and optional lastName.",
+                        "Missing JSON body. Send email, password (≥12 characters), firstName, and optional lastName.",
                 },
                 { status: 400 }
             );
@@ -43,11 +135,13 @@ export async function POST(req: NextRequest) {
 
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
-        return NextResponse.json({ error: "Invalid body", details: parsed.error.flatten() }, { status: 400 });
+        return NextResponse.json(
+            { error: "Invalid body", details: parsed.error.flatten() },
+            { status: 400 }
+        );
     }
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "Unknown";
-    const userAgent = req.headers.get("user-agent") || "Unknown";
+    const { ipAddress, userAgent } = requestMeta(req);
 
     try {
         const created = await createSuperadmin({
@@ -55,8 +149,15 @@ export async function POST(req: NextRequest) {
             passwordPlain: parsed.data.password,
             firstName: parsed.data.firstName,
             lastName: parsed.data.lastName,
-            createdByLabel: "platform_api_key",
-            ipAddress: ip,
+            bootstrapOnly: auth.mode === "bootstrap",
+            createdByLabel:
+                auth.mode === "platform_key"
+                    ? "platform_api_key"
+                    : auth.mode === "bootstrap"
+                      ? "bootstrap"
+                      : "superadmin_portal",
+            createdBySuperadminId: auth.superadminId,
+            ipAddress,
             userAgent,
         });
         return NextResponse.json(
@@ -68,7 +169,10 @@ export async function POST(req: NextRequest) {
         );
     } catch (e) {
         if (e instanceof AuthError) {
-            const conflict = e.code === "DUPLICATE_EMAIL" || e.code === "EMAIL_IN_USE";
+            const conflict =
+                e.code === "DUPLICATE_EMAIL" ||
+                e.code === "EMAIL_IN_USE" ||
+                e.code === "BOOTSTRAP_CLOSED";
             return NextResponse.json(
                 { error: e.message, code: e.code },
                 { status: conflict ? 409 : 400 }

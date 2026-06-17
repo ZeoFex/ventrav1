@@ -9,6 +9,7 @@ import { db } from "../db";
 import { businesses } from "../db/schema/businesses";
 import { branches } from "../db/schema/branches";
 import { auditLogs } from "../db/schema/audit-logs";
+import { notifyShopOnboarded } from "../platform/platform-notification-service";
 
 // ─── Types ──────────────────────────────────────────────────────
 
