@@ -24,6 +24,10 @@ import { CatalogSubscriptionsPanel } from "./catalog-subscriptions-panel";
 import { CatalogAdminAuth } from "./catalog-admin-auth";
 import { CatalogAdminTeamModal } from "./catalog-admin-team-modal";
 import { CatalogAdminAccountModal } from "./catalog-admin-account-modal";
+import { CatalogAdminNotifications } from "./catalog-admin-notifications";
+import {
+    CatalogAdminShell,
+} from "./catalog-admin-shell";
 import { formatWhen } from "./catalog-admin-utils";
 import {
     CatalogPagination,
@@ -31,7 +35,6 @@ import {
     pageOffset,
 } from "./catalog-pagination";
 import {
-    TABS,
     shopTypeIcon,
     type HierarchyNode,
     type MasterCategory,
@@ -67,6 +70,8 @@ export function CatalogAdminClient() {
     const [backfillBusy, setBackfillBusy] = useState(false);
     const [teamOpen, setTeamOpen] = useState(false);
     const [accountOpen, setAccountOpen] = useState(false);
+    const [focusBusinessId, setFocusBusinessId] = useState<string | null>(null);
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
     const authenticated = !!token;
 
@@ -221,114 +226,88 @@ export function CatalogAdminClient() {
     }
 
     return (
-        <div className="min-h-dvh bg-background">
-            <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur-md">
-                <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                    <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                            VentraPOS Platform
-                        </p>
-                        <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                            Platform Admin
-                        </h1>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void refresh()}
-                            disabled={loading || backfillBusy}
-                        >
-                            <RefreshCw
-                                className={cn("mr-1.5 h-4 w-4", loading && "animate-spin")}
-                            />
-                            Refresh
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => void runBackfill()}
-                            disabled={backfillBusy || loading}
-                        >
-                            {backfillBusy ? (
-                                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                            ) : (
-                                <CloudDownload className="mr-1.5 h-4 w-4" />
-                            )}
-                            Sync from shops
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setAccountOpen(true)}
-                        >
-                            <UserCircle className="mr-1.5 h-4 w-4" />
-                            My account
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setTeamOpen(true)}
-                        >
-                            <Users className="mr-1.5 h-4 w-4" />
-                            Admins
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setToken(null)}
-                        >
-                            <LogOut className="mr-1.5 h-4 w-4" />
-                            Sign out
-                        </Button>
-                    </div>
-                </div>
-            </header>
-
-            <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:px-6">
-                <aside className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
-                        <StatCard label="Total products" value={totalProducts} />
-                        <StatCard label="Shop types" value={shopTypes.length} />
-                    </div>
-                    <nav className="rounded-xl border border-border bg-card p-2">
-                        {(["Platform", "Catalog"] as const).map((group) => (
-                            <div key={group} className="mb-1 last:mb-0">
-                                <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                    {group}
-                                </p>
-                                {TABS.filter((t) => t.group === group).map((t) => {
-                                    const Icon = t.icon;
-                                    const active = tab === t.id;
-                                    return (
-                                        <button
-                                            key={t.id}
-                                            type="button"
-                                            onClick={() => setTab(t.id)}
-                                            className={cn(
-                                                "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                                                active
-                                                    ? "bg-primary text-primary-foreground"
-                                                    : "text-foreground hover:bg-muted"
-                                            )}
-                                        >
-                                            <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                                            {t.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        ))}
-                    </nav>
-                </aside>
-
-                <main className="min-w-0 space-y-4">
+        <CatalogAdminShell
+            tab={tab}
+            onTabChange={(nextTab) => {
+                setTab(nextTab);
+                if (nextTab !== "shops") setFocusBusinessId(null);
+            }}
+            totalProducts={totalProducts}
+            shopTypeCount={shopTypes.length}
+            mobileOpen={mobileNavOpen}
+            onMobileOpenChange={setMobileNavOpen}
+            headerActions={
+                <>
+                    <CatalogAdminNotifications
+                        token={token}
+                        onNavigate={({ tab: nextTab, businessId }) => {
+                            setTab(nextTab);
+                            setFocusBusinessId(businessId ?? null);
+                            setMobileNavOpen(false);
+                        }}
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-[#bfc9c3]/30 bg-white/70 dark:border-white/[0.08] dark:bg-white/[0.02]"
+                        onClick={() => void refresh()}
+                        disabled={loading || backfillBusy}
+                    >
+                        <RefreshCw
+                            className={cn("mr-1.5 h-4 w-4", loading && "animate-spin")}
+                        />
+                        Refresh
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        className="bg-[#006c49] text-white hover:bg-[#005a3d] dark:bg-[#6ffbbe] dark:text-[#003527] dark:hover:bg-[#5ce0a8]"
+                        onClick={() => void runBackfill()}
+                        disabled={backfillBusy || loading}
+                    >
+                        {backfillBusy ? (
+                            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        ) : (
+                            <CloudDownload className="mr-1.5 h-4 w-4" />
+                        )}
+                        Sync shops
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="hidden border-[#bfc9c3]/30 bg-white/70 sm:inline-flex dark:border-white/[0.08] dark:bg-white/[0.02]"
+                        onClick={() => setAccountOpen(true)}
+                    >
+                        <UserCircle className="mr-1.5 h-4 w-4" />
+                        Account
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="hidden border-[#bfc9c3]/30 bg-white/70 sm:inline-flex dark:border-white/[0.08] dark:bg-white/[0.02]"
+                        onClick={() => setTeamOpen(true)}
+                    >
+                        <Users className="mr-1.5 h-4 w-4" />
+                        Admins
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setToken(null)}
+                    >
+                        <LogOut className="mr-1.5 h-4 w-4" />
+                        <span className="hidden sm:inline">Sign out</span>
+                    </Button>
+                </>
+            }
+        >
+            <div className="mx-auto max-w-7xl space-y-4">
                     {tab !== "shops" && tab !== "overview" && tab !== "subscriptions" ? (
-                    <div className="rounded-xl border border-border bg-card p-4">
+                    <div className="rounded-2xl border border-[#bfc9c3]/20 bg-surface-card p-4 shadow-sm dark:border-white/[0.08] dark:bg-[#141414]">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                             <label className="grid flex-1 gap-1.5 text-sm">
                                 <span className="font-medium text-foreground">Search</span>
@@ -389,7 +368,7 @@ export function CatalogAdminClient() {
                     ) : null}
 
                     {loading && tab !== "shops" && tab !== "overview" && tab !== "subscriptions" ? (
-                        <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card py-16 text-sm text-muted-foreground">
+                        <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#bfc9c3]/20 bg-surface-card py-16 text-sm text-muted-foreground dark:border-white/[0.08] dark:bg-[#141414]">
                             <Loader2 className="h-5 w-5 animate-spin" />
                             Loading catalog…
                         </div>
@@ -404,7 +383,10 @@ export function CatalogAdminClient() {
                     ) : null}
 
                     {tab === "shops" && token ? (
-                        <CatalogShopsPanel token={token} />
+                        <CatalogShopsPanel
+                            token={token}
+                            focusBusinessId={focusBusinessId}
+                        />
                     ) : null}
 
                     {!loading && tab === "shop-types" ? (
@@ -414,7 +396,7 @@ export function CatalogAdminClient() {
                                 return (
                                     <div
                                         key={st.id}
-                                        className="rounded-xl border border-border bg-card p-5 transition hover:border-foreground/20 hover:shadow-sm"
+                                        className="rounded-xl border border-[#bfc9c3]/20 bg-surface-card p-5 transition hover:border-[#006c49]/25 hover:shadow-md dark:border-white/[0.08] dark:bg-[#141414] dark:hover:border-[#6ffbbe]/25"
                                     >
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
@@ -451,7 +433,7 @@ export function CatalogAdminClient() {
                                 return (
                                     <section
                                         key={shopKey}
-                                        className="overflow-hidden rounded-xl border border-border bg-card"
+                                        className="overflow-hidden rounded-2xl border border-[#bfc9c3]/20 bg-surface-card dark:border-white/[0.08] dark:bg-[#141414]"
                                     >
                                         <button
                                             type="button"
@@ -548,7 +530,7 @@ export function CatalogAdminClient() {
 
                     {!loading && tab === "products" ? (
                         <>
-                            <div className="overflow-hidden rounded-xl border border-border bg-card">
+                            <div className="overflow-hidden rounded-2xl border border-[#bfc9c3]/20 bg-surface-card dark:border-white/[0.08] dark:bg-[#141414]">
                                 <ul className="divide-y divide-border">
                                     {products.map((p) => (
                                         <li
@@ -611,33 +593,19 @@ export function CatalogAdminClient() {
                             />
                         </>
                     ) : null}
-                </main>
             </div>
 
-            {token ? (
-                <>
-                    <CatalogAdminAccountModal
-                        token={token}
-                        open={accountOpen}
-                        onClose={() => setAccountOpen(false)}
-                    />
-                    <CatalogAdminTeamModal
-                        token={token}
-                        open={teamOpen}
-                        onClose={() => setTeamOpen(false)}
-                    />
-                </>
-            ) : null}
-        </div>
-    );
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-    return (
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{value}</p>
-        </div>
+            <CatalogAdminAccountModal
+                token={token}
+                open={accountOpen}
+                onClose={() => setAccountOpen(false)}
+            />
+            <CatalogAdminTeamModal
+                token={token}
+                open={teamOpen}
+                onClose={() => setTeamOpen(false)}
+            />
+        </CatalogAdminShell>
     );
 }
 
@@ -670,7 +638,7 @@ function EmptyState({
     description: string;
 }) {
     return (
-        <div className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
+        <div className="rounded-2xl border border-dashed border-[#bfc9c3]/30 bg-surface-card px-6 py-12 text-center dark:border-white/[0.1] dark:bg-[#141414]">
             <p className="font-medium text-foreground">{title}</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
         </div>
@@ -689,7 +657,7 @@ function DataTable({
     statusCol?: number;
 }) {
     return (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="overflow-x-auto rounded-2xl border border-[#bfc9c3]/20 bg-surface-card dark:border-white/[0.08] dark:bg-[#141414]">
             <table className="w-full min-w-[36rem] text-left text-sm">
                 <thead className="border-b border-border bg-muted/40 text-muted-foreground">
                     <tr>

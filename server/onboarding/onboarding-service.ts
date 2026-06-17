@@ -150,5 +150,11 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
         });
     });
 
+    notifyShopOnboarded(
+        input.businessId,
+        input.storeName.trim(),
+        input.businessType
+    );
+
     console.log(`[Onboarding] Completed for business ${input.businessId}`);
 }

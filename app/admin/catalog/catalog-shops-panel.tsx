@@ -62,7 +62,13 @@ const DETAIL_TABS: { id: ShopDetailTab; label: string; icon: React.ComponentType
     { id: "insights", label: "Insights", icon: LayoutGrid },
 ];
 
-export function CatalogShopsPanel({ token }: { token: string }) {
+export function CatalogShopsPanel({
+    token,
+    focusBusinessId,
+}: {
+    token: string;
+    focusBusinessId?: string | null;
+}) {
     const [shopSearch, setShopSearch] = useState("");
     const [shopPage, setShopPage] = useState(0);
     const [productSearch, setProductSearch] = useState("");
@@ -155,6 +161,29 @@ export function CatalogShopsPanel({ token }: { token: string }) {
         if (selectedShop) return;
         void loadShops();
     }, [loadShops, selectedShop]);
+
+    useEffect(() => {
+        if (!focusBusinessId) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const data = await apiGet<{ shop: CatalogShop }>(
+                    `/api/platform/master-catalog/shops/${focusBusinessId}/products?limit=1&offset=0`
+                );
+                if (cancelled || !data.shop) return;
+                setProductSearch("");
+                setAppliedProductSearch("");
+                setProductPage(0);
+                setDetailTab("products");
+                setSelectedShop(data.shop);
+            } catch {
+                // Shop may have been deleted; stay on list view.
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [focusBusinessId, apiGet]);
 
     useEffect(() => {
         if (!shopId || detailTab !== "products") return;

@@ -26,6 +26,26 @@ export type BusinessPlan = "starter" | "growth" | "pro";
 export type BusinessStatus = "active" | "suspended" | "deactivated";
 export type SubscriptionStatus = "active" | "past_due" | "canceled";
 
+export type PlatformNotificationType =
+    | "shop_created"
+    | "shop_onboarded"
+    | "subscription_past_due"
+    | "subscription_expiring"
+    | "product_added"
+    | "products_bulk_added";
+
+export type PlatformNotification = {
+    id: string;
+    type: PlatformNotificationType;
+    title: string;
+    body: string;
+    businessId: string | null;
+    productId: string | null;
+    metadata: Record<string, unknown> | null;
+    isRead: boolean;
+    createdAt: string;
+};
+
 export type MasterProduct = {
     id: string;
     name: string;

@@ -1,7 +1,7 @@
 /**
  * In-app notifications for the VentraPOS platform admin portal.
  */
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { businesses } from "../db/schema/businesses";
 import {
@@ -129,7 +129,7 @@ export async function markPlatformNotificationsRead(ids?: string[]) {
         await db
             .update(platformNotifications)
             .set({ isRead: true })
-            .where(sql`${platformNotifications.id} = ANY(${ids}::uuid[])`);
+            .where(inArray(platformNotifications.id, ids));
     } else {
         await db
             .update(platformNotifications)

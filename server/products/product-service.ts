@@ -212,6 +212,10 @@ export async function saveProduct(input: ProductInput) {
     ]);
     console.log(`[Cache] Invalidated list for business ${input.businessId}`);
 
+    void resolveBusinessName(input.businessId).then((shopName) => {
+        notifyProductAdded(input.businessId, result.id, input.name, shopName);
+    });
+
     return result;
 }
 
@@ -271,6 +275,12 @@ export async function saveProductsBulk(businessId: string, branchId: string, ite
         redis.del(CACHE_KEYS.LIST(businessId, branchId)),
         redis.del(CACHE_KEYS.LIST(businessId, "all"))
     ]);
+
+    if (result.length > 0) {
+        void resolveBusinessName(businessId).then((shopName) => {
+            notifyProductsBulkAdded(businessId, result.length, shopName);
+        });
+    }
 
     return result;
 }

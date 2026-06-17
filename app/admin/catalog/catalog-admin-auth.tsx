@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, ShieldCheck, Sparkles } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/app/components/theme-toggle";
 
 type SetupState = {
     configured: boolean;
@@ -100,15 +101,26 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
     };
 
     const showRegister = setup?.canBootstrap === true;
+    const inputClass =
+        "rounded-xl border border-[#bfc9c3]/25 bg-white px-3 py-2.5 text-foreground outline-none transition focus-visible:border-[#006c49]/40 focus-visible:ring-2 focus-visible:ring-[#006c49]/15 dark:border-white/[0.1] dark:bg-[#141414] dark:focus-visible:border-[#6ffbbe]/40 dark:focus-visible:ring-[#6ffbbe]/15";
 
     return (
-        <div className="min-h-dvh bg-gradient-to-b from-background via-background to-muted/40">
-            <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-16">
+        <div className="relative min-h-dvh bg-[#f7f9fb] dark:bg-[#0a0a0a]">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-[#006c49]/10 blur-3xl dark:bg-[#6ffbbe]/10" />
+                <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-[#006c49]/5 blur-3xl dark:bg-[#6ffbbe]/5" />
+            </div>
+
+            <div className="absolute right-4 top-4 z-10">
+                <ThemeToggle />
+            </div>
+
+            <main className="relative mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-16">
                 <div className="mb-8 text-center">
-                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-                        <Sparkles className="h-6 w-6" aria-hidden />
+                    <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl bg-[#006c49] text-white shadow-lg shadow-[#006c49]/20 dark:bg-[#6ffbbe] dark:text-[#003527] dark:shadow-[#6ffbbe]/10">
+                        <span className="text-2xl font-black italic tracking-tighter">V</span>
                     </div>
-                    <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-foreground">
+                    <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-foreground">
                         Platform Admin
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
@@ -118,31 +130,26 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                     </p>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                <div className="rounded-2xl border border-[#bfc9c3]/20 bg-surface-card p-6 shadow-sm dark:border-white/[0.08] dark:bg-[#141414]">
                     {setup === null ? (
                         <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
                             <Loader2 className="h-5 w-5 animate-spin" />
                             Checking admin setup…
                         </div>
                     ) : !setup.configured ? (
-                        <p className="rounded-lg bg-destructive/10 px-3 py-3 text-sm text-destructive">
+                        <p className="rounded-xl bg-destructive/10 px-3 py-3 text-sm text-destructive">
                             Superadmin login is not configured on this server. Ask your developer
                             to set <code className="text-xs">SUPERADMIN_JWT_SECRET</code> in the
                             environment.
                         </p>
                     ) : (
                         <>
-                            {setup.hasAccounts ? (
-                                <div className="mb-5 flex items-center gap-2 text-sm text-muted-foreground">
-                                    <ShieldCheck className="h-4 w-4 shrink-0" />
-                                    Sign in with your admin credentials
-                                </div>
-                            ) : (
-                                <div className="mb-5 flex items-center gap-2 text-sm text-muted-foreground">
-                                    <ShieldCheck className="h-4 w-4 shrink-0" />
-                                    No admin accounts yet — create yours below
-                                </div>
-                            )}
+                            <div className="mb-5 flex items-center gap-2 rounded-xl bg-[#003527]/5 px-3 py-2.5 text-sm text-muted-foreground dark:bg-[#6ffbbe]/5">
+                                <ShieldCheck className="h-4 w-4 shrink-0 text-[#006c49] dark:text-[#6ffbbe]" />
+                                {setup.hasAccounts
+                                    ? "Sign in with your admin credentials"
+                                    : "No admin accounts yet — create yours below"}
+                            </div>
 
                             {showRegister ? (
                                 <form onSubmit={handleRegister} className="grid gap-4">
@@ -156,7 +163,7 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                                                 onChange={(e) => setFirstName(e.target.value)}
                                                 required
                                                 autoComplete="given-name"
-                                                className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                className={inputClass}
                                             />
                                         </label>
                                         <label className="grid gap-1.5 text-sm">
@@ -167,7 +174,7 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                                                 value={lastName}
                                                 onChange={(e) => setLastName(e.target.value)}
                                                 autoComplete="family-name"
-                                                className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                className={inputClass}
                                             />
                                         </label>
                                     </div>
@@ -179,7 +186,7 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
                                             autoComplete="email"
-                                            className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className={inputClass}
                                         />
                                     </label>
                                     <label className="grid gap-1.5 text-sm">
@@ -191,7 +198,7 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                                             required
                                             minLength={12}
                                             autoComplete="new-password"
-                                            className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className={inputClass}
                                         />
                                         <span className="text-xs text-muted-foreground">
                                             At least 12 characters
@@ -207,10 +214,14 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                                             onChange={(e) => setConfirmPassword(e.target.value)}
                                             required
                                             autoComplete="new-password"
-                                            className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className={inputClass}
                                         />
                                     </label>
-                                    <Button type="submit" disabled={loading} className="w-full">
+                                    <Button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="w-full bg-[#006c49] text-white hover:bg-[#005a3d] dark:bg-[#6ffbbe] dark:text-[#003527] dark:hover:bg-[#5ce0a8]"
+                                    >
                                         {loading ? (
                                             <>
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -231,7 +242,7 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
-                                            className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className={inputClass}
                                         />
                                     </label>
                                     <label className="grid gap-1.5 text-sm">
@@ -242,10 +253,14 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             required
-                                            className="rounded-lg border border-input bg-background px-3 py-2.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className={inputClass}
                                         />
                                     </label>
-                                    <Button type="submit" disabled={loading} className="w-full">
+                                    <Button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="w-full bg-[#006c49] text-white hover:bg-[#005a3d] dark:bg-[#6ffbbe] dark:text-[#003527] dark:hover:bg-[#5ce0a8]"
+                                    >
                                         {loading ? (
                                             <>
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -259,13 +274,13 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
                             )}
 
                             {success ? (
-                                <p className="mt-4 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+                                <p className="mt-4 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
                                     {success}
                                 </p>
                             ) : null}
                             {error ? (
                                 <p
-                                    className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                                    className="mt-4 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
                                     role="alert"
                                 >
                                     {error}

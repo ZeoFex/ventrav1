@@ -23,6 +23,7 @@ import {
     resolveReferrerBusinessIdFromCode,
     ensureReferralCodeForBusiness,
 } from "@/server/referrals/referral-service";
+import { notifyShopCreated } from "@/server/platform/platform-notification-service";
 
 // ─── Types ──────────────────────────────────────────────────────
 
