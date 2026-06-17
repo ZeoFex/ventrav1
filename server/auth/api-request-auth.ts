@@ -220,3 +220,31 @@ export function requireOwner(payload: AuthTokenPayload): NextResponse | true {
     if (payload.role === "owner") return true;
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
+
+export type ResolvedSuperadmin = {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string | null;
+};
+
+/** Active superadmin from Bearer JWT, or null. */
+export async function resolveActiveSuperadminFromRequest(
+    req: Request | NextRequest
+): Promise<ResolvedSuperadmin | null> {
+    const bearer = parseAuthorizationBearer(req.headers.get("authorization"));
+    if (!bearer) return null;
+    try {
+        const payload = await verifySuperadminAccessToken(bearer);
+        const row = await getSuperadminById(payload.sub);
+        if (!row || row.status !== "active") return null;
+        return {
+            id: row.id,
+            email: row.email,
+            firstName: row.firstName,
+            lastName: row.lastName,
+        };
+    } catch {
+        return null;
+    }
+}

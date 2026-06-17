@@ -10,6 +10,7 @@ import { businesses } from "../db/schema/businesses";
 import { branches } from "../db/schema/branches";
 import { auditLogs } from "../db/schema/audit-logs";
 import { seedDefaultCategoriesForBusiness } from "../catalog/category-seed-service";
+import { notifyShopOnboarded } from "../platform/platform-notification-service";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -179,6 +180,12 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
             },
         });
     });
+
+    notifyShopOnboarded(
+        input.businessId,
+        input.storeName.trim(),
+        input.businessType
+    );
 
     console.log(`[Onboarding] Completed for business ${input.businessId}`);
 }

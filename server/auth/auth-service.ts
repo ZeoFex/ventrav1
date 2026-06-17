@@ -23,6 +23,7 @@ import {
     resolveReferrerBusinessIdFromCode,
     ensureReferralCodeForBusiness,
 } from "@/server/referrals/referral-service";
+import { notifyShopCreated } from "@/server/platform/platform-notification-service";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -202,6 +203,12 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
 
     await ensureReferralCodeForBusiness(result.businessId).catch((err) =>
         console.error("[signup] ensureReferralCodeForBusiness:", err),
+    );
+
+    notifyShopCreated(
+        result.businessId,
+        input.businessName.trim(),
+        emailNormalized
     );
 
     return {
@@ -666,7 +673,12 @@ export type AuthErrorCode =
     | "USE_STAFF_LOGIN"
     | "AMBIGUOUS_PHONE"
     | "RATE_LIMITED"
-    | "SUPERADMIN_AUTH_DISABLED";
+    | "SUPERADMIN_AUTH_DISABLED"
+    | "BOOTSTRAP_CLOSED"
+    | "NOT_FOUND"
+    | "WEAK_PASSWORD"
+    | "CANNOT_DELETE_SELF"
+    | "LAST_ADMIN";
 
 export class AuthError extends Error {
     code: AuthErrorCode;

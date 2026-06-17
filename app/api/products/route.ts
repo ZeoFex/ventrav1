@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { getProducts, saveProduct } from "@/server/products/product-service";
+import { triggerMasterCatalogSync } from "@/server/catalog/master-catalog-service";
 
 /**
  * GET /api/products
@@ -50,6 +51,8 @@ export async function POST(req: Request) {
             businessId: payload.bid,
             branchId: branchId,
         });
+
+        triggerMasterCatalogSync(result.id, payload.bid);
 
         return NextResponse.json(result, { status: 201 });
     } catch (error) {
@@ -167,6 +170,8 @@ export async function PUT(req: Request) {
                 }
             }
         });
+
+        triggerMasterCatalogSync(id, payload.bid);
 
         // Invalidate cache
         await Promise.all([

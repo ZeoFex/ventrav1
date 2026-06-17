@@ -1,43 +1,40 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { lookupBarcodeFromWeb } from "@/server/products/barcode-lookup-service";
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const barcode = searchParams.get('barcode');
+    const { searchParams } = new URL(request.url);
+    const barcode = searchParams.get("barcode");
 
-  if (!barcode) {
-    return NextResponse.json({ error: 'Barcode required' }, { status: 400 });
-  }
-
-  try {
-    // Attempt lookup from UPCitemdb trial API
-    const response = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (data.code === 'OK' && data.items && data.items.length > 0) {
-      const item = data.items[0];
-      
-      // Return normalized payload
-      return NextResponse.json({
-        found: true,
-        data: {
-          name: item.title,
-          description: item.description || '',
-          brand: item.brand || '',
-          category: item.category || '',
-          imageUrl: item.images && item.images.length > 0 ? item.images[0] : null,
-          barcode: barcode
-        }
-      });
+    if (!barcode) {
+        return NextResponse.json({ error: "Barcode required" }, { status: 400 });
     }
 
-    return NextResponse.json({ found: false, message: 'Product not found in registry.' });
-  } catch (error) {
-    console.error("Barcode lookup error:", error);
-    return NextResponse.json({ error: 'Lookup failed' }, { status: 500 });
-  }
+    try {
+        const result = await lookupBarcodeFromWeb(barcode);
+
+        if (!result.found) {
+            return NextResponse.json({
+                found: false,
+                message: "Product not found in public barcode databases.",
+                sources: result.sources,
+            });
+        }
+
+        return NextResponse.json({
+            found: true,
+            data: {
+                name: result.name,
+                description: result.description ?? "",
+                brand: result.brand ?? "",
+                category: result.category ?? "",
+                imageUrl: result.imageUrl,
+                barcode: result.barcode,
+                unit: result.unit,
+            },
+            sources: result.sources,
+        });
+    } catch (error) {
+        console.error("Barcode lookup error:", error);
+        return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
+    }
 }
