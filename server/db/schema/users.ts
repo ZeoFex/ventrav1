@@ -32,6 +32,7 @@ export const users = pgTable(
         firstName: varchar("first_name", { length: 100 }).notNull(),
         lastName: varchar("last_name", { length: 100 }),
         phone: varchar("phone", { length: 30 }),
+        phoneNormalized: varchar("phone_normalized", { length: 20 }),
         emailVerified: boolean("email_verified").default(false).notNull(),
         status: userStatusEnum("status")
             .default("pending_verification")
@@ -50,5 +51,6 @@ export const users = pgTable(
         index("users_email_idx").on(t.email),
         index("users_email_normalized_idx").on(t.emailNormalized),
         index("users_business_id_idx").on(t.businessId),
+        index("users_phone_normalized_idx").on(t.phoneNormalized),
     ]
 );

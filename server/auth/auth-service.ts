@@ -519,12 +519,21 @@ export async function login(input: LoginInput): Promise<LoginResult> {
         .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
         .where(eq(userRoles.userId, user.id));
 
+    const roleName = roleData[0]?.roleName || "owner";
+
+    if (roleName !== "owner") {
+        throw new AuthError(
+            "USE_STAFF_LOGIN",
+            "Please sign in as Staff using your phone number and password."
+        );
+    }
+
     return {
         userId: user.id,
         businessId: user.businessId,
         firstName: user.firstName,
         email: emailNormalized,
-        role: roleData[0]?.roleName || "owner",
+        role: roleName,
         branchId: roleData[0]?.branchId || undefined,
         permissions: roleData.map(r => r.permissionKey).filter((p): p is string => !!p),
         plan: user.plan,
@@ -654,6 +663,8 @@ export type AuthErrorCode =
     | "INVALID_CREDENTIALS"
     | "ACCOUNT_SUSPENDED"
     | "ACCOUNT_NOT_VERIFIED"
+    | "USE_STAFF_LOGIN"
+    | "AMBIGUOUS_PHONE"
     | "RATE_LIMITED"
     | "SUPERADMIN_AUTH_DISABLED";
 

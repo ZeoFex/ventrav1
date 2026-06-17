@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { signup, AuthError } from "@/server/auth/auth-service";
 import { isValidPlanId } from "@/config/plans";
+import { createPasswordSchema } from "@/lib/password-requirements";
 
 const signupSchema = z.object({
     businessName: z
@@ -27,14 +28,7 @@ const signupSchema = z.object({
         .email("Please enter a valid email address")
         .max(320),
     phone: z.string().trim().max(30).optional(),
-    password: z
-        .string()
-        .min(8, "Password must be at least 8 characters")
-        .max(128)
-        .regex(/[A-Z]/, "Password must contain an uppercase letter")
-        .regex(/[a-z]/, "Password must contain a lowercase letter")
-        .regex(/\d/, "Password must contain a number")
-        .regex(/[^A-Za-z0-9]/, "Password must contain a special character"),
+    password: createPasswordSchema(),
     plan: z.string().refine(isValidPlanId, "Please select a valid plan"),
     referralCode: z.string().trim().max(32).optional(),
 });
