@@ -17,6 +17,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
+import { users } from "@/server/db/schema/users";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 
 /** Accepts any JSON object; we don't want to reject a new field from the
@@ -39,9 +40,17 @@ export async function GET(req: NextRequest) {
             .select({
                 onboardingCompleted: businesses.onboardingCompleted,
                 onboardingProgress: businesses.onboardingProgress,
+                businessPhone: businesses.phone,
+                businessEmail: businesses.contactEmail,
             })
             .from(businesses)
             .where(eq(businesses.id, session.businessId))
+            .limit(1);
+
+        const [userRow] = await db
+            .select({ phone: users.phone, email: users.email })
+            .from(users)
+            .where(eq(users.id, session.userId))
             .limit(1);
 
         const progress = (row?.onboardingProgress ?? null) as StoredProgress | null;
@@ -49,6 +58,10 @@ export async function GET(req: NextRequest) {
         const response = NextResponse.json({
             onboardingCompleted: !!row?.onboardingCompleted,
             progress,
+            accountDefaults: {
+                phone: row?.businessPhone || userRow?.phone || null,
+                email: row?.businessEmail || userRow?.email || null,
+            },
         });
         response.headers.set("Cache-Control", "no-store");
         return response;

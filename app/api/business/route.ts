@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { hasMinRole, requireOwner, requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getBusinessConfig, updateBusinessConfig } from "@/server/businesses/business-service";
+import { seedDefaultCategoriesForBusiness } from "@/server/catalog/category-seed-service";
+import { db } from "@/server/db";
+import { branches } from "@/server/db/schema/branches";
 
 /**
  * GET /api/business
@@ -43,8 +47,26 @@ export async function PATCH(req: Request) {
         }
 
         const body = await req.json();
+        const { reseedCategories, ...profile } = body as Record<string, unknown> & {
+            reseedCategories?: boolean;
+        };
 
-        await updateBusinessConfig(payload.bid, body);
+        await updateBusinessConfig(payload.bid, profile);
+
+        if (reseedCategories && typeof profile.businessType === "string" && profile.businessType) {
+            const branchRows = await db
+                .select({ id: branches.id })
+                .from(branches)
+                .where(eq(branches.businessId, payload.bid));
+            for (const branch of branchRows) {
+                await seedDefaultCategoriesForBusiness({
+                    businessId: payload.bid,
+                    branchId: branch.id,
+                    businessType: profile.businessType,
+                    skipIfExists: true,
+                });
+            }
+        }
 
         return NextResponse.json({ success: true });
     } catch (err) {

@@ -12,6 +12,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { useSalesOverviewDate } from "./sales-overview-date-context";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -26,7 +27,8 @@ function formatGhs(n: number): string {
 export function SalesFluidChart() {
     const { resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
-    const { data } = useSWR("/api/sales/overview", fetcher);
+    const { overviewUrl } = useSalesOverviewDate();
+    const { data } = useSWR(overviewUrl, fetcher);
 
     useEffect(() => setMounted(true), []);
 
@@ -50,7 +52,9 @@ export function SalesFluidChart() {
                     Revenue Overview
                 </h3>
                 <p className="text-[13px] text-muted-foreground">
-                    Daily revenue for the last 7 days
+                    {data?.period
+                        ? `Daily revenue, ${data.period.from} to ${data.period.to}`
+                        : "Daily revenue for the selected period"}
                 </p>
             </div>
 

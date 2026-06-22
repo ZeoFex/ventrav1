@@ -4,6 +4,14 @@ import Link from "next/link";
 import { ArrowLeft, Printer, Share2, Clock, User, Wallet, History } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { MOCK_Z_REPORT } from "./reports-mock-data";
+import { PaymentMethodsChart } from "./reports-charts";
+
+const PAYMENT_COLORS: Record<string, string> = {
+    Cash: "#006c49",
+    "MoMo (MTN)": "#f59e0b",
+    "MoMo (Telecel)": "#eab308",
+    Card: "#8b5cf6",
+};
 
 function formatGhs(n: number): string {
     return new Intl.NumberFormat("en-GH", {
@@ -13,6 +21,12 @@ function formatGhs(n: number): string {
 }
 
 export function ZReportView() {
+    const paymentChartData = MOCK_Z_REPORT.salesByMethod.map((item) => ({
+        name: item.method,
+        value: item.amount,
+        color: PAYMENT_COLORS[item.method] ?? "#64748b",
+    }));
+
     return (
         <ProductsPageShell
             title="End of Day (Z-Report)"
@@ -95,24 +109,8 @@ export function ZReportView() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-[#eef0f2] bg-white p-6 dark:border-white/[0.08] dark:bg-[#111]">
-                        <h3 className="mb-6 font-semibold text-foreground">Payments Summary</h3>
-                        <div className="space-y-6">
-                            {MOCK_Z_REPORT.salesByMethod.map((item) => (
-                                <div key={item.method} className="space-y-2">
-                                    <div className="flex items-center justify-between text-[13px]">
-                                        <span className="font-medium text-muted-foreground">{item.method}</span>
-                                        <span className="font-semibold text-foreground">{formatGhs(item.amount)}</span>
-                                    </div>
-                                    <div className="h-1.5 w-full rounded-full bg-muted/30">
-                                        <div
-                                            className="h-full rounded-full bg-[#006c49] dark:bg-[#6ffbbe]"
-                                            style={{ width: `${(item.amount / MOCK_Z_REPORT.closingBalance) * 100}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                    <div>
+                        <PaymentMethodsChart data={paymentChartData} />
                     </div>
                 </div>
             </div>

@@ -200,6 +200,7 @@ function SignupViewContent() {
         businessId: data.user?.businessId,
         userId: data.user?.id,
         email: email.trim(),
+        phone: phone.trim() || undefined,
         storeName: businessName.trim(),
         legalName: fullName.trim(),
         plan: selectedPlan,

@@ -1,4 +1,8 @@
 import type { BusinessTypeId, OnboardingData, StoreStructure } from "./types";
+import { BUSINESS_TYPES } from "@/config/business-types";
+
+export { BUSINESS_TYPES };
+export type { BusinessTypeId };
 
 export const GHANA_REGIONS = [
   "Greater Accra",
@@ -18,54 +22,6 @@ export const GHANA_REGIONS = [
   "North East",
   "Western North",
 ] as const;
-
-/** Shop types shown during onboarding (maps to shop_types.slug in the database). */
-export const BUSINESS_TYPES: {
-  id: BusinessTypeId;
-  label: string;
-  hint: string;
-}[] = [
-    { id: "pharmacy", label: "Pharmacy", hint: "Medicines & health products" },
-    {
-      id: "agrochemical_shop",
-      label: "Agrochemical Shop",
-      hint: "Fertilizers, pesticides & farm inputs",
-    },
-    {
-      id: "building_construction",
-      label: "Building & Construction Materials",
-      hint: "Cement, steel, tiles & supplies",
-    },
-    {
-      id: "boutique_fashion",
-      label: "Boutique / Fashion Store",
-      hint: "Clothing, shoes & accessories",
-    },
-    { id: "supermarket", label: "Supermarket", hint: "Groceries at scale" },
-    { id: "cold_store", label: "Cold Store", hint: "Meat, fish & frozen goods" },
-    {
-      id: "electronics_store",
-      label: "Electronics Store",
-      hint: "Phones, laptops & gadgets",
-    },
-    { id: "hardware_store", label: "Hardware Store", hint: "Tools & building supplies" },
-    {
-      id: "stationery_bookshop",
-      label: "Stationery & Bookshop",
-      hint: "Books, office & school supplies",
-    },
-    { id: "furniture_store", label: "Furniture Store", hint: "Home & office furniture" },
-    {
-      id: "cosmetics_beauty",
-      label: "Cosmetics & Beauty Shop",
-      hint: "Makeup, skincare & grooming",
-    },
-    {
-      id: "general_retail_store",
-      label: "General Retail Store",
-      hint: "Mixed goods & neighbourhood shop",
-    },
-  ];
 
 /** Fixed prefix through structure (before branching). */
 export const ONBOARDING_PREFIX = [

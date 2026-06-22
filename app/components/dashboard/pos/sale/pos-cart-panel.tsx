@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { CartLine } from "./pos-cart-totals";
-import { computePosTotals } from "./pos-cart-totals";
+import { computePosTotals, computeDiscountGhs } from "./pos-cart-totals";
 import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
@@ -63,10 +63,8 @@ export function PosCartPanelContent({
   appliedDiscount,
   onSelectDiscount,
 }: CartPanelContentProps) {
-  const discountGhs = appliedDiscount 
-    ? appliedDiscount.type === 'percentage' 
-      ? lines.reduce((sum, l) => sum + Number(productById.get(l.productId)?.priceGhs || 0) * l.qty, 0) * (Number(appliedDiscount.value) / 100)
-      : Number(appliedDiscount.value)
+  const discountGhs = appliedDiscount
+    ? computeDiscountGhs(appliedDiscount, lines, productById)
     : 0;
 
   const { subtotal, tax, discount, total } = computePosTotals(

@@ -6,8 +6,8 @@ import {
 } from "@/server/auth/api-request-auth";
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema/users";
-import { roles, userRoles } from "@/server/db/schema/roles";
 import { eq, and } from "drizzle-orm";
+import { getStaffById } from "@/server/staff/staff-service";
 
 export async function GET(
     req: NextRequest,
@@ -21,28 +21,12 @@ export async function GET(
     }
     const { id: staffId } = await params;
 
-    const result = await db
-        .select({
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email,
-            phone: users.phone,
-            status: users.status,
-            roleName: roles.name,
-            branchId: userRoles.branchId,
-        })
-        .from(users)
-        .innerJoin(userRoles, eq(users.id, userRoles.userId))
-        .innerJoin(roles, eq(userRoles.roleId, roles.id))
-        .where(and(eq(users.id, staffId), eq(users.businessId, payload.bid)))
-        .limit(1);
-
-    if (result.length === 0) {
+    const staff = await getStaffById(staffId, payload.bid);
+    if (!staff) {
         return NextResponse.json({ error: "Staff not found" }, { status: 404 });
     }
 
-    return NextResponse.json(result[0]);
+    return NextResponse.json(staff);
 }
 
 export async function PATCH(

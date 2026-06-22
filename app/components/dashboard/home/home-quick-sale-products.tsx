@@ -3,15 +3,15 @@
 import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, PackageOpen, Store } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "../ui/skeleton";
 import { useBranchContext } from "../branch-context";
-import { PosProductCard } from "../pos/sale/pos-product-card";
 import { useGlobalCart } from "../pos/global-cart-context";
 import { playPosAddProductBeep } from "../pos/sale/pos-add-beep";
 import { formatGhs } from "@/app/lib/catalog-utils";
 import { type ProductRow } from "../products/types";
+import { HomeQuickSaleCard } from "./home-quick-sale-card";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -92,37 +92,87 @@ function QuickSaleVariationModal({
   );
 }
 
-function QuickSaleMarquee({ products, onAdd }: { products: ProductRow[]; onAdd: (p: ProductRow) => void }) {
-  const shouldAnimate = products.length >= 4;
-
-  const renderTrack = (suffix: string) =>
-    products.map((product) => (
-      <div
-        key={`${product.id}${suffix}`}
-        className="w-[200px] shrink-0 transition-[transform,filter] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:z-10 sm:w-[220px]"
-        data-tour-target={suffix === "-a" ? "home-quick-sale-item" : undefined}
-      >
-        <PosProductCard
-          product={product}
-          availableStock={sellableForLine(product)}
-          onAdd={() => onAdd(product)}
-        />
-      </div>
-    ));
-
-  if (!shouldAnimate) {
-    return (
-      <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">
-        <div className="flex gap-3 sm:gap-4">{renderTrack("-a")}</div>
-      </div>
-    );
-  }
-
+function QuickSaleCarousel({
+  products,
+  onAdd,
+}: {
+  products: ProductRow[];
+  onAdd: (p: ProductRow) => void;
+}) {
   return (
-    <div className="quick-sale-marquee -mx-4 overflow-hidden px-4 pb-1 sm:-mx-6 sm:px-6">
-      <div className="quick-sale-marquee-track flex w-max gap-3 py-0.5 sm:gap-4">
-        {renderTrack("-a")}
-        {renderTrack("-b")}
+    <div
+      className="-mx-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#006c49]/25"
+      role="region"
+      aria-label="Top selling products carousel"
+    >
+      <div className="flex snap-x snap-mandatory gap-3 py-1 sm:gap-4">
+        {products.map((product, index) => (
+          <div
+            key={product.id}
+            data-tour-target={index === 0 ? "home-quick-sale-item" : undefined}
+          >
+            <HomeQuickSaleCard
+              product={product}
+              rank={index + 1}
+              availableStock={sellableForLine(product)}
+              onAdd={() => onAdd(product)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function QuickSaleEmptyState() {
+  return (
+    <div
+      className="flex flex-col items-center rounded-2xl border border-dashed border-[#bfc9c3]/35 bg-surface-card px-6 py-10 text-center dark:border-white/[0.08] dark:bg-[#111] sm:px-8"
+      data-tour-target="home-quick-sale"
+      data-tour-mount="main"
+    >
+      <span className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]">
+        <PackageOpen className="size-6" strokeWidth={1.75} aria-hidden />
+      </span>
+      <p className="text-[15px] font-semibold text-foreground">No quick-sale products yet</p>
+      <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+        Add in-stock products or complete sales — top sellers from the last 30 days appear here.
+      </p>
+      <Link
+        href="/dashboard/products/new"
+        className="mt-5 inline-flex min-h-[40px] items-center justify-center rounded-xl bg-[#006c49] px-4 text-[13px] font-semibold text-white transition-[filter] hover:brightness-110 dark:bg-[#6ffbbe] dark:text-[#003527]"
+      >
+        Add a product
+      </Link>
+    </div>
+  );
+}
+
+function QuickSaleBranchPrompt() {
+  return (
+    <section className="flex flex-col items-center rounded-2xl border border-[#bfc9c3]/15 bg-surface-card px-6 py-10 text-center dark:border-white/[0.06] dark:bg-[#111] sm:px-8">
+      <span className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+        <Store className="size-6" strokeWidth={1.75} aria-hidden />
+      </span>
+      <p className="text-[15px] font-semibold text-foreground">Select a branch</p>
+      <p className="mt-1.5 max-w-sm text-[13px] text-muted-foreground">
+        Choose a branch from the header to quick-sell top products from the home screen.
+      </p>
+    </section>
+  );
+}
+
+function QuickSaleLoadingState() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+      <div className="-mx-4 flex gap-3 overflow-hidden px-4 sm:-mx-6 sm:px-6">
+        <Skeleton className="h-[220px] w-[168px] shrink-0 rounded-2xl sm:w-[184px]" />
+        <Skeleton className="h-[220px] w-[168px] shrink-0 rounded-2xl sm:w-[184px]" />
+        <Skeleton className="h-[220px] w-[168px] shrink-0 rounded-2xl sm:w-[184px]" />
       </div>
     </div>
   );
@@ -163,41 +213,28 @@ export function HomeQuickSaleProducts() {
   );
 
   if (branchId === "all") {
-    return (
-      <section className="rounded-2xl border border-[#bfc9c3]/15 bg-surface-card px-4 py-8 text-center dark:border-white/[0.06] dark:bg-[#111] sm:px-5">
-        <p className="text-[14px] text-muted-foreground">
-          Select a branch to quick-sell products from the home screen.
-        </p>
-      </section>
-    );
+    return <QuickSaleBranchPrompt />;
   }
 
   if (isLoading && !data) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <div className="flex gap-3 overflow-hidden">
-          <Skeleton className="h-[280px] w-[200px] shrink-0 rounded-[1.25rem]" />
-          <Skeleton className="h-[280px] w-[200px] shrink-0 rounded-[1.25rem]" />
-          <Skeleton className="h-[280px] w-[200px] shrink-0 rounded-[1.25rem]" />
-        </div>
-      </div>
-    );
+    return <QuickSaleLoadingState />;
   }
 
   return (
     <>
       <section className="space-y-3 sm:space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Quick sale
-          </h2>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Quick sale
+            </h2>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              Top sellers — tap + to add to cart
+            </p>
+          </div>
           <Link
             href="/dashboard/pos/sale"
-            className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-[#006c49] transition-colors hover:bg-[#006c49]/5 dark:text-[#6ffbbe] dark:hover:bg-[#6ffbbe]/5"
           >
             Open full POS
             <ArrowUpRight className="size-3.5" strokeWidth={2} aria-hidden />
@@ -205,24 +242,10 @@ export function HomeQuickSaleProducts() {
         </div>
 
         {products.length === 0 ? (
-          <div
-            className="rounded-2xl border border-[#bfc9c3]/15 bg-surface-card px-4 py-8 text-center dark:border-white/[0.06] dark:bg-[#111] sm:px-5"
-            data-tour-target="home-quick-sale"
-            data-tour-mount="main"
-          >
-            <p className="text-[14px] text-muted-foreground">
-              No in-stock products yet. Add products to enable quick sale.
-            </p>
-            <Link
-              href="/dashboard/products/new"
-              className="mt-3 inline-flex text-[13px] font-medium text-[#006c49] hover:underline dark:text-[#6ffbbe]"
-            >
-              Add a product
-            </Link>
-          </div>
+          <QuickSaleEmptyState />
         ) : (
           <div data-tour-target="home-quick-sale" data-tour-mount="main">
-            <QuickSaleMarquee products={products} onAdd={handleAdd} />
+            <QuickSaleCarousel products={products} onAdd={handleAdd} />
           </div>
         )}
       </section>

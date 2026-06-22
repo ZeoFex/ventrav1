@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { Loader2 } from "lucide-react";
 import { CatalogProductImage } from "../products/catalog-product-image";
+import { useSalesOverviewDate } from "./sales-overview-date-context";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -23,7 +24,8 @@ type TopProduct = {
 };
 
 export function SalesTopProducts() {
-    const { data, isLoading } = useSWR("/api/sales/overview", fetcher);
+    const { overviewUrl } = useSalesOverviewDate();
+    const { data, isLoading } = useSWR(overviewUrl, fetcher);
     const topProducts: TopProduct[] = data?.topProducts ?? [];
 
     return (

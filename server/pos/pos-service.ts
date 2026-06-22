@@ -8,10 +8,24 @@ import { notifications } from "../db/schema/notifications";
 import { redis } from "../lib/redis";
 import { invalidateCustomerCaches } from "../customers/customer-account-service";
 import { sellableUnits } from "../stock/sellable-stock";
+import { countReadyForPickupOrders } from "../customer-orders/customer-order-service";
+import {
+    accraDateKey,
+    enumerateAccraDateKeys,
+    previousSalesOverviewPeriod,
+    resolveSalesOverviewPeriod,
+    type SalesOverviewPeriod,
+} from "../reports/product-analytics-service";
+import {
+    buildSalesInsights,
+    formatPeriodLabel,
+    pctChange,
+} from "../reports/reports-dashboard-service";
 
 const CACHE_KEYS = {
     PRODUCTS_LIST: (bizId: string, brn?: string | null) => `products:biz_${bizId}:brn_${brn || 'all'}:list`,
-    SALES_OVERVIEW: (bizId: string, brn?: string | null) => `sales:biz_${bizId}:brn_${brn || 'all'}:overview`,
+    SALES_OVERVIEW: (bizId: string, brn?: string | null, from?: string, to?: string) =>
+        `sales:biz_${bizId}:brn_${brn || 'all'}:overview:${from || 'default'}:${to || 'default'}`,
     DASHBOARD_HOME: (bizId: string, brn?: string | null) => `dashboard:biz_${bizId}:brn_${brn || 'all'}:home`,
 };
 
@@ -277,16 +291,45 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
  * Fetch sales overview analytics for the dashboard.
  * Computes metrics, daily revenue, and top products from real data.
  */
-export async function getSalesOverview(businessId: string, branchId?: string | null) {
-    const cacheKey = CACHE_KEYS.SALES_OVERVIEW(businessId, branchId);
+export async function getSalesOverview(
+    businessId: string,
+    branchId?: string | null,
+    opts?: { fromKey?: string | null; toKey?: string | null },
+) {
+    let period: SalesOverviewPeriod;
+    try {
+        period = resolveSalesOverviewPeriod(opts?.fromKey, opts?.toKey);
+    } catch {
+        period = resolveSalesOverviewPeriod();
+    }
+    const prevPeriod = previousSalesOverviewPeriod(period);
+
+    const cacheKey = CACHE_KEYS.SALES_OVERVIEW(
+        businessId,
+        branchId,
+        period.fromKey,
+        period.toKey,
+    );
     const cached = await redis.get(cacheKey);
     if (cached) {
         try { return JSON.parse(cached); } catch { /* fall through */ }
     }
 
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const periodFilter = and(
+        eq(sales.businessId, businessId),
+        branchFilter(branchId),
+        gte(sales.createdAt, period.start),
+        lte(sales.createdAt, period.end),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
+    );
+
+    const prevPeriodFilter = and(
+        eq(sales.businessId, businessId),
+        branchFilter(branchId),
+        gte(sales.createdAt, prevPeriod.start),
+        lte(sales.createdAt, prevPeriod.end),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
+    );
 
     // Fetch all analytics data in parallel for "instant" speed
     const [
@@ -302,12 +345,7 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
             avgOrderValue: sql<string>`COALESCE(AVG(${sales.totalGhs}::numeric), 0)`,
         })
             .from(sales)
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, sevenDaysAgo),
-                inArray(sales.status, REVENUE_SALE_STATUSES),
-            )),
+            .where(periodFilter),
 
         // 2. Previous period metrics (for trend)
         db.select({
@@ -316,34 +354,20 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
             avgOrderValue: sql<string>`COALESCE(AVG(${sales.totalGhs}::numeric), 0)`,
         })
             .from(sales)
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, fourteenDaysAgo),
-                lte(sales.createdAt, sevenDaysAgo),
-                inArray(sales.status, REVENUE_SALE_STATUSES),
-            )),
+            .where(prevPeriodFilter),
 
-        // 3. Daily revenue for chart (last 7 days)
+        // 3. Daily revenue for chart (selected range, Accra calendar days)
         db.select({
-            date: sql<string>`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'Dy')`,
             dateKey: sql<string>`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'YYYY-MM-DD')`,
             revenue: sql<string>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
+            transactions: sql<number>`COUNT(*)::int`,
         })
             .from(sales)
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, sevenDaysAgo),
-                inArray(sales.status, REVENUE_SALE_STATUSES),
-            ))
-            .groupBy(
-                sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'Dy')`,
-                sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'YYYY-MM-DD')`,
-            )
+            .where(periodFilter)
+            .groupBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'YYYY-MM-DD')`)
             .orderBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'YYYY-MM-DD')`),
 
-        // 4. Top selling products (last 7 days) — join products for image
+        // 4. Top selling products — join products for image
         db.select({
             productId: saleItems.productId,
             productName: saleItems.productName,
@@ -354,12 +378,7 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
             .from(saleItems)
             .innerJoin(sales, eq(saleItems.saleId, sales.id))
             .leftJoin(products, eq(saleItems.productId, products.id))
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, sevenDaysAgo),
-                inArray(sales.status, REVENUE_SALE_STATUSES),
-            ))
+            .where(periodFilter)
             .groupBy(saleItems.productId, saleItems.productName, products.imageSrc)
             .orderBy(desc(sql`SUM(${saleItems.lineTotalGhs}::numeric)`))
             .limit(5)
@@ -377,16 +396,54 @@ export async function getSalesOverview(businessId: string, branchId?: string | n
     const curAov = Number(currentMetrics.avgOrderValue);
     const prevAov = Number(prevMetrics.avgOrderValue);
 
+    const dailyByKey = new Map(
+        dailyRevenue.map((d) => [
+            d.dateKey,
+            { revenue: Number(d.revenue), transactions: d.transactions },
+        ]),
+    );
+
+    const dayFormatter = new Intl.DateTimeFormat("en-GH", {
+        timeZone: "Africa/Accra",
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+    });
+
+    const allDayKeys = enumerateAccraDateKeys(period.fromKey, period.toKey);
+    const dailyBreakdown = allDayKeys.map((dateKey) => {
+        const row = dailyByKey.get(dateKey);
+        const labelDate = new Date(`${dateKey}T12:00:00.000Z`);
+        return {
+            dateKey,
+            date: dayFormatter.format(labelDate),
+            revenue: row?.revenue ?? 0,
+            transactions: row?.transactions ?? 0,
+        };
+    });
+
+    const trendLabel =
+        period.dayCount === 7 && period.toKey === accraDateKey()
+            ? "vs previous 7 days"
+            : `vs previous ${period.dayCount} days`;
+
     const overview = {
+        period: {
+            from: period.fromKey,
+            to: period.toKey,
+            dayCount: period.dayCount,
+        },
         metrics: [
-            { label: "Total Revenue", value: curRev, trend: trend(curRev, prevRev), timeframe: "vs last 7 days" },
-            { label: "Total Transactions", value: curTrans, trend: trend(curTrans, prevTrans), timeframe: "vs last 7 days" },
-            { label: "Average Order Value", value: curAov, trend: trend(curAov, prevAov), timeframe: "vs last 7 days" },
+            { label: "Total Revenue", value: curRev, trend: trend(curRev, prevRev), timeframe: trendLabel },
+            { label: "Total Transactions", value: curTrans, trend: trend(curTrans, prevTrans), timeframe: trendLabel },
+            { label: "Average Order Value", value: curAov, trend: trend(curAov, prevAov), timeframe: trendLabel },
         ],
-        chartData: dailyRevenue.map((d) => ({
+        chartData: dailyBreakdown.map((d) => ({
             date: d.date,
-            revenue: Number(d.revenue),
+            dateKey: d.dateKey,
+            revenue: d.revenue,
         })),
+        dailyBreakdown,
         topProducts: topProducts.map((p) => ({
             id: p.productId,
             name: p.productName,
@@ -508,6 +565,7 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
         [yesterdayTotals],
         recentSales,
         quickSaleProducts,
+        readyForPickupCount,
     ] = await Promise.all([
         // 1. Today's stats
         db.select({
@@ -549,6 +607,9 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
 
         // 4. Quick-sale carousel (best sellers in last 30 days)
         resolveQuickSaleProducts(businessId, branchId),
+
+        // 5. Layaway orders awaiting pickup
+        countReadyForPickupOrders(businessId, branchId),
     ]);
 
     const todayRev = Number(todayTotals.totalRevenue);
@@ -575,6 +636,7 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
             createdAt: s.createdAt,
         })),
         quickSaleProducts,
+        readyForPickupCount,
     };
 
     await redis.setex(cacheKey, 30, JSON.stringify(homeData));
@@ -711,54 +773,76 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
 
     const now = new Date();
     const periodStart = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+    const prevPeriodStart = new Date(periodStart.getTime() - periodDays * 24 * 60 * 60 * 1000);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const baseFilter = [
+        eq(sales.businessId, businessId),
+        branchFilter(branchId),
+        inArray(sales.status, REVENUE_SALE_STATUSES),
+    ].filter(Boolean);
+
+    const periodFilter = and(...baseFilter, gte(sales.createdAt, periodStart));
+    const prevPeriodFilter = and(...baseFilter, gte(sales.createdAt, prevPeriodStart), lte(sales.createdAt, periodStart));
 
     const [
         [kpis],
+        [prevKpis],
         trendQuery,
+        dailyQuery,
         paymentQuery,
         topItemsQuery,
         categoryPerformanceQuery,
-        [cogsQueryResult]
+        [cogsQueryResult],
+        [prevCogsResult],
     ] = await Promise.all([
         db.select({
             grossSales: sql<number>`COALESCE(SUM(${sales.subtotalGhs}::numeric), 0)`,
             discounts: sql<number>`COALESCE(SUM(${sales.discountGhs}::numeric), 0)`,
             netSales: sql<number>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
             transactionCount: sql<number>`COUNT(*)::int`,
+            avgOrderValue: sql<number>`COALESCE(AVG(${sales.totalGhs}::numeric), 0)`,
         })
             .from(sales)
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, periodStart),
-                inArray(sales.status, REVENUE_SALE_STATUSES)
-            )),
+            .where(periodFilter),
+
+        db.select({
+            grossSales: sql<number>`COALESCE(SUM(${sales.subtotalGhs}::numeric), 0)`,
+            discounts: sql<number>`COALESCE(SUM(${sales.discountGhs}::numeric), 0)`,
+            netSales: sql<number>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
+            transactionCount: sql<number>`COUNT(*)::int`,
+            avgOrderValue: sql<number>`COALESCE(AVG(${sales.totalGhs}::numeric), 0)`,
+        })
+            .from(sales)
+            .where(prevPeriodFilter),
 
         db.select({
             hour: sql<string>`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`,
             sales: sql<number>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
+            transactions: sql<number>`COUNT(*)::int`,
         })
             .from(sales)
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, new Date(now.getFullYear(), now.getMonth(), now.getDate())),
-                inArray(sales.status, REVENUE_SALE_STATUSES)
-            ))
+            .where(and(...baseFilter, gte(sales.createdAt, todayStart)))
             .groupBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`)
             .orderBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`),
+
+        db.select({
+            dateKey: sql<string>`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'YYYY-MM-DD')`,
+            sales: sql<number>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
+            transactions: sql<number>`COUNT(*)::int`,
+            discounts: sql<number>`COALESCE(SUM(${sales.discountGhs}::numeric), 0)`,
+        })
+            .from(sales)
+            .where(periodFilter)
+            .groupBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'YYYY-MM-DD')`)
+            .orderBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'YYYY-MM-DD')`),
 
         db.select({
             method: sales.paymentMethod,
             revenue: sql<number>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
         })
             .from(sales)
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, periodStart),
-                inArray(sales.status, REVENUE_SALE_STATUSES)
-            ))
+            .where(periodFilter)
             .groupBy(sales.paymentMethod),
 
         db.select({
@@ -769,15 +853,10 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
         })
             .from(saleItems)
             .innerJoin(sales, eq(saleItems.saleId, sales.id))
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, periodStart),
-                inArray(sales.status, REVENUE_SALE_STATUSES)
-            ))
+            .where(periodFilter)
             .groupBy(saleItems.productId, saleItems.productName)
             .orderBy(desc(sql`SUM(${saleItems.lineTotalGhs}::numeric)`))
-            .limit(5),
+            .limit(10),
 
         db.select({
             category: categories.name,
@@ -787,59 +866,107 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
             .innerJoin(sales, eq(saleItems.saleId, sales.id))
             .leftJoin(products, eq(saleItems.productId, products.id))
             .leftJoin(categories, eq(products.categoryId, categories.id))
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, periodStart),
-                inArray(sales.status, REVENUE_SALE_STATUSES)
-            ))
+            .where(periodFilter)
             .groupBy(categories.name)
             .orderBy(desc(sql`SUM(${saleItems.lineTotalGhs}::numeric)`)),
 
-        // 6. Real COGS Calculation
         db.select({
             totalCogs: sql<number>`COALESCE(SUM((${saleItems.quantity} - ${saleItems.quantityReturned})::numeric * ${products.costPriceGhs}::numeric), 0)`,
         })
             .from(saleItems)
             .innerJoin(sales, eq(saleItems.saleId, sales.id))
             .innerJoin(products, eq(saleItems.productId, products.id))
-            .where(and(
-                eq(sales.businessId, businessId),
-                branchFilter(branchId),
-                gte(sales.createdAt, periodStart),
-                inArray(sales.status, REVENUE_SALE_STATUSES)
-            ))
+            .where(periodFilter),
+
+        db.select({
+            totalCogs: sql<number>`COALESCE(SUM((${saleItems.quantity} - ${saleItems.quantityReturned})::numeric * ${products.costPriceGhs}::numeric), 0)`,
+        })
+            .from(saleItems)
+            .innerJoin(sales, eq(saleItems.saleId, sales.id))
+            .innerJoin(products, eq(saleItems.productId, products.id))
+            .where(prevPeriodFilter),
     ]);
 
     const netValue = Number(kpis?.netSales || 0);
+    const prevNetValue = Number(prevKpis?.netSales || 0);
     const cogsValue = Number(cogsQueryResult?.totalCogs || 0);
-    const marginValue = netValue > 0 ? ((netValue - cogsValue) / netValue) * 100 : 0;
+    const prevCogsValue = Number(prevCogsResult?.totalCogs || 0);
+    const grossProfit = netValue - cogsValue;
+    const prevGrossProfit = prevNetValue - prevCogsValue;
+    const marginValue = netValue > 0 ? (grossProfit / netValue) * 100 : 0;
+    const prevMargin = prevNetValue > 0 ? (prevGrossProfit / prevNetValue) * 100 : 0;
+    const avgOrderValue = Number(kpis?.avgOrderValue || 0);
+    const prevAvgOrderValue = Number(prevKpis?.avgOrderValue || 0);
 
     const reportKpis = {
         grossSales: Number(kpis?.grossSales || 0),
         discounts: Number(kpis?.discounts || 0),
         netSales: netValue,
         totalCogs: cogsValue,
-        grossProfit: netValue - cogsValue,
+        grossProfit,
         marginPercent: marginValue,
         transactionCount: kpis?.transactionCount || 0,
+        avgOrderValue,
     };
 
-    const salesTrend = trendQuery.map(t => ({
+    const trends = {
+        grossSales: pctChange(reportKpis.grossSales, Number(prevKpis?.grossSales || 0)),
+        discounts: pctChange(reportKpis.discounts, Number(prevKpis?.discounts || 0)),
+        netSales: pctChange(netValue, prevNetValue),
+        totalCogs: pctChange(cogsValue, prevCogsValue),
+        grossProfit: pctChange(grossProfit, prevGrossProfit),
+        marginPercent: pctChange(marginValue, prevMargin),
+        transactionCount: pctChange(reportKpis.transactionCount, prevKpis?.transactionCount || 0),
+        avgOrderValue: pctChange(avgOrderValue, prevAvgOrderValue),
+    };
+
+    const toKey = accraDateKey();
+    const fromKey = accraDateKey(periodStart);
+    const dayFormatter = new Intl.DateTimeFormat("en-GH", {
+        timeZone: "Africa/Accra",
+        ...(periodDays <= 14 ? { weekday: "short" as const } : {}),
+        month: "short",
+        day: "numeric",
+    });
+
+    const dailyByKey = new Map(
+        dailyQuery.map((d) => [
+            d.dateKey,
+            {
+                sales: Number(d.sales),
+                transactions: d.transactions,
+                discounts: Number(d.discounts),
+            },
+        ]),
+    );
+
+    const dailyTrend = enumerateAccraDateKeys(fromKey, toKey).map((dateKey) => {
+        const row = dailyByKey.get(dateKey);
+        return {
+            dateKey,
+            date: dayFormatter.format(new Date(`${dateKey}T12:00:00.000Z`)),
+            sales: row?.sales ?? 0,
+            transactions: row?.transactions ?? 0,
+            discounts: row?.discounts ?? 0,
+        };
+    });
+
+    const salesTrend = trendQuery.map((t) => ({
         time: t.hour,
-        sales: Number(t.sales)
+        sales: Number(t.sales),
+        transactions: t.transactions,
     }));
 
-    const paymentMapping: Record<string, { name: string, color: string }> = {
-        "cash": { name: "Cash", color: "#006c49" },
-        "mtn_momo": { name: "Mobile Money", color: "#f59e0b" },
-        "vodafone_cash": { name: "Mobile Money", color: "#f59e0b" },
-        "atmoney": { name: "Mobile Money", color: "#f59e0b" },
-        "card": { name: "Card", color: "#8b5cf6" },
+    const paymentMapping: Record<string, { name: string; color: string }> = {
+        cash: { name: "Cash", color: "#006c49" },
+        mtn_momo: { name: "Mobile Money", color: "#f59e0b" },
+        vodafone_cash: { name: "Mobile Money", color: "#f59e0b" },
+        atmoney: { name: "Mobile Money", color: "#f59e0b" },
+        card: { name: "Card", color: "#8b5cf6" },
     };
 
-    const paymentMethodsMap = new Map<string, { name: string, value: number, color: string }>();
-    paymentQuery.forEach(p => {
+    const paymentMethodsMap = new Map<string, { name: string; value: number; color: string }>();
+    paymentQuery.forEach((p) => {
         const config = paymentMapping[p.method] || { name: p.method, color: "#64748b" };
         const existing = paymentMethodsMap.get(config.name);
         if (existing) {
@@ -849,26 +976,59 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
         }
     });
 
-    const topItems = topItemsQuery.map(i => ({
+    const paymentMethods = Array.from(paymentMethodsMap.values());
+    const totalPaymentRev = paymentMethods.reduce((s, p) => s + p.value, 0) || 1;
+    const topPayment = paymentMethods.length
+        ? paymentMethods.reduce((best, p) => (p.value > best.value ? p : best))
+        : null;
+
+    const topItems = topItemsQuery.map((i) => ({
         id: i.id || Math.random().toString(),
         name: i.name,
         qty: Number(i.qty),
-        revenue: Number(i.revenue)
+        revenue: Number(i.revenue),
     }));
 
-    const totalCategoryRev = categoryPerformanceQuery.reduce((s: number, c: any) => s + Number(c.revenue), 0) || 1;
-    const categoryPerformance = categoryPerformanceQuery.map((c: any) => ({
+    const totalCategoryRev = categoryPerformanceQuery.reduce((s: number, c) => s + Number(c.revenue), 0) || 1;
+    const categoryPerformance = categoryPerformanceQuery.map((c) => ({
         category: c.category || "Uncategorized",
         sales: Number(c.revenue),
-        percentage: Math.round((Number(c.revenue) / totalCategoryRev) * 100)
+        percentage: Math.round((Number(c.revenue) / totalCategoryRev) * 100),
     }));
 
-    const result = {
+    const bestDay = dailyTrend.reduce(
+        (best, d) => (d.sales > best.revenue ? { date: d.date, revenue: d.sales } : best),
+        { date: "", revenue: 0 },
+    );
+
+    const insights = buildSalesInsights({
+        periodDays,
         kpis: reportKpis,
+        trends,
+        avgOrderValue,
+        topCategory: categoryPerformance[0] ?? null,
+        topPayment: topPayment
+            ? { name: topPayment.name, value: topPayment.value, share: Math.round((topPayment.value / totalPaymentRev) * 100) }
+            : null,
+        bestDay: bestDay.revenue > 0 ? bestDay : null,
+        topProduct: topItems[0] ? { name: topItems[0].name, revenue: topItems[0].revenue } : null,
+    });
+
+    const result = {
+        period: {
+            days: periodDays,
+            fromKey,
+            toKey,
+            label: formatPeriodLabel(periodDays),
+        },
+        kpis: reportKpis,
+        trends,
+        insights,
+        dailyTrend,
         salesTrend,
-        paymentMethods: Array.from(paymentMethodsMap.values()),
+        paymentMethods,
         topItems,
-        categoryPerformance
+        categoryPerformance,
     };
 
     await redis.setex(cacheKey, 30, JSON.stringify(result));

@@ -18,6 +18,7 @@ import { initOfflineSync } from "@/app/lib/offline/offline-sync";
 import { GlobalCartIndicator } from "./pos/global-cart-indicator";
 import { TrialBanner } from "./trial-banner";
 import { CopilotMobileFab, CopilotPanel, CopilotProvider } from "./copilot";
+import { DashboardMobileBottomNav } from "./dashboard-mobile-bottom-nav";
 import { DashboardProductTour } from "./product-tour/dashboard-product-tour";
 
 function DashboardShellFrame({
@@ -80,10 +81,11 @@ function DashboardShellFrame({
         <TrialBanner />
         <OfflineBanner />
         <DashboardHeader userDisplayName={userDisplayName} />
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
           {children}
         </div>
       </div>
+      <DashboardMobileBottomNav />
       <GlobalCartIndicator />
       <CopilotMobileFab />
       <CopilotPanel />

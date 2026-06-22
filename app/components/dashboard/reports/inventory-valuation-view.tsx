@@ -1,18 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Printer, Download, Package, AlertTriangle, TrendingUp, DollarSign } from "lucide-react";
+import useSWR from "swr";
+import {
+    ArrowLeft,
+    Printer,
+    Download,
+    Package,
+    AlertTriangle,
+    TrendingUp,
+    DollarSign,
+    Loader2,
+} from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
-import { MOCK_INVENTORY_VALUATION } from "./reports-mock-data";
+import { useBranchContext } from "../branch-context";
+import { InventoryValueChart, MarginGaugeChart, CategoryMixPieChart } from "./reports-charts";
+import { ReportsInsightsPanel } from "./reports-insights-panel";
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function formatGhs(n: number): string {
     return new Intl.NumberFormat("en-GH", {
         style: "currency",
         currency: "GHS",
+        maximumFractionDigits: 0,
     }).format(n);
 }
 
 export function InventoryValuationView() {
+    const { branchId } = useBranchContext();
+    const { data, isLoading } = useSWR(`/api/reports/inventory-valuation?b=${branchId}`, fetcher);
+
+    if (isLoading) {
+        return (
+            <ProductsPageShell title="Inventory Valuation" description="Loading stock analytics…" actions={<div />}>
+                <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                </div>
+            </ProductsPageShell>
+        );
+    }
+
+    if (!data?.summary) return null;
+
+    const { summary, lowStockItems, categoryBreakdown, insights = [] } = data;
+
     return (
         <ProductsPageShell
             title="Inventory Valuation"
@@ -25,75 +57,102 @@ export function InventoryValuationView() {
                     >
                         <ArrowLeft className="size-4" />
                     </Link>
-                    <button className="flex items-center justify-center rounded-xl border border-[#e5e7eb] bg-white p-2.5 text-foreground hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]">
+                    <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="flex items-center justify-center rounded-xl border border-[#e5e7eb] bg-white p-2.5 text-foreground hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
+                    >
                         <Printer className="size-4" />
                     </button>
-                    <button className="flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-2.5 text-[14px] font-semibold text-white shadow-lg">
+                    <button
+                        type="button"
+                        className="flex items-center gap-2 rounded-xl bg-[#006c49] px-4 py-2.5 text-[14px] font-semibold text-white shadow-lg"
+                    >
                         <Download className="size-4" />
-                        Export Valuation
+                        Export
                     </button>
                 </div>
             }
         >
             <div className="grid gap-6">
-                {/* VALUATION SUMMARY */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <ValuationKpi label="Total Items in Stock" value={MOCK_INVENTORY_VALUATION.totalItems.toString()} icon={Package} />
-                    <ValuationKpi label="Total Cost Value" value={formatGhs(MOCK_INVENTORY_VALUATION.costValue)} icon={DollarSign} />
-                    <ValuationKpi label="Total Retail Value" value={formatGhs(MOCK_INVENTORY_VALUATION.retailValue)} icon={TrendingUp} />
-                    <ValuationKpi label="Potential Profit" value={formatGhs(MOCK_INVENTORY_VALUATION.potentialProfit)} highlight />
+                    <ValuationKpi label="Active products" value={summary.totalProducts.toLocaleString()} icon={Package} />
+                    <ValuationKpi label="Units in stock" value={summary.totalUnits.toLocaleString()} icon={Package} />
+                    <ValuationKpi label="Cost value" value={formatGhs(summary.costValue)} icon={DollarSign} />
+                    <ValuationKpi label="Retail value" value={formatGhs(summary.retailValue)} icon={TrendingUp} highlight />
                 </div>
 
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <ValuationKpi label="Potential profit" value={formatGhs(summary.potentialProfit)} highlight />
+                    <ValuationKpi label="Low stock items" value={String(summary.lowStockCount)} warning={summary.lowStockCount > 0} />
+                    <ValuationKpi label="Out of stock" value={String(summary.outOfStockCount)} warning={summary.outOfStockCount > 0} />
+                </div>
+
+                <ReportsInsightsPanel insights={insights} title="Inventory insights" />
+
                 <div className="grid gap-6 lg:grid-cols-3">
-                    {/* LOW STOCK ALERT */}
-                    <div className="lg:col-span-2 rounded-2xl border border-[#eef0f2] bg-white p-6 dark:border-white/[0.08] dark:bg-[#111]">
+                    <div className="lg:col-span-2">
+                        <InventoryValueChart data={categoryBreakdown} />
+                    </div>
+                    <MarginGaugeChart percent={summary.marginPercent} />
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <CategoryMixPieChart
+                        data={categoryBreakdown.map((c: { category: string; retailValue: number }) => ({
+                            category: c.category,
+                            retailValue: c.retailValue,
+                        }))}
+                        valueKey="retailValue"
+                    />
+
+                    <div className="rounded-2xl border border-[#eef0f2] bg-white p-6 dark:border-white/[0.08] dark:bg-[#111]">
                         <div className="mb-6 flex items-center justify-between">
-                            <h3 className="font-semibold text-foreground">Critical Stock Alerts</h3>
-                            <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-bold text-red-600">Action Required</span>
+                            <h3 className="font-semibold text-foreground">Critical stock alerts</h3>
+                            {summary.lowStockCount > 0 ? (
+                                <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-bold text-red-600">
+                                    {summary.lowStockCount} items
+                                </span>
+                            ) : null}
                         </div>
                         <div className="space-y-4">
-                            {MOCK_INVENTORY_VALUATION.lowStockItems.map((item) => (
-                                <div key={item.id} className="flex items-center justify-between border-b border-[#f0f2f4] pb-4 last:border-0 last:pb-0 dark:border-white/[0.04]">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex size-10 items-center justify-center rounded-xl bg-red-500/05 text-red-600">
-                                            <AlertTriangle className="size-5" />
+                            {lowStockItems.length > 0 ? (
+                                lowStockItems.map((item: {
+                                    id: string;
+                                    name: string;
+                                    stock: number;
+                                    reorder: number;
+                                    category: string;
+                                }) => (
+                                    <div
+                                        key={item.id}
+                                        className="flex items-center justify-between border-b border-[#f0f2f4] pb-4 last:border-0 last:pb-0 dark:border-white/[0.04]"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex size-10 items-center justify-center rounded-xl bg-red-500/05 text-red-600">
+                                                <AlertTriangle className="size-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[14px] font-semibold text-foreground">{item.name}</p>
+                                                <p className="text-[12px] text-muted-foreground">
+                                                    {item.category} · Stock {item.stock} / reorder {item.reorder}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-[14px] font-semibold text-foreground">{item.name}</p>
-                                            <p className="text-[12px] text-muted-foreground">Current Stock: {item.stock} | Reorder Level: {item.reorder}</p>
-                                        </div>
+                                        <Link
+                                            href="/dashboard/suppliers"
+                                            className="rounded-lg bg-[#006c49]/05 px-3 py-1.5 text-[12px] font-bold text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                                        >
+                                            Restock
+                                        </Link>
                                     </div>
-                                    <button className="rounded-lg bg-[#006c49]/05 px-3 py-1.5 text-[12px] font-bold text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]">
-                                        Create PO
-                                    </button>
-                                </div>
-                            ))}
+                                ))
+                            ) : (
+                                <p className="py-8 text-center text-[13px] text-muted-foreground">
+                                    All products are above reorder levels.
+                                </p>
+                            )}
                         </div>
-                    </div>
-
-                    {/* MARGIN INSIGHT */}
-                    <div className="rounded-2xl border border-[#eef0f2] bg-white p-6 dark:border-white/[0.08] dark:bg-[#111]">
-                        <h3 className="mb-4 font-semibold text-foreground">Profit Margin Analysis</h3>
-                        <div className="flex flex-col items-center justify-center py-6">
-                            <div className="relative flex h-32 w-32 items-center justify-center">
-                                <svg className="h-full w-full rotate-[-90deg]">
-                                    <circle cx="64" cy="64" r="58" fill="transparent" stroke="currentColor" strokeWidth="8" className="text-[#f4f5f7] dark:text-white/[0.04]" />
-                                    <circle
-                                        cx="64" cy="64" r="58" fill="transparent" stroke="currentColor" strokeWidth="8"
-                                        strokeDasharray={2 * Math.PI * 58}
-                                        strokeDashoffset={2 * Math.PI * 58 * (1 - MOCK_INVENTORY_VALUATION.marginPercent / 100)}
-                                        className="text-[#006c49] dark:text-[#6ffbbe]"
-                                    />
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-[24px] font-bold text-foreground">{MOCK_INVENTORY_VALUATION.marginPercent}%</span>
-                                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Margin</span>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="text-center text-[13px] text-muted-foreground">
-                            Your inventory portfolio currently carries a healthy potential margin. Low-stock pharmacy products represent 62% of pending profit.
-                        </p>
                     </div>
                 </div>
             </div>
@@ -101,16 +160,40 @@ export function InventoryValuationView() {
     );
 }
 
-function ValuationKpi({ label, value, icon: Icon, highlight }: { label: string; value: string; icon?: any; highlight?: boolean }) {
+function ValuationKpi({
+    label,
+    value,
+    icon: Icon,
+    highlight,
+    warning,
+}: {
+    label: string;
+    value: string;
+    icon?: React.ComponentType<{ className?: string }>;
+    highlight?: boolean;
+    warning?: boolean;
+}) {
     return (
-        <div className={`rounded-xl border border-[#eef0f2] p-4 dark:border-white/[0.06] ${highlight ? 'bg-[#006c49]/05 border-[#006c49]/30 dark:bg-[#6ffbbe]/05 dark:border-[#6ffbbe]/30' : 'bg-white dark:bg-[#111]'}`}>
+        <div
+            className={`rounded-xl border p-4 ${
+                highlight
+                    ? "border-[#006c49]/30 bg-[#006c49]/05 dark:border-[#6ffbbe]/30 dark:bg-[#6ffbbe]/05"
+                    : warning
+                      ? "border-amber-500/30 bg-amber-500/05"
+                      : "border-[#eef0f2] bg-white dark:border-white/[0.06] dark:bg-[#111]"
+            }`}
+        >
             <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-                {Icon && <Icon className="size-4 text-muted-foreground" />}
+                {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
             </div>
-            <h4 className={`mt-3 font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${highlight ? 'text-[#006c49] dark:text-[#6ffbbe]' : 'text-foreground'}`}>
+            <h4
+                className={`mt-3 font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${
+                    highlight ? "text-[#006c49] dark:text-[#6ffbbe]" : warning ? "text-amber-600" : "text-foreground"
+                }`}
+            >
                 {value}
             </h4>
         </div>
-    )
+    );
 }

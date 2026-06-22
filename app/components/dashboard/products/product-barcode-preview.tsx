@@ -2,6 +2,7 @@
 
 import JsBarcode from "jsbarcode";
 import { useEffect, useId, useRef } from "react";
+import { BarcodeHelpPanel } from "./barcode-help-panel";
 
 type ProductBarcodePreviewProps = {
   productId: string;
@@ -104,6 +105,7 @@ export function ProductBarcodePreview({
           <BarcodeItem sku={sku} name={name} priceGhs={priceGhs} />
         </div>
       )}
+      <BarcodeHelpPanel className="mt-3" />
     </section>
   );
 }

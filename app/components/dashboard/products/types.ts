@@ -9,6 +9,7 @@ export interface ProductRow {
     priceGhs: number | string;
     /** Physical on-hand count. */
     stock: number;
+    costPriceGhs?: number | string | null;
     /** Units held for open customer orders (layaway). */
     stockReserved?: number;
     /** Sellable = stock − reserved; prefer for POS limits. */

@@ -598,6 +598,27 @@ export async function cancelCustomerOrder(
     await invalidatePosBusinessCaches(businessId, branchId);
 }
 
+/** Count layaway orders paid in full and awaiting pickup (branch-scoped when set). */
+export async function countReadyForPickupOrders(
+    businessId: string,
+    branchId?: string | null,
+): Promise<number> {
+    const conditions = [
+        eq(customerOrders.businessId, businessId),
+        eq(customerOrders.status, "ready_for_pickup"),
+    ];
+    if (branchId && branchId !== "all") {
+        conditions.push(eq(customerOrders.branchId, branchId));
+    }
+
+    const [row] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(customerOrders)
+        .where(and(...conditions));
+
+    return row?.count ?? 0;
+}
+
 export async function listCustomerOrdersForBranch(
     businessId: string,
     branchId: string,

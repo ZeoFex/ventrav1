@@ -7,6 +7,7 @@ import { ProductsPageShell } from "../products/products-page-shell";
 import { useBusinessProfile } from "./settings-data-hooks";
 import { UploadButton } from "@/app/utils/uploadthing";
 import { toast } from "sonner";
+import { BUSINESS_TYPES, normalizeBusinessTypeSlug } from "@/config/business-types";
 
 export function SettingsProfileView() {
     const { business, isLoading, mutate } = useBusinessProfile();
@@ -19,12 +20,13 @@ export function SettingsProfileView() {
         phone: "",
         address: "",
     });
+    const [reseedCategories, setReseedCategories] = useState(false);
 
     useEffect(() => {
         if (business) {
             setFormData({
                 name: business.name || "",
-                businessType: business.businessType || "Retail & Grocery",
+                businessType: normalizeBusinessTypeSlug(business.businessType) || "general_retail_store",
                 contactEmail: business.contactEmail || "",
                 phone: business.phone || "",
                 address: business.address || "",
@@ -38,7 +40,7 @@ export function SettingsProfileView() {
             const res = await fetch("/api/business", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({ ...formData, reseedCategories }),
             });
             if (res.ok) {
                 mutate();
@@ -105,11 +107,21 @@ export function SettingsProfileView() {
                                     onChange={(e) => setFormData(prev => ({ ...prev, businessType: e.target.value }))}
                                     className="w-full rounded-xl border border-[#eef0f2] bg-transparent px-4 py-2.5 text-[14px] font-medium text-foreground outline-none focus:border-[#006c49] dark:border-white/[0.12] dark:focus:border-[#6ffbbe]"
                                 >
-                                    <option value="Retail & Grocery">Retail & Grocery</option>
-                                    <option value="Pharmacy">Pharmacy</option>
-                                    <option value="Agro chemicals">Agro chemicals</option>
-                                    <option value="Boutique">Boutique</option>
+                                    {BUSINESS_TYPES.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.label}
+                                        </option>
+                                    ))}
                                 </select>
+                                <label className="mt-2 flex cursor-pointer items-start gap-2 text-[12px] text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={reseedCategories}
+                                        onChange={(e) => setReseedCategories(e.target.checked)}
+                                        className="mt-0.5 size-4 rounded"
+                                    />
+                                    Suggest default categories for this shop type (skips if you already have categories)
+                                </label>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[13px] font-medium text-muted-foreground">Email Address</label>
