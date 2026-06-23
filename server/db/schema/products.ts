@@ -171,6 +171,43 @@ export const productTags = pgTable(
     },
     (t) => [primaryKey({ columns: [t.productId, t.tagId] })]
 );
+/** Saved barcode label generations — history for reprint/download. */
+export const productBarcodeLabels = pgTable(
+    "product_barcode_labels",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        businessId: uuid("business_id")
+            .notNull()
+            .references(() => businesses.id, { onDelete: "cascade" }),
+        branchId: uuid("branch_id").references(() => branches.id, {
+            onDelete: "set null",
+        }),
+        productId: uuid("product_id").references(() => products.id, {
+            onDelete: "set null",
+        }),
+        labelName: varchar("label_name", { length: 255 }).notNull(),
+        labelDescription: text("label_description").notNull(),
+        imageSrc: text("image_src").notNull(),
+        sku: varchar("sku", { length: 100 }).notNull(),
+        priceGhs: decimal("price_ghs", { precision: 12, scale: 2 }),
+        unit: varchar("unit", { length: 20 }),
+        quantity: integer("quantity").default(1).notNull(),
+        createdAt: timestamp("created_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+        updatedAt: timestamp("updated_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+    },
+    (t) => [
+        index("product_barcode_labels_business_id_idx").on(t.businessId),
+        index("product_barcode_labels_branch_id_idx").on(t.branchId),
+        index("product_barcode_labels_product_id_idx").on(t.productId),
+        index("product_barcode_labels_created_at_idx").on(t.createdAt),
+        index("product_barcode_labels_sku_idx").on(t.businessId, t.sku),
+    ],
+);
+
 /** Product Variations (Sizes, Colors, Extras etc.) */
 export const productVariations = pgTable(
     "product_variations",

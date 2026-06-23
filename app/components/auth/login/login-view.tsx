@@ -66,7 +66,19 @@ export function LoginView() {
         }),
       });
 
-      const data = await res.json();
+      let data: { error?: string; code?: string; user?: { onboardingCompleted?: boolean } } = {};
+      try {
+        data = await res.json();
+      } catch {
+        if (!res.ok) {
+          setApiError(
+            res.status >= 500
+              ? "Server error. If you're running locally, create .env.local from .env.example, fill in DATABASE_URL, REDIS_URL, JWT_SECRET, and RESEND_API_KEY, then restart npm run dev."
+              : "Unexpected server response. Please try again.",
+          );
+          return;
+        }
+      }
 
       if (!res.ok) {
         if (data.code === "ACCOUNT_NOT_VERIFIED") {
@@ -88,7 +100,9 @@ export function LoginView() {
       const onboardingDone = data?.user?.onboardingCompleted !== false;
       router.push(onboardingDone ? "/dashboard" : "/onboarding");
     } catch {
-      setApiError("Network error. Please check your connection.");
+      setApiError(
+        "Could not reach the sign-in API. If you're running locally, check .env.local and restart the dev server.",
+      );
     } finally {
       setIsSubmitting(false);
     }

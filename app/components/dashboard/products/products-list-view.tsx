@@ -3,15 +3,13 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
-  Download, Package, Plus, Printer, Search, Trash2,
+  Download, Package, Plus, Search, Trash2,
   FileSpreadsheet, FileText, Loader2, PackagePlus,
 } from "lucide-react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { ProductsPageShell } from "./products-page-shell";
 import { ImportProductsModal } from "./import-products-modal";
-import { BarcodeGridModal } from "./barcode-grid-modal";
-import { BarcodeHelpPanel } from "./barcode-help-panel";
 import { StockAdjustModal, type StockAdjustProduct } from "./stock-adjust-modal";
 import { SyncProgressModal } from "./sync-progress-modal";
 import { BulkDeleteModal } from "./bulk-delete-modal";
@@ -46,7 +44,6 @@ export function ProductsListView() {
   const [tagId, setTagId] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -225,9 +222,6 @@ export function ProductsListView() {
           >
             <Download className="shrink-0 size-4" /> Import
           </button>
-          <button onClick={() => setIsBarcodeModalOpen(true)} className="shrink-0 whitespace-nowrap btn-secondary px-4 py-2.5 rounded-xl border border-border flex items-center gap-2 text-[14px]">
-            <Printer className="shrink-0 size-4" /> Barcodes
-          </button>
           {branchId === "all" ? (
             <button
               disabled
@@ -266,16 +260,6 @@ export function ProductsListView() {
         </>
       }
     >
-      <BarcodeGridModal
-        isOpen={isBarcodeModalOpen}
-        onClose={() => setIsBarcodeModalOpen(false)}
-        products={filtered.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          priceGhs: p.priceGhs,
-        }))}
-      />
       <ImportProductsModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
@@ -302,8 +286,6 @@ export function ProductsListView() {
           toast.success("Stock updated");
         }}
       />
-
-      <BarcodeHelpPanel className="mb-6" />
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row w-full min-w-0">
         <div className="relative flex-1 min-w-0">
