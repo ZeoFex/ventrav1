@@ -9,6 +9,7 @@ import { redis } from "../lib/redis";
 import { invalidateCustomerCaches } from "../customers/customer-account-service";
 import { sellableUnits } from "../stock/sellable-stock";
 import { countReadyForPickupOrders } from "../customer-orders/customer-order-service";
+import { getExpiringInventory } from "../inventory/expiring-service";
 import {
     accraDateKey,
     accraDayBounds,
@@ -488,6 +489,7 @@ export async function getSalesOverview(
 
 const QUICK_SALE_LIMIT = 20;
 const QUICK_SALE_PERIOD_DAYS = 30;
+const HOME_EXPIRY_ALERT_DAYS = 14;
 
 /**
  * Top product IDs by net units sold in the last 30 days (branch-scoped when set).
@@ -595,6 +597,7 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
         recentSales,
         quickSaleProducts,
         readyForPickupCount,
+        expiringLines,
     ] = await Promise.all([
         // 1. Today's stats
         db.select({
@@ -639,6 +642,9 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
 
         // 5. Layaway orders awaiting pickup
         countReadyForPickupOrders(businessId, branchId),
+
+        // 6. Supply lines nearing expiry
+        getExpiringInventory(businessId, HOME_EXPIRY_ALERT_DAYS, branchId),
     ]);
 
     const todayRev = Number(todayTotals.totalRevenue);
@@ -651,6 +657,10 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
     } else if (todayRev > 0) {
         vsYesterdayPercent = 100;
     }
+
+    const expiringProductCount = new Set(
+        expiringLines.map((line) => line.productId ?? line.productName),
+    ).size;
 
     const homeData = {
         todaySalesGhs: todayRev,
@@ -666,6 +676,14 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
         })),
         quickSaleProducts,
         readyForPickupCount,
+        expiringAlert:
+            expiringLines.length > 0
+                ? {
+                      lineCount: expiringLines.length,
+                      productCount: expiringProductCount,
+                      days: HOME_EXPIRY_ALERT_DAYS,
+                  }
+                : null,
     };
 
     await redis.setex(cacheKey, 30, JSON.stringify(homeData));

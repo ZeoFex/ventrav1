@@ -11,15 +11,19 @@ export function HomeGreeting() {
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: "numeric",
   }).format(now);
 
   return (
-    <div className="space-y-1">
-      <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-        {greeting}
-      </h1>
-      <p className="text-[13px] text-muted-foreground sm:text-[14px]">{dateLabel}</p>
+    <div className="flex items-end justify-between gap-3">
+      <div className="space-y-0.5">
+        <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          {greeting}
+        </h1>
+        <p className="text-[12px] text-muted-foreground sm:text-[14px]">{dateLabel}</p>
+      </div>
+      <p className="hidden text-right text-[12px] text-muted-foreground lg:block">
+        VentraPOS shop
+      </p>
     </div>
   );
 }
