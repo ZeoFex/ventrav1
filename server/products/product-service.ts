@@ -169,6 +169,20 @@ export async function getProducts(businessId: string, branchId?: string | null) 
  * Invalidates the business's product list cache immediately.
  */
 export async function saveProduct(input: ProductInput) {
+    const normalizedBarcode = input.barcode?.trim()
+        ? (await import("./barcode-duplicate-check")).normalizeProductBarcode(input.barcode)
+        : null;
+
+    if (normalizedBarcode) {
+        const { findDuplicateBarcodeInBusiness } = await import("./barcode-duplicate-check");
+        const dup = await findDuplicateBarcodeInBusiness(input.businessId, normalizedBarcode);
+        if (dup) {
+            throw new Error(
+                `Barcode already used by "${dup.productName}". Use a different barcode or edit that product.`,
+            );
+        }
+    }
+
     const result = await db.transaction(async (tx) => {
         const subcategoryId = input.subcategoryId?.trim() || null;
 
@@ -183,7 +197,7 @@ export async function saveProduct(input: ProductInput) {
                 name: input.name,
                 slug: input.slug,
                 sku: input.sku,
-                barcode: input.barcode || null,
+                barcode: normalizedBarcode,
                 description: input.description || null,
                 imageSrc: input.imageSrc || null,
                 priceGhs: input.priceGhs,
@@ -223,8 +237,21 @@ export async function saveProduct(input: ProductInput) {
     const { linkBarcodeLabelToProduct } = await import("./barcode-label-service");
     await linkBarcodeLabelToProduct(input.businessId, input.sku, result.id);
 
-    void resolveBusinessName(input.businessId).then((shopName) => {
+    void resolveBusinessName(input.businessId).then(async (shopName) => {
         notifyProductAdded(input.businessId, result.id, input.name, shopName);
+
+        if (normalizedBarcode) {
+            const { upsertGlobalBarcodeEntry } = await import("./global-barcode-catalog-service");
+            await upsertGlobalBarcodeEntry({
+                barcode: normalizedBarcode,
+                productName: input.name,
+                description: input.description,
+                imageSrc: input.imageSrc,
+                unit: input.unit,
+                sourceBusinessId: input.businessId,
+                sourceBusinessName: shopName,
+            }).catch((err) => console.error("[global-barcode-catalog] upsert failed:", err));
+        }
     });
 
     return result;

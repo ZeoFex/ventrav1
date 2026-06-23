@@ -38,6 +38,7 @@ export function ProductsEditView({ productId }: { productId: string }) {
   const initial: ProductFormInitialValues = {
     name: product.name,
     sku: product.sku,
+    barcode: product.barcode ?? "",
     description: product.description ?? "",
     price: Number(product.priceGhs),
     costPrice:

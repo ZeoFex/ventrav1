@@ -208,6 +208,39 @@ export const productBarcodeLabels = pgTable(
     ],
 );
 
+/**
+ * Platform-wide retail barcode knowledge base — shared across all VentraPOS businesses.
+ * Stores product metadata (no prices) so unknown scans can pre-fill Add Product forms.
+ */
+export const globalBarcodeCatalog = pgTable(
+    "global_barcode_catalog",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        /** Canonical normalized barcode (digits for retail codes). */
+        barcode: varchar("barcode", { length: 100 }).notNull().unique(),
+        productName: varchar("product_name", { length: 255 }).notNull(),
+        description: text("description"),
+        imageSrc: text("image_src"),
+        unit: varchar("unit", { length: 20 }),
+        sourceBusinessId: uuid("source_business_id").references(() => businesses.id, {
+            onDelete: "set null",
+        }),
+        sourceBusinessName: varchar("source_business_name", { length: 255 }),
+        contributionCount: integer("contribution_count").default(1).notNull(),
+        createdAt: timestamp("created_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+        updatedAt: timestamp("updated_at", { withTimezone: true })
+            .defaultNow()
+            .notNull(),
+    },
+    (t) => [
+        index("global_barcode_catalog_barcode_idx").on(t.barcode),
+        index("global_barcode_catalog_product_name_idx").on(t.productName),
+        index("global_barcode_catalog_updated_at_idx").on(t.updatedAt),
+    ],
+);
+
 /** Product Variations (Sizes, Colors, Extras etc.) */
 export const productVariations = pgTable(
     "product_variations",

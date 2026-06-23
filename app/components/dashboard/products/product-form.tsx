@@ -29,6 +29,8 @@ import {
 export type ProductFormInitialValues = {
   name: string;
   sku: string;
+  /** Retail barcode (EAN/UPC/Code128) — separate from internal SKU. */
+  barcode?: string;
   description: string;
   price: number | "";
   /** Cost per unit (GHS); optional — used for COGS / P&L. */
@@ -68,6 +70,7 @@ export function ProductForm({
 
   const [name, setName] = useState(initial.name);
   const [sku, setSku] = useState(initial.sku);
+  const [barcode, setBarcode] = useState(initial.barcode ?? "");
   const [description, setDescription] = useState(initial.description);
   const [price, setPrice] = useState<number | "">(initial.price);
   const [costPrice, setCostPrice] = useState<number | "">(
@@ -216,40 +219,17 @@ export function ProductForm({
 
   const handleBarcodeScan = useCallback(
     async (scannedCode: string) => {
-      const code = scannedCode.trim();
+      const code = scannedCode.trim().replace(/\s+/g, "");
       setIsScanningMode(false);
-      setSku(code);
+      setBarcode(code);
 
-      // Edit: only replace SKU from the scanner; keep the rest of the product as-is.
       if (mode === "edit") {
         setIsLookingUp(true);
-        toast.info("Checking catalog…");
-        try {
-          const res = await fetch(
-            `/api/products/lookup?barcode=${encodeURIComponent(code)}`,
-          );
-          const result = await res.json();
-
-          if (res.ok && result.found) {
-            toast.success(
-              "SKU updated. Catalog lists this barcode — your saved name, description, and image were kept.",
-            );
-          } else {
-            toast.success(
-              "SKU updated. No catalog match — your existing product details are unchanged.",
-            );
-          }
-        } catch {
-          toast.success(
-            "SKU updated. Catalog check failed — your existing details are unchanged.",
-          );
-        } finally {
-          setIsLookingUp(false);
-        }
+        toast.success("Barcode updated.");
+        setIsLookingUp(false);
         return;
       }
 
-      // New product: fill from Ventra barcode label first, then global registry.
       setIsLookingUp(true);
       toast.info("Looking up product details…");
 
@@ -266,16 +246,26 @@ export function ProductForm({
             setImagePreview(ventraResult.data.imageUrl);
             setSelectedFile(null);
           }
-          if (ventraResult.data.productId) {
-            toast.info(
-              "Details loaded from your barcode label. This code is already linked to a catalog product.",
-            );
-          } else {
-            toast.success(
-              "Details loaded from your barcode label. Add price and stock, then save.",
-            );
-          }
+          toast.success("Details loaded from your barcode label.");
           return;
+        }
+
+        const globalRes = await fetch(
+          `/api/barcodes/global/lookup?barcode=${encodeURIComponent(code)}`,
+        );
+        if (globalRes.ok) {
+          const global = await globalRes.json();
+          if (global.found && global.productName) {
+            setName(global.productName);
+            setDescription(global.description || "");
+            if (global.imageSrc) {
+              setImagePreview(global.imageSrc);
+              setSelectedFile(null);
+            }
+            if (global.unit) setUnitSelect(global.unit.toLowerCase());
+            toast.success("Loaded from Ventra shared catalog. Set your prices.");
+            return;
+          }
         }
 
         const res = await fetch(
@@ -292,12 +282,10 @@ export function ProductForm({
           }
           toast.success("Product details found!");
         } else {
-          toast.info(
-            "No saved label or registry match. Enter details manually, or generate a barcode under Products → Barcodes first.",
-          );
+          toast.info("Barcode captured. Enter product details and save.");
         }
       } catch {
-        toast.error("Lookup failed. Please enter details manually.");
+        toast.error("Lookup failed. Barcode captured — enter details manually.");
       } finally {
         setIsLookingUp(false);
       }
@@ -324,6 +312,7 @@ export function ProductForm({
     const productData = {
       name,
       sku,
+      barcode: barcode.trim() || null,
       description,
       priceGhs: price.toString(),
       costPriceGhs: costStr,
@@ -365,7 +354,10 @@ export function ProductForm({
           }),
         });
 
-        if (!res.ok) throw new Error("Save failed");
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(typeof err.error === "string" ? err.error : "Save failed");
+        }
 
         await revalidateProductCaches(
           (key) => typeof key === "string" && key.startsWith("/api/products"),
@@ -404,7 +396,7 @@ export function ProductForm({
       router.push("/dashboard/products");
       router.refresh();
     } catch (err) {
-      alert("Failed to save product. Please check your connection.");
+      toast.error(err instanceof Error ? err.message : "Failed to save product. Please check your connection.");
     } finally {
       setIsSaving(false);
     }
@@ -499,17 +491,31 @@ export function ProductForm({
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">Barcode / SKU *</label>
+              <label className="text-sm font-semibold ml-1">Internal SKU *</label>
               <div className="flex flex-col sm:flex-row gap-2">
-                <input required value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Scan or type..." />
-                <div className="flex gap-2 h-[50px] sm:h-auto">
-                  <button type="button" onClick={() => setIsScanningMode(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20" title="Scan Barcode">
-                    {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-                    <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
-                  </button>
-                  <button type="button" onClick={() => setSku(generateProductSku())} className="flex items-center justify-center px-5 border border-border rounded-2xl hover:bg-muted transition-colors dark:border-white/10" title="Generate Random SKU"><RefreshCw className="size-4" /></button>
-                </div>
+                <input required value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Auto-generated" />
+                <button type="button" onClick={() => setSku(generateProductSku())} className="flex items-center justify-center px-5 border border-border rounded-2xl hover:bg-muted transition-colors dark:border-white/10 h-[50px]" title="Generate Random SKU"><RefreshCw className="size-4" /></button>
               </div>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Retail barcode</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value.replace(/\s+/g, ""))}
+                  className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                  placeholder="EAN / UPC / Code 128"
+                />
+                <button type="button" onClick={() => setIsScanningMode(true)} className="flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20 h-[50px]" title="Scan Barcode">
+                  {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+                  <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
+                </button>
+              </div>
+              <p className="ml-1 text-[12px] text-muted-foreground">
+                Scanned retail barcode — stored separately from your internal SKU.
+              </p>
             </div>
           </div>
           <div className="space-y-2">

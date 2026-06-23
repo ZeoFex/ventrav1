@@ -3,6 +3,12 @@ import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-r
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { getProducts, saveProduct } from "@/server/products/product-service";
 import { triggerMasterCatalogSync } from "@/server/catalog/master-catalog-service";
+import {
+    findDuplicateBarcodeInBusiness,
+    normalizeProductBarcode,
+} from "@/server/products/barcode-duplicate-check";
+import { upsertGlobalBarcodeEntry } from "@/server/products/global-barcode-catalog-service";
+import { resolveBusinessName } from "@/server/platform/platform-notification-service";
 
 /**
  * GET /api/products
@@ -57,7 +63,8 @@ export async function POST(req: Request) {
         return NextResponse.json(result, { status: 201 });
     } catch (error) {
         console.error("POST /api/products failed:", error);
-        return NextResponse.json({ error: "Failed to save product" }, { status: 500 });
+        const message = error instanceof Error ? error.message : "Failed to save product";
+        return NextResponse.json({ error: message }, { status: 400 });
     }
 }
 
@@ -114,6 +121,23 @@ export async function PUT(req: Request) {
 
         if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
+        const normalizedBarcode = normalizeProductBarcode(data.barcode);
+        if (normalizedBarcode) {
+            const dup = await findDuplicateBarcodeInBusiness(
+                payload.bid,
+                normalizedBarcode,
+                id,
+            );
+            if (dup) {
+                return NextResponse.json(
+                    {
+                        error: `Barcode already used by "${dup.productName}". Use a different barcode or edit that product.`,
+                    },
+                    { status: 400 },
+                );
+            }
+        }
+
         const { redis } = await import("@/server/lib/redis");
         const { db } = await import("@/server/db");
         const { products, productTags } = await import("@/server/db/schema/products");
@@ -129,7 +153,7 @@ export async function PUT(req: Request) {
                     name: data.name,
                     slug: data.slug,
                     sku: data.sku,
-                    barcode: data.barcode,
+                    barcode: normalizedBarcode,
                     description: data.description,
                     imageSrc: data.imageSrc,
                     priceGhs: data.priceGhs,
@@ -173,6 +197,20 @@ export async function PUT(req: Request) {
 
         triggerMasterCatalogSync(id, payload.bid);
 
+        if (normalizedBarcode) {
+            void resolveBusinessName(payload.bid).then((shopName) =>
+                upsertGlobalBarcodeEntry({
+                    barcode: normalizedBarcode,
+                    productName: data.name,
+                    description: data.description,
+                    imageSrc: data.imageSrc,
+                    unit: data.unit,
+                    sourceBusinessId: payload.bid,
+                    sourceBusinessName: shopName,
+                }).catch((err) => console.error("[global-barcode-catalog] upsert failed:", err)),
+            );
+        }
+
         // Invalidate cache
         await Promise.all([
             redis.del(`products:biz_${payload.bid}:brn_${branchId || 'all'}:list`),
@@ -182,6 +220,7 @@ export async function PUT(req: Request) {
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("PUT /api/products failed:", error);
-        return NextResponse.json({ error: "Update failed" }, { status: 500 });
+        const message = error instanceof Error ? error.message : "Update failed";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

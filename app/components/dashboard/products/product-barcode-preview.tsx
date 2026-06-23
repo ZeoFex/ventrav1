@@ -1,9 +1,9 @@
 "use client";
 
-import JsBarcode from "jsbarcode";
 import { useEffect, useRef } from "react";
 import { CatalogProductImage } from "./catalog-product-image";
 import { unitShort } from "@/app/lib/product-units";
+import { renderCode128Barcode } from "@/app/lib/barcode-render";
 
 export type BarcodeItemProps = {
   sku: string;
@@ -35,29 +35,13 @@ export function BarcodeItem({
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
-    svg.innerHTML = "";
-    const code = sku.trim();
-    if (!code) return;
-    try {
-      JsBarcode(svg, code, {
-        format: "CODE128",
-        width,
-        height,
-        displayValue: true,
-        fontSize,
-        margin: 6,
-        background: "transparent",
-        lineColor: "currentColor",
-      });
-    } catch {
-      // Invalid data for Code128
-    }
+    renderCode128Barcode(svg, sku, { width, height, fontSize, lineColor: "#000000" });
   }, [sku, width, height, fontSize]);
 
   const unitLabel = unit ? unitShort(unit) : null;
 
   return (
-    <div className={className}>
+    <div className={`text-black ${className ?? ""}`}>
       {imageSrc ? (
         <div className="mb-2 flex justify-center">
           <CatalogProductImage

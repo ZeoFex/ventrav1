@@ -1,5 +1,6 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import { db } from "@/server/db";
+import { businesses } from "@/server/db/schema/businesses";
 import { productBarcodeLabels, products } from "@/server/db/schema/products";
 import { generateSku } from "./product-service";
 
@@ -144,4 +145,49 @@ export async function deleteBarcodeLabel(
         .returning();
 
     return deleted ?? null;
+}
+
+/** Platform-wide barcode label search — lets shops find labels created by others. */
+export async function searchGlobalBarcodeLabels(
+    query: string,
+    options?: { limit?: number; viewerBusinessId?: string },
+) {
+    const q = query.trim();
+    const limit = Math.min(Math.max(options?.limit ?? 40, 1), 100);
+
+    const conditions = q.length >= 1
+        ? or(
+              ilike(productBarcodeLabels.labelName, `%${q}%`),
+              ilike(productBarcodeLabels.labelDescription, `%${q}%`),
+              ilike(productBarcodeLabels.sku, `%${q.toUpperCase()}%`),
+          )
+        : undefined;
+
+    const rows = await db
+        .select({
+            id: productBarcodeLabels.id,
+            businessId: productBarcodeLabels.businessId,
+            branchId: productBarcodeLabels.branchId,
+            productId: productBarcodeLabels.productId,
+            labelName: productBarcodeLabels.labelName,
+            labelDescription: productBarcodeLabels.labelDescription,
+            imageSrc: productBarcodeLabels.imageSrc,
+            sku: productBarcodeLabels.sku,
+            quantity: productBarcodeLabels.quantity,
+            createdAt: productBarcodeLabels.createdAt,
+            businessName: businesses.name,
+        })
+        .from(productBarcodeLabels)
+        .innerJoin(businesses, eq(productBarcodeLabels.businessId, businesses.id))
+        .where(conditions)
+        .orderBy(desc(productBarcodeLabels.createdAt))
+        .limit(limit);
+
+    return rows.map((row) => ({
+        ...row,
+        productName: row.labelName,
+        isOwnShop: options?.viewerBusinessId
+            ? row.businessId === options.viewerBusinessId
+            : false,
+    }));
 }
