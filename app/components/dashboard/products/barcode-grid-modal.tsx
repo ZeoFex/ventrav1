@@ -4,37 +4,44 @@ import { useState, useRef, useEffect } from "react";
 import { X, Printer, Download, Plus, Minus } from "lucide-react";
 import { toPng } from "html-to-image";
 import { BarcodeItem } from "./product-barcode-preview";
-import { BarcodeHelpPanel } from "./barcode-help-panel";
 
-export type BarcodeProduct = {
+export type BarcodeLabelProduct = {
     id: string;
     name: string;
+    description: string;
     sku: string;
-    priceGhs: number;
+    priceGhs?: number;
+    imageSrc: string;
+    unit?: string;
 };
 
 type BarcodeGridModalProps = {
     isOpen: boolean;
     onClose: () => void;
-    products: BarcodeProduct[];
+    products: BarcodeLabelProduct[];
+    title?: string;
+    initialQuantities?: Record<string, number>;
 };
 
 export function BarcodeGridModal({
     isOpen,
     onClose,
     products,
+    title = "Print Barcodes",
+    initialQuantities,
 }: BarcodeGridModalProps) {
     const [quantities, setQuantities] = useState<Record<string, number>>({});
     const gridRef = useRef<HTMLDivElement>(null);
 
-    // Sync initial quantities when products change or modal opens
     useEffect(() => {
         if (isOpen) {
             setQuantities(
-                Object.fromEntries(products.map((p) => [p.id, quantities[p.id] ?? 1]))
+                Object.fromEntries(
+                    products.map((p) => [p.id, initialQuantities?.[p.id] ?? 1]),
+                ),
             );
         }
-    }, [isOpen, products]);
+    }, [isOpen, products, initialQuantities]);
 
     if (!isOpen) return null;
 
@@ -74,16 +81,14 @@ export function BarcodeGridModal({
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm print:p-0 print:bg-white print:backdrop-blur-none">
             <div className="flex h-full max-h-[90vh] w-full max-w-5xl animate-in fade-in zoom-in duration-200 flex-col rounded-[1.5rem] border border-[#eef0f2] bg-white shadow-2xl dark:border-white/[0.08] dark:bg-[#111] overflow-hidden print:max-h-none print:w-auto print:rounded-none print:border-none print:shadow-none print:static">
-                {/* Header - Hidden on Print */}
                 <div className="flex items-center justify-between border-b border-[#f0f2f4] px-6 py-4 dark:border-white/[0.06] print:hidden">
                     <div>
                         <h2 className="text-xl font-bold tracking-tight text-foreground font-[family-name:var(--font-display)]">
-                            Print Barcodes
+                            {title}
                         </h2>
                         <p className="mt-0.5 text-sm text-muted-foreground">
                             Arrange barcodes in a grid for printing or saving.
                         </p>
-                        <BarcodeHelpPanel className="mt-3" />
                     </div>
                     <button
                         onClick={onClose}
@@ -94,7 +99,6 @@ export function BarcodeGridModal({
                 </div>
 
                 <div className="flex flex-1 overflow-hidden print:overflow-visible">
-                    {/* Sidebar - Settings - Hidden on Print */}
                     <div className="w-72 overflow-y-auto border-r border-[#f0f2f4] p-6 hidden lg:block dark:border-white/[0.06] print:hidden">
                         <h3 className="mb-4 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Select Quantities
@@ -127,7 +131,6 @@ export function BarcodeGridModal({
                         </div>
                     </div>
 
-                    {/* Preview Area */}
                     <div className="flex-1 overflow-y-auto bg-[#f8f9fa] p-8 dark:bg-black/20 print:p-0 print:bg-white print:overflow-visible">
                         <div
                             className="mx-auto shadow-xl print:shadow-none"
@@ -147,7 +150,10 @@ export function BarcodeGridModal({
                                         <BarcodeItem
                                             sku={p.sku}
                                             name={p.name}
+                                            description={p.description}
+                                            imageSrc={p.imageSrc}
                                             priceGhs={p.priceGhs}
+                                            unit={p.unit}
                                             width={1.4}
                                             height={45}
                                             fontSize={10}
@@ -165,7 +171,6 @@ export function BarcodeGridModal({
                     </div>
                 </div>
 
-                {/* Footer - Hidden on Print */}
                 <div className="flex items-center justify-between border-t border-[#f0f2f4] px-6 py-4 dark:border-white/[0.06] print:hidden">
                     <div className="text-sm font-medium text-muted-foreground">
                         {totalBarcodes} total barcodes

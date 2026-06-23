@@ -27,6 +27,7 @@ export {
     subcategories,
     tags,
     productTags,
+    productBarcodeLabels,
     productVariations,
     productStatusEnum,
 } from "./products";

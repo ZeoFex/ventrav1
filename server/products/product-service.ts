@@ -220,6 +220,9 @@ export async function saveProduct(input: ProductInput) {
     ]);
     console.log(`[Cache] Invalidated list for business ${input.businessId}`);
 
+    const { linkBarcodeLabelToProduct } = await import("./barcode-label-service");
+    await linkBarcodeLabelToProduct(input.businessId, input.sku, result.id);
+
     void resolveBusinessName(input.businessId).then((shopName) => {
         notifyProductAdded(input.businessId, result.id, input.name, shopName);
     });

@@ -10,14 +10,11 @@ import {
   useEffect,
   type FormEvent,
 } from "react";
-import { ArrowLeft, ImageIcon, Loader2, Printer, RefreshCw, X, Camera } from "lucide-react";
+import { ArrowLeft, ImageIcon, Loader2, RefreshCw, X, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { PosBarcodeCamera } from "../pos/sale/pos-barcode-camera";
-import { ProductBarcodePreview } from "./product-barcode-preview";
-import { BarcodeHelpPanel } from "./barcode-help-panel";
 import { generateProductSku } from "./product-catalog-codes";
 import { ProductsPageShell } from "./products-page-shell";
-import { BarcodeGridModal } from "./barcode-grid-modal";
 import { useCategories, useTags } from "./products-data-hooks";
 import { SearchableCombobox, type ComboboxOption } from "@/components/ui/searchable-combobox";
 import { useUploadThing } from "@/app/lib/uploadthing";
@@ -142,7 +139,6 @@ export function ProductForm({
     );
   };
 
-  const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initial.imageSrc);
 
@@ -253,11 +249,35 @@ export function ProductForm({
         return;
       }
 
-      // New product: fill from registry when found, otherwise leave fields for manual entry.
+      // New product: fill from Ventra barcode label first, then global registry.
       setIsLookingUp(true);
       toast.info("Looking up product details…");
 
       try {
+        const ventraRes = await fetch(
+          `/api/products/barcodes/lookup?sku=${encodeURIComponent(code)}`,
+        );
+        const ventraResult = await ventraRes.json();
+
+        if (ventraRes.ok && ventraResult.found) {
+          setName(ventraResult.data.name);
+          setDescription(ventraResult.data.description || "");
+          if (ventraResult.data.imageUrl) {
+            setImagePreview(ventraResult.data.imageUrl);
+            setSelectedFile(null);
+          }
+          if (ventraResult.data.productId) {
+            toast.info(
+              "Details loaded from your barcode label. This code is already linked to a catalog product.",
+            );
+          } else {
+            toast.success(
+              "Details loaded from your barcode label. Add price and stock, then save.",
+            );
+          }
+          return;
+        }
+
         const res = await fetch(
           `/api/products/lookup?barcode=${encodeURIComponent(code)}`,
         );
@@ -268,11 +288,12 @@ export function ProductForm({
           setDescription(result.data.description || "");
           if (result.data.imageUrl) {
             setImagePreview(result.data.imageUrl);
+            setSelectedFile(null);
           }
           toast.success("Product details found!");
         } else {
           toast.info(
-            "Product not found in global registry. Please enter details manually.",
+            "No saved label or registry match. Enter details manually, or generate a barcode under Products → Barcodes first.",
           );
         }
       } catch {
@@ -489,28 +510,6 @@ export function ProductForm({
                   <button type="button" onClick={() => setSku(generateProductSku())} className="flex items-center justify-center px-5 border border-border rounded-2xl hover:bg-muted transition-colors dark:border-white/10" title="Generate Random SKU"><RefreshCw className="size-4" /></button>
                 </div>
               </div>
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <ProductBarcodePreview
-              productId={productId}
-              sku={sku}
-              name={name}
-              priceGhs={price}
-              categoryId={categoryId}
-            />
-            <div className="flex flex-col gap-3">
-              <BarcodeHelpPanel defaultOpen />
-              {sku.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => setIsBarcodeModalOpen(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-[14px] font-semibold hover:bg-muted transition-colors dark:border-white/10"
-                >
-                  <Printer className="size-4" />
-                  Print barcode label
-                </button>
-              ) : null}
             </div>
           </div>
           <div className="space-y-2">
@@ -807,12 +806,6 @@ export function ProductForm({
           </button>
         </div>
       </form>
-
-      <BarcodeGridModal
-        isOpen={isBarcodeModalOpen}
-        onClose={() => setIsBarcodeModalOpen(false)}
-        products={[{ id: productId, name, sku, priceGhs: Number(price) || 0 }]}
-      />
 
       {isScanningMode && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">

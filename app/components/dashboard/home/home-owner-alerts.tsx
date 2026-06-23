@@ -90,8 +90,8 @@ export function HomeOwnerAlerts() {
         signature: `${expiring.lineCount}:${expiring.productCount}:${expiring.days}`,
         title: `${expiring.lineCount} supply ${expiring.lineCount === 1 ? "line" : "lines"} expiring within ${expiring.days} days`,
         subtitle: `${expiring.productCount} ${expiring.productCount === 1 ? "product" : "products"} affected. Review stock before items expire.`,
-        href: "/dashboard/inventory",
-        cta: "View inventory",
+        href: `/dashboard/inventory/expiring?days=${expiring.days}`,
+        cta: "View expiring items",
         tone: "amber",
         icon: "alert",
       });

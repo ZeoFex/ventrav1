@@ -26,7 +26,7 @@ const comparisonFeatures = [
       { name: "Basic Stock Increase/Decrease", starter: true, growth: true, pro: true },
       { name: "Stock Transfers", starter: false, growth: true, pro: true },
       { name: "Barcode Scanner Support", starter: false, growth: true, pro: true },
-      { name: "Expiry & Batch Tracking", starter: false, growth: false, pro: true },
+      { name: "Expiry & Batch Tracking", starter: false, growth: true, pro: true },
     ],
   },
   {
