@@ -24,16 +24,43 @@ import {
 } from "./reports-charts";
 import { ReportsInsightsPanel } from "./reports-insights-panel";
 import { useBranchContext } from "../branch-context";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { exportToExcel, exportToCSV } from "@/app/utils/export-utils";
+import { accraTodayDateKey } from "./product-analytics-modal";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-const PERIOD_OPTIONS = [
-    { days: 7, label: "7 days" },
-    { days: 30, label: "30 days" },
-    { days: 90, label: "90 days" },
+type PresetDays = 7 | 30 | 90;
+type RangeMode = PresetDays | "custom";
+
+const PRESET_OPTIONS: { id: PresetDays; label: string }[] = [
+    { id: 7, label: "7 days" },
+    { id: 30, label: "30 days" },
+    { id: 90, label: "90 days" },
 ];
+
+function accraDaysAgoKey(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - (days - 1));
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Accra" }).format(d);
+}
+
+function buildSummaryUrl(
+    branchId: string | null,
+    mode: RangeMode,
+    customFrom: string,
+    customTo: string,
+): string {
+    const params = new URLSearchParams();
+    if (branchId && branchId !== "all") params.set("b", branchId);
+    if (mode === "custom") {
+        if (customFrom) params.set("from", customFrom);
+        if (customTo) params.set("to", customTo);
+    } else {
+        params.set("period", String(mode));
+    }
+    return `/api/reports/sales-summary?${params.toString()}`;
+}
 
 function formatGhs(n: number): string {
     return new Intl.NumberFormat("en-GH", {
@@ -45,15 +72,20 @@ function formatGhs(n: number): string {
 
 export function SalesSummaryView() {
     const { branchId } = useBranchContext();
-    const [periodDays, setPeriodDays] = useState(30);
+    const today = accraTodayDateKey();
+    const [rangeMode, setRangeMode] = useState<RangeMode>(30);
+    const [customFrom, setCustomFrom] = useState(() => accraDaysAgoKey(30));
+    const [customTo, setCustomTo] = useState(today);
     const [exportOpen, setExportOpen] = useState(false);
 
-    const { data, isLoading } = useSWR(
-        `/api/reports/sales-summary?period=${periodDays}&b=${branchId}`,
-        fetcher,
+    const reportUrl = useMemo(
+        () => buildSummaryUrl(branchId, rangeMode, customFrom, customTo),
+        [branchId, rangeMode, customFrom, customTo],
     );
 
-    if (isLoading) {
+    const { data, isLoading, error } = useSWR(reportUrl, fetcher);
+
+    if (isLoading && !data) {
         return (
             <ProductsPageShell
                 title="Sales Summary"
@@ -62,6 +94,20 @@ export function SalesSummaryView() {
             >
                 <div className="flex h-[400px] w-full items-center justify-center">
                     <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                </div>
+            </ProductsPageShell>
+        );
+    }
+
+    if (!data && error) {
+        return (
+            <ProductsPageShell
+                title="Sales Summary"
+                description="Comprehensive analysis of your gross sales, profit margins, and performance."
+                actions={<div />}
+            >
+                <div className="flex h-48 items-center justify-center text-sm text-red-600 dark:text-red-400">
+                    Could not load report. Check your date range and try again.
                 </div>
             </ProductsPageShell>
         );
@@ -138,22 +184,6 @@ export function SalesSummaryView() {
                     >
                         <ArrowLeft className="size-4" />
                     </Link>
-                    <div className="flex rounded-xl border border-[#eef0f2] bg-white p-1 dark:border-white/[0.08] dark:bg-[#111]">
-                        {PERIOD_OPTIONS.map((opt) => (
-                            <button
-                                key={opt.days}
-                                type="button"
-                                onClick={() => setPeriodDays(opt.days)}
-                                className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                                    periodDays === opt.days
-                                        ? "bg-[#006c49] text-white"
-                                        : "text-muted-foreground hover:text-foreground"
-                                }`}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
                     <button
                         type="button"
                         onClick={() => window.print()}
@@ -201,9 +231,99 @@ export function SalesSummaryView() {
             }
         >
             <div className="flex flex-col gap-6 print-container">
-                <p className="text-[13px] text-muted-foreground">
-                    Reporting period: <span className="font-medium text-foreground">{period?.label ?? `Last ${periodDays} days`}</span>
-                </p>
+                <div className="flex flex-col gap-3 rounded-2xl border border-[#eef0f2] bg-white p-4 dark:border-white/[0.08] dark:bg-[#111]">
+                    <div className="flex flex-wrap gap-2">
+                        {PRESET_OPTIONS.map((opt) => (
+                            <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                    setRangeMode(opt.id);
+                                    setCustomFrom(accraDaysAgoKey(opt.id));
+                                    setCustomTo(today);
+                                }}
+                                className={`rounded-xl px-4 py-2 text-[13px] font-semibold transition-colors ${
+                                    rangeMode === opt.id
+                                        ? "bg-[#006c49] text-white shadow-sm"
+                                        : "border border-[#eef0f2] text-muted-foreground hover:bg-muted/40 dark:border-white/10"
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={() => setRangeMode("custom")}
+                            className={`rounded-xl px-4 py-2 text-[13px] font-semibold transition-colors ${
+                                rangeMode === "custom"
+                                    ? "bg-[#006c49] text-white shadow-sm"
+                                    : "border border-[#eef0f2] text-muted-foreground hover:bg-muted/40 dark:border-white/10"
+                            }`}
+                        >
+                            Custom
+                        </button>
+                    </div>
+
+                    {rangeMode === "custom" ? (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                            <div>
+                                <label
+                                    htmlFor="summary-from"
+                                    className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                >
+                                    From
+                                </label>
+                                <input
+                                    id="summary-from"
+                                    type="date"
+                                    value={customFrom}
+                                    max={customTo || today}
+                                    onChange={(e) => {
+                                        setRangeMode("custom");
+                                        setCustomFrom(e.target.value);
+                                    }}
+                                    className="rounded-xl border border-[#eef0f2] bg-transparent px-3 py-2 text-[14px] dark:border-white/10"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    htmlFor="summary-to"
+                                    className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                >
+                                    To
+                                </label>
+                                <input
+                                    id="summary-to"
+                                    type="date"
+                                    value={customTo}
+                                    min={customFrom}
+                                    max={today}
+                                    onChange={(e) => {
+                                        setRangeMode("custom");
+                                        setCustomTo(e.target.value);
+                                    }}
+                                    className="rounded-xl border border-[#eef0f2] bg-transparent px-3 py-2 text-[14px] dark:border-white/10"
+                                />
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <p className="text-[12px] text-muted-foreground">
+                        {isLoading ? (
+                            <span className="inline-flex items-center gap-2">
+                                <Loader2 className="size-3.5 animate-spin" />
+                                Updating report…
+                            </span>
+                        ) : (
+                            <>
+                                Reporting period:{" "}
+                                <strong className="text-foreground">{period?.label ?? "Selected range"}</strong>
+                                {" · "}
+                                Accra (GMT) calendar days
+                            </>
+                        )}
+                    </p>
+                </div>
 
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
                     <KpiCard title="Gross Sales" value={formatGhs(kpis.grossSales)} trend={trends.grossSales} href="/dashboard/sales/revenue" />

@@ -467,7 +467,7 @@ export function TopProductsChart({
                             content={({ active, payload }) => {
                                 if (!active || !payload?.length) return null;
                                 const row = payload[0]?.payload;
-                                const rows = [
+                                const rows: { name: string; value: string; color?: string }[] = [
                                     {
                                         name: "Revenue",
                                         value: formatReportGhs(Number(row?.revenue ?? 0)),
@@ -731,7 +731,7 @@ export function TaxCollectionChart({
                     <Tooltip
                         content={({ active, payload, label }) => {
                             if (!active || !payload?.length) return null;
-                            const rows = [
+                            const rows: { name: string; value: string; color?: string }[] = [
                                 {
                                     name: "Tax",
                                     value: formatReportGhs(Number(payload[0]?.value ?? 0)),

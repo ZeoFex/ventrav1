@@ -11,6 +11,7 @@ import { sellableUnits } from "../stock/sellable-stock";
 import { countReadyForPickupOrders } from "../customer-orders/customer-order-service";
 import {
     accraDateKey,
+    accraDayBounds,
     enumerateAccraDateKeys,
     previousSalesOverviewPeriod,
     resolveSalesOverviewPeriod,
@@ -18,9 +19,37 @@ import {
 } from "../reports/product-analytics-service";
 import {
     buildSalesInsights,
-    formatPeriodLabel,
     pctChange,
 } from "../reports/reports-dashboard-service";
+
+export type SalesSummaryReportOptions = {
+    periodDays?: number;
+    fromKey?: string;
+    toKey?: string;
+};
+
+function formatSalesSummaryPeriodLabel(fromKey: string, toKey: string, dayCount: number): string {
+    const fmt = (key: string) =>
+        new Date(`${key}T12:00:00.000Z`).toLocaleDateString("en-GH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "Africa/Accra",
+        });
+    if (fromKey === toKey) return fmt(fromKey);
+    return `${fmt(fromKey)} – ${fmt(toKey)} (${dayCount} day${dayCount === 1 ? "" : "s"})`;
+}
+
+function resolveSalesSummaryPeriod(options?: SalesSummaryReportOptions) {
+    if (options?.fromKey && options?.toKey) {
+        return resolveSalesOverviewPeriod(options.fromKey, options.toKey);
+    }
+    const days = options?.periodDays ?? 30;
+    const toKey = accraDateKey();
+    const fromDate = new Date(`${toKey}T12:00:00.000Z`);
+    fromDate.setUTCDate(fromDate.getUTCDate() - (days - 1));
+    return resolveSalesOverviewPeriod(fromDate.toISOString().slice(0, 10), toKey);
+}
 
 const CACHE_KEYS = {
     PRODUCTS_LIST: (bizId: string, brn?: string | null) => `products:biz_${bizId}:brn_${brn || 'all'}:list`,
@@ -764,17 +793,21 @@ export async function getRevenueDetails(businessId: string, periodDays: number =
 /**
  * Fetch detailed metrics for the Sales Summary Report
  */
-export async function getSalesSummaryReport(businessId: string, periodDays: number = 30, branchId?: string | null) {
-    const cacheKey = `sales:biz_${businessId}:brn_${branchId || 'all'}:summary-details:${periodDays}d`;
+export async function getSalesSummaryReport(
+    businessId: string,
+    branchId?: string | null,
+    options?: SalesSummaryReportOptions,
+) {
+    const period = resolveSalesSummaryPeriod(options);
+    const prevPeriod = previousSalesOverviewPeriod(period);
+    const todayKey = accraDateKey();
+    const includesToday = period.toKey === todayKey;
+
+    const cacheKey = `sales:biz_${businessId}:brn_${branchId || "all"}:summary:${period.fromKey}:${period.toKey}`;
     const cached = await redis.get(cacheKey);
     if (cached) {
         try { return JSON.parse(cached); } catch { /* fall through */ }
     }
-
-    const now = new Date();
-    const periodStart = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
-    const prevPeriodStart = new Date(periodStart.getTime() - periodDays * 24 * 60 * 60 * 1000);
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const baseFilter = [
         eq(sales.businessId, businessId),
@@ -782,8 +815,36 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
         inArray(sales.status, REVENUE_SALE_STATUSES),
     ].filter(Boolean);
 
-    const periodFilter = and(...baseFilter, gte(sales.createdAt, periodStart));
-    const prevPeriodFilter = and(...baseFilter, gte(sales.createdAt, prevPeriodStart), lte(sales.createdAt, periodStart));
+    const periodFilter = and(
+        ...baseFilter,
+        gte(sales.createdAt, period.start),
+        lte(sales.createdAt, period.end),
+    );
+    const prevPeriodFilter = and(
+        ...baseFilter,
+        gte(sales.createdAt, prevPeriod.start),
+        lte(sales.createdAt, prevPeriod.end),
+    );
+
+    const todayBounds = accraDayBounds(todayKey);
+    const hourlyPromise = includesToday
+        ? db
+              .select({
+                  hour: sql<string>`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`,
+                  sales: sql<number>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
+                  transactions: sql<number>`COUNT(*)::int`,
+              })
+              .from(sales)
+              .where(
+                  and(
+                      ...baseFilter,
+                      gte(sales.createdAt, todayBounds.start),
+                      lte(sales.createdAt, todayBounds.end),
+                  ),
+              )
+              .groupBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`)
+              .orderBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`)
+        : Promise.resolve([] as { hour: string; sales: number; transactions: number }[]);
 
     const [
         [kpis],
@@ -816,15 +877,7 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
             .from(sales)
             .where(prevPeriodFilter),
 
-        db.select({
-            hour: sql<string>`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`,
-            sales: sql<number>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
-            transactions: sql<number>`COUNT(*)::int`,
-        })
-            .from(sales)
-            .where(and(...baseFilter, gte(sales.createdAt, todayStart)))
-            .groupBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`)
-            .orderBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`),
+        hourlyPromise,
 
         db.select({
             dateKey: sql<string>`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'YYYY-MM-DD')`,
@@ -920,11 +973,9 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
         avgOrderValue: pctChange(avgOrderValue, prevAvgOrderValue),
     };
 
-    const toKey = accraDateKey();
-    const fromKey = accraDateKey(periodStart);
     const dayFormatter = new Intl.DateTimeFormat("en-GH", {
         timeZone: "Africa/Accra",
-        ...(periodDays <= 14 ? { weekday: "short" as const } : {}),
+        ...(period.dayCount <= 14 ? { weekday: "short" as const } : {}),
         month: "short",
         day: "numeric",
     });
@@ -940,7 +991,7 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
         ]),
     );
 
-    const dailyTrend = enumerateAccraDateKeys(fromKey, toKey).map((dateKey) => {
+    const dailyTrend = enumerateAccraDateKeys(period.fromKey, period.toKey).map((dateKey) => {
         const row = dailyByKey.get(dateKey);
         return {
             dateKey,
@@ -1002,7 +1053,7 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
     );
 
     const insights = buildSalesInsights({
-        periodDays,
+        periodDays: period.dayCount,
         kpis: reportKpis,
         trends,
         avgOrderValue,
@@ -1016,10 +1067,10 @@ export async function getSalesSummaryReport(businessId: string, periodDays: numb
 
     const result = {
         period: {
-            days: periodDays,
-            fromKey,
-            toKey,
-            label: formatPeriodLabel(periodDays),
+            days: period.dayCount,
+            fromKey: period.fromKey,
+            toKey: period.toKey,
+            label: formatSalesSummaryPeriodLabel(period.fromKey, period.toKey, period.dayCount),
         },
         kpis: reportKpis,
         trends,
