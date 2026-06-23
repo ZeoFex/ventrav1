@@ -49,7 +49,7 @@ export function GlobalCartIndicator() {
       <button
         type="button"
         onClick={() => setIsDrawerOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in zoom-in-95 rounded-full bg-[#006c49] text-white px-5 py-3.5 shadow-lg lg:bottom-10 lg:right-10 hover:bg-[#003527] hover:scale-105 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] dark:bg-[#6ffbbe] dark:text-[#0a0a0a] dark:hover:bg-white"
+        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-50 flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in zoom-in-95 rounded-full bg-[#006c49] px-5 py-3.5 text-white shadow-lg lg:bottom-10 lg:right-10 hover:bg-[#003527] hover:scale-105 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] dark:bg-[#6ffbbe] dark:text-[#0a0a0a] dark:hover:bg-white"
         aria-label="Open quick checkout"
       >
         <div className="relative">

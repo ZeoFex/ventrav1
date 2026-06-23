@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ScanBarcode, ShoppingCart } from "lucide-react";
+import { Home, ScanBarcode, ShoppingCart } from "lucide-react";
 
 const NAV_ITEMS = [
+  {
+    href: "/dashboard",
+    label: "Home",
+    icon: Home,
+    match: (path: string) => path === "/dashboard" || path === "/dashboard/",
+  },
   {
     href: "/dashboard/pos/scan",
     label: "Scan",
@@ -31,7 +37,7 @@ export function DashboardMobileBottomNav() {
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
       aria-label="Quick POS navigation"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-2">
+      <div className="mx-auto grid max-w-lg grid-cols-3">
         {NAV_ITEMS.map(({ href, label, icon: Icon, match }) => {
           const active = match(pathname);
           return (
