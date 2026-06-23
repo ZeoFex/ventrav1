@@ -6,6 +6,7 @@ import {
     LayoutDashboard,
     LayoutGrid,
     Layers3,
+    MessageSquareQuote,
     Package,
     ScrollText,
     Store,
@@ -16,6 +17,7 @@ export type TabId =
     | "overview"
     | "shops"
     | "subscriptions"
+    | "reviews"
     | "catalog"
     | "categories"
     | "products"
@@ -139,6 +141,7 @@ export const TABS: { id: TabId; label: string; icon: LucideIcon; group?: string 
     { id: "overview", label: "Overview", icon: LayoutDashboard, group: "Platform" },
     { id: "shops", label: "All Shops", icon: StoreIcon, group: "Platform" },
     { id: "subscriptions", label: "Subscriptions", icon: CreditCard, group: "Platform" },
+    { id: "reviews", label: "Reviews", icon: MessageSquareQuote, group: "Platform" },
     { id: "catalog", label: "Product Catalog", icon: LayoutGrid, group: "Catalog" },
     { id: "products", label: "Master Products", icon: Package, group: "Catalog" },
     { id: "shop-types", label: "Shop Types", icon: Store, group: "Catalog" },

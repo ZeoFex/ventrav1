@@ -13,7 +13,7 @@ import {
 
 type BillingCycle = "monthly" | "annually";
 
-const plans = PLANS;
+const FEATURE_PREVIEW_COUNT = 5;
 
 const comparisonFeatures = [
   {
@@ -94,7 +94,7 @@ export function LandingPricing({
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [showCompare, setShowCompare] = useState(defaultShowCompare);
 
-  const handlePlanClick = (plan: (typeof plans)[0], cycle: BillingCycle) => {
+  const handlePlanClick = (plan: (typeof PLANS)[0], cycle: BillingCycle) => {
     if (onSelectPlan) {
       onSelectPlan(plan.id as PlanId, cycle);
       return;
@@ -173,9 +173,9 @@ export function LandingPricing({
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="grid gap-8 lg:grid-cols-3 max-w-md mx-auto lg:max-w-none"
+          className="grid items-start gap-6 lg:grid-cols-3 lg:gap-5 max-w-md mx-auto lg:max-w-none"
         >
-          {plans.map((plan) => {
+          {PLANS.map((plan) => {
             const price =
               billingCycle === "monthly" ? plan.priceMonthly : plan.priceAnnually;
             const period = billingCycle === "monthly" ? "/mo" : "/yr";
@@ -185,16 +185,16 @@ export function LandingPricing({
               <motion.div
                 key={plan.name}
                 variants={cardVariants}
-                whileHover={{ y: -5 }}
-                className={`relative flex flex-col rounded-[2rem] p-8 transition-shadow duration-300 ${
+                whileHover={{ y: -4 }}
+                className={`relative flex flex-col rounded-2xl p-5 sm:p-6 transition-shadow duration-300 ${
                   plan.highlighted
-                    ? "bg-gradient-to-b from-[#003527] to-[#002118] text-white shadow-2xl ring-1 ring-[#006c49] lg:scale-105 z-10 hover:shadow-[#006c49]/20"
-                    : "bg-surface-elevated border border-border/40 text-foreground hover:shadow-xl"
+                    ? "bg-gradient-to-b from-[#003527] to-[#002118] text-white shadow-2xl ring-1 ring-[#006c49] lg:scale-[1.03] z-10 hover:shadow-[#006c49]/20"
+                    : "bg-surface-elevated border border-border/40 text-foreground hover:shadow-lg"
                 }`}
               >
                 {badge && (
                   <div
-                    className={`absolute -top-4 left-0 right-0 mx-auto w-fit rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest shadow-lg ${
+                    className={`absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide shadow-md ${
                       plan.highlighted
                         ? "bg-gradient-to-r from-[#006c49] to-[#6ffbbe] text-white"
                         : "bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
@@ -204,67 +204,58 @@ export function LandingPricing({
                   </div>
                 )}
 
-                <div className="mb-6">
+                <div className="mb-4 pt-1">
                   <h3
-                    className={`text-2xl font-bold tracking-tight font-[family-name:var(--font-display)] ${
+                    className={`text-xl font-bold tracking-tight font-[family-name:var(--font-display)] ${
                       plan.highlighted ? "text-white" : ""
                     }`}
                   >
                     {plan.name}
                   </h3>
                   <p
-                    className={`mt-3 text-sm leading-relaxed ${
-                      plan.highlighted ? "text-white/80" : "text-muted-foreground"
+                    className={`mt-1.5 text-[13px] leading-snug line-clamp-2 ${
+                      plan.highlighted ? "text-white/75" : "text-muted-foreground"
                     }`}
                   >
                     {plan.description}
                   </p>
                 </div>
 
-                <div className="mb-6 flex items-baseline text-[56px] font-bold tracking-tight font-[family-name:var(--font-display)]">
+                <div className="mb-4 flex items-end gap-1 font-[family-name:var(--font-display)]">
                   <span
-                    className={`text-2xl font-normal mr-1.5 ${
-                      plan.highlighted ? "text-white/60" : "text-muted-foreground"
+                    className={`pb-1 text-sm font-medium ${
+                      plan.highlighted ? "text-white/55" : "text-muted-foreground"
                     }`}
                   >
                     GHS
                   </span>
-                  {price}
+                  <span className="text-4xl font-bold leading-none tracking-tight sm:text-[2.75rem]">
+                    {price}
+                  </span>
                   <span
-                    className={`ml-1 text-lg font-medium ${
-                      plan.highlighted ? "text-white/60" : "text-muted-foreground"
+                    className={`pb-1 text-sm font-medium ${
+                      plan.highlighted ? "text-white/55" : "text-muted-foreground"
                     }`}
                   >
                     {period}
                   </span>
                 </div>
 
-                {plan.trialDays > 0 && (
+                {plan.trialDays > 0 ? (
                   <p
-                    className={`mb-4 text-sm font-medium ${
+                    className={`mb-4 text-xs font-semibold ${
                       plan.highlighted ? "text-[#6ffbbe]" : "text-[#006c49] dark:text-[#6ffbbe]"
                     }`}
                   >
-                    {plan.trialDays}-day free trial included
+                    {plan.trialDays}-day free trial
                   </p>
-                )}
+                ) : null}
 
-                <div
-                  className={`mb-8 rounded-xl p-4 text-sm leading-relaxed ${
-                    plan.highlighted
-                      ? "bg-white/10 text-white/90"
-                      : "bg-secondary/5 text-foreground/80 border border-secondary/10"
-                  }`}
-                >
-                  <span className="font-semibold block mb-1">Best for:</span>
-                  {plan.bestFor}
-                </div>
-
-                <ul className="mb-10 flex flex-1 flex-col gap-4 text-sm">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex flex-start gap-3">
+                <ul className="mb-4 space-y-2 text-[13px] leading-snug">
+                  {plan.features.slice(0, FEATURE_PREVIEW_COUNT).map((feature, idx) => (
+                    <li key={idx} className="flex gap-2">
                       <Check
-                        className={`h-5 w-5 shrink-0 ${
+                        className={`mt-0.5 size-4 shrink-0 ${
                           plan.highlighted
                             ? "text-[#6ffbbe]"
                             : "text-[#006c49] dark:text-[#6ffbbe]"
@@ -272,7 +263,7 @@ export function LandingPricing({
                       />
                       <span
                         className={
-                          plan.highlighted ? "text-white/90" : "text-muted-foreground"
+                          plan.highlighted ? "text-white/85" : "text-muted-foreground"
                         }
                       >
                         {feature}
@@ -281,10 +272,31 @@ export function LandingPricing({
                   ))}
                 </ul>
 
+                {plan.features.length > FEATURE_PREVIEW_COUNT ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCompare(true);
+                      document
+                        .getElementById("pricing-compare")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className={`mb-5 text-left text-xs font-semibold underline-offset-2 hover:underline ${
+                      plan.highlighted
+                        ? "text-[#6ffbbe]"
+                        : "text-[#006c49] dark:text-[#6ffbbe]"
+                    }`}
+                  >
+                    + {plan.features.length - FEATURE_PREVIEW_COUNT} more — see full comparison
+                  </button>
+                ) : (
+                  <div className="mb-5" />
+                )}
+
                 <button
                   onClick={() => handlePlanClick(plan, billingCycle)}
                   disabled={currentPlan === plan.id && !isPastDue}
-                  className={`mt-auto flex h-12 w-full items-center justify-center rounded-xl text-[15px] font-semibold transition-all ${
+                  className={`mt-auto flex h-11 w-full items-center justify-center rounded-xl text-sm font-semibold transition-all ${
                     currentPlan === plan.id && !isPastDue
                       ? "bg-surface-elevated text-muted-foreground border border-border cursor-not-allowed opacity-60"
                       : plan.highlighted
@@ -336,7 +348,7 @@ export function LandingPricing({
           </Link>
         </motion.div>
 
-        <div className="mt-24 border-t border-border/40 pt-16 text-center">
+        <div id="pricing-compare" className="mt-24 border-t border-border/40 pt-16 text-center scroll-mt-24">
           <h3 className="mb-6 font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight">
             Compare all features
           </h3>

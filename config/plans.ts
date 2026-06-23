@@ -32,7 +32,7 @@ export const PLANS: Plan[] = [
     name: "Starter",
     badge: "Free Forever",
     description:
-      "Move from manual records to a clean digital POS — at no monthly cost.",
+      "Digital POS for small shops — free, no monthly fee.",
     bestFor: "Small businesses moving from manual records to digital operations.",
     priceMonthly: 0,
     priceAnnually: 0,
@@ -52,8 +52,7 @@ export const PLANS: Plan[] = [
     id: "growth",
     name: "Growth",
     badge: "Most Popular",
-    description:
-      "Better control, reporting, and branch management for growing SMEs.",
+    description: "Reporting, branches, and barcode support for growing SMEs.",
     bestFor: "Growing SMEs that need better control, reporting, and branch management.",
     priceMonthly: 249,
     priceAnnually: 2490,
@@ -79,8 +78,7 @@ export const PLANS: Plan[] = [
   {
     id: "pro",
     name: "Pro",
-    description:
-      "Full operating system with governance, AI, and multi-branch scale.",
+    description: "AI, audit trails, and multi-branch scale for serious operators.",
     bestFor: "Serious supermarkets, pharmacies, and multi-branch businesses.",
     priceMonthly: 349,
     priceAnnually: 3490,
