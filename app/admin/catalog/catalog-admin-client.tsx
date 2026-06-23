@@ -21,6 +21,7 @@ import {
 import { CatalogShopsPanel } from "./catalog-shops-panel";
 import { CatalogOverviewPanel } from "./catalog-overview-panel";
 import { CatalogSubscriptionsPanel } from "./catalog-subscriptions-panel";
+import { CatalogReviewsPanel } from "./catalog-reviews-panel";
 import { CatalogAdminAuth } from "./catalog-admin-auth";
 import { CatalogAdminTeamModal } from "./catalog-admin-team-modal";
 import { CatalogAdminAccountModal } from "./catalog-admin-account-modal";
@@ -306,7 +307,10 @@ export function CatalogAdminClient() {
             }
         >
             <div className="mx-auto max-w-7xl space-y-4">
-                    {tab !== "shops" && tab !== "overview" && tab !== "subscriptions" ? (
+                    {tab !== "shops" &&
+                    tab !== "overview" &&
+                    tab !== "subscriptions" &&
+                    tab !== "reviews" ? (
                     <div className="rounded-2xl border border-[#bfc9c3]/20 bg-surface-card p-4 shadow-sm dark:border-white/[0.08] dark:bg-[#141414]">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                             <label className="grid flex-1 gap-1.5 text-sm">
@@ -361,13 +365,21 @@ export function CatalogAdminClient() {
                     </div>
                     ) : null}
 
-                    {error && tab !== "shops" && tab !== "overview" && tab !== "subscriptions" ? (
+                    {error &&
+                    tab !== "shops" &&
+                    tab !== "overview" &&
+                    tab !== "subscriptions" &&
+                    tab !== "reviews" ? (
                         <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
                             {error}
                         </p>
                     ) : null}
 
-                    {loading && tab !== "shops" && tab !== "overview" && tab !== "subscriptions" ? (
+                    {loading &&
+                    tab !== "shops" &&
+                    tab !== "overview" &&
+                    tab !== "subscriptions" &&
+                    tab !== "reviews" ? (
                         <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#bfc9c3]/20 bg-surface-card py-16 text-sm text-muted-foreground dark:border-white/[0.08] dark:bg-[#141414]">
                             <Loader2 className="h-5 w-5 animate-spin" />
                             Loading catalog…
@@ -380,6 +392,10 @@ export function CatalogAdminClient() {
 
                     {tab === "subscriptions" && token ? (
                         <CatalogSubscriptionsPanel token={token} />
+                    ) : null}
+
+                    {tab === "reviews" && token ? (
+                        <CatalogReviewsPanel token={token} />
                     ) : null}
 
                     {tab === "shops" && token ? (

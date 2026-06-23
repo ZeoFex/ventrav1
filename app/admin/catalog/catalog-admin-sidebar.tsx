@@ -224,6 +224,10 @@ export const TAB_META: Record<TabId, { title: string; description: string }> = {
         title: "Subscriptions",
         description: "Monitor plans, renewal dates, and past-due accounts.",
     },
+    reviews: {
+        title: "Reviews",
+        description: "View and remove customer reviews shown on the public site.",
+    },
     catalog: {
         title: "Product Catalog",
         description: "Hierarchical view of master catalog by shop type.",
