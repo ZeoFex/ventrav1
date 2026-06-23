@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { ArrowUpRight, PackageOpen, Store } from "lucide-react";
@@ -35,8 +35,18 @@ function QuickSaleCarousel({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
-  const loopProducts = products.length >= 3 ? [...products, ...products] : products;
-  const enableAutoScroll = products.length >= 3;
+  const [manualScroll, setManualScroll] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px), (pointer: coarse)");
+    const update = () => setManualScroll(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const enableAutoScroll = products.length >= 3 && !manualScroll;
+  const loopProducts = enableAutoScroll ? [...products, ...products] : products;
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -72,24 +82,19 @@ function QuickSaleCarousel({
     el.addEventListener("pointerleave", resume);
     el.addEventListener("pointerdown", pause);
     el.addEventListener("pointerup", resume);
-    el.addEventListener("touchstart", pause, { passive: true });
-    el.addEventListener("touchend", resume);
-
     return () => {
       cancelAnimationFrame(frame);
       el.removeEventListener("pointerenter", pause);
       el.removeEventListener("pointerleave", resume);
       el.removeEventListener("pointerdown", pause);
       el.removeEventListener("pointerup", resume);
-      el.removeEventListener("touchstart", pause);
-      el.removeEventListener("touchend", resume);
     };
   }, [enableAutoScroll, products.length]);
 
   return (
     <div
       ref={scrollRef}
-      className={`-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+      className={`-mx-4 overflow-x-auto overscroll-x-contain px-4 pb-2 touch-pan-x snap-x snap-mandatory [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${
         variant === "classic" ? "sm:-mx-6 sm:px-6" : ""
       }`}
       role="region"
@@ -103,6 +108,7 @@ function QuickSaleCarousel({
           return (
             <div
               key={`${product.id}-${index}`}
+              className="snap-start"
               data-tour-target={isFirst ? "home-quick-sale-item" : undefined}
             >
               {variant === "retail" ? (

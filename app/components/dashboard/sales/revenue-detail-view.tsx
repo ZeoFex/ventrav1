@@ -4,7 +4,8 @@ import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import { SalesDetailLayout } from "./sales-detail-layout";
 import { SalesFluidChart } from "./sales-fluid-chart";
-import { TrendingUp, Wallet, ArrowUpRight, Loader2 } from "lucide-react";
+import { SalesOverviewDateProvider } from "./sales-overview-date-context";
+import { TrendingUp, Wallet, Loader2 } from "lucide-react";
 import { useBranchContext } from "../branch-context";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -73,7 +74,9 @@ export function RevenueDetailView() {
                         <h3 className="font-semibold text-foreground">Revenue Trend</h3>
                     </div>
                     <div className="h-[400px]">
-                        <SalesFluidChart />
+                        <SalesOverviewDateProvider branchId={branchId}>
+                            <SalesFluidChart />
+                        </SalesOverviewDateProvider>
                     </div>
                 </div>
 
