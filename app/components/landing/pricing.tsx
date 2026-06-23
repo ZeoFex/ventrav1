@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Building2, ArrowRight } from "lucide-react";
+import { Check, ChevronDown, Building2, ArrowRight, Minus } from "lucide-react";
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -78,6 +78,215 @@ const cardVariants = {
     transition: { duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98] as const },
   },
 };
+
+const PLAN_COLUMN_KEYS = ["starter", "growth", "pro"] as const;
+
+function CompareValue({ value }: { value: boolean | string }) {
+  if (typeof value === "boolean") {
+    return value ? (
+      <span
+        className="mx-auto flex size-8 items-center justify-center rounded-full bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]"
+        aria-label="Included"
+      >
+        <Check className="size-4" strokeWidth={2.5} aria-hidden />
+      </span>
+    ) : (
+      <span
+        className="mx-auto flex size-8 items-center justify-center rounded-full bg-muted/40 text-muted-foreground/35"
+        aria-label="Not included"
+      >
+        <Minus className="size-3.5" aria-hidden />
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-block rounded-lg border border-[#bfc9c3]/25 bg-muted/30 px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground dark:border-white/10 dark:bg-white/[0.04]">
+      {value}
+    </span>
+  );
+}
+
+function PricingCompareMatrix({
+  billingCycle,
+  showCompare,
+  onToggle,
+}: {
+  billingCycle: BillingCycle;
+  showCompare: boolean;
+  onToggle: () => void;
+}) {
+  const period = billingCycle === "monthly" ? "/mo" : "/yr";
+
+  return (
+    <div id="pricing-compare" className="mt-24 scroll-mt-24">
+      <div className="mx-auto mb-8 max-w-2xl text-center">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#006c49] dark:text-[#6ffbbe]">
+          Full breakdown
+        </p>
+        <h3 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight sm:text-4xl">
+          Compare plans side by side
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
+          See exactly what&apos;s included in Starter, Growth, and Pro before you choose.
+        </p>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#bfc9c3]/30 bg-surface-elevated px-6 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-[#006c49]/30 hover:bg-[#006c49]/5 dark:border-white/10 dark:hover:border-[#6ffbbe]/30 dark:hover:bg-[#6ffbbe]/5"
+        >
+          {showCompare ? "Hide feature matrix" : "View feature matrix"}
+          <ChevronDown
+            className={`size-4 transition-transform duration-300 ${
+              showCompare ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      </div>
+
+      <div
+        className={`grid transition-all duration-500 ease-in-out ${
+          showCompare
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0 pointer-events-none"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="overflow-hidden rounded-2xl border border-[#bfc9c3]/25 bg-surface-elevated shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-[#111] dark:shadow-none">
+            <div className="relative overflow-x-auto">
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-surface-elevated to-transparent dark:from-[#111] lg:hidden" />
+
+              <table className="w-full min-w-[720px] border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-[#bfc9c3]/20 dark:border-white/[0.08]">
+                    <th className="sticky left-0 z-20 min-w-[11rem] bg-surface-elevated/95 px-4 py-5 backdrop-blur-sm dark:bg-[#111]/95 sm:min-w-[14rem] sm:px-6">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Features
+                      </span>
+                    </th>
+                    {PLANS.map((plan) => {
+                      const price =
+                        billingCycle === "monthly"
+                          ? plan.priceMonthly
+                          : plan.priceAnnually;
+                      const isGrowth = plan.id === "growth";
+
+                      return (
+                        <th
+                          key={plan.id}
+                          className={`min-w-[7.5rem] px-3 py-5 text-center sm:min-w-[9rem] sm:px-4 ${
+                            isGrowth
+                              ? "bg-[#006c49]/[0.06] dark:bg-[#6ffbbe]/[0.06]"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            {plan.badge && isGrowth ? (
+                              <span className="rounded-full bg-[#006c49] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white dark:bg-[#6ffbbe] dark:text-[#003527]">
+                                {plan.badge}
+                              </span>
+                            ) : (
+                              <span className="h-[18px]" aria-hidden />
+                            )}
+                            <span
+                              className={`font-[family-name:var(--font-display)] text-base font-bold sm:text-lg ${
+                                isGrowth
+                                  ? "text-[#006c49] dark:text-[#6ffbbe]"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {plan.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {price === 0 ? (
+                                "Free"
+                              ) : (
+                                <>
+                                  GHS {price.toLocaleString()}
+                                  <span className="text-[10px]">{period}</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonFeatures.map((section, secIdx) => (
+                    <React.Fragment key={secIdx}>
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="border-y border-[#bfc9c3]/15 bg-muted/30 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03] sm:px-6"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="h-4 w-1 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" />
+                            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground">
+                              {section.category}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {section.items.map((item, itemIdx) => (
+                        <tr
+                          key={itemIdx}
+                          className="border-b border-[#bfc9c3]/10 last:border-0 transition-colors hover:bg-muted/20 dark:border-white/[0.04]"
+                        >
+                          <td className="sticky left-0 z-10 bg-surface-elevated px-4 py-3.5 text-[13px] font-medium leading-snug text-foreground dark:bg-[#111] sm:px-6 sm:py-4 sm:text-sm">
+                            {item.name}
+                          </td>
+                          {PLAN_COLUMN_KEYS.map((key, colIdx) => {
+                            const val = item[key];
+                            const isGrowth = colIdx === 1;
+                            return (
+                              <td
+                                key={key}
+                                className={`px-3 py-3.5 text-center sm:px-4 sm:py-4 ${
+                                  isGrowth
+                                    ? "bg-[#006c49]/[0.04] dark:bg-[#6ffbbe]/[0.04]"
+                                    : ""
+                                }`}
+                              >
+                                <CompareValue value={val} />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-6 border-t border-[#bfc9c3]/15 px-4 py-4 text-xs text-muted-foreground dark:border-white/[0.06] sm:gap-8">
+              <span className="inline-flex items-center gap-2">
+                <span className="flex size-6 items-center justify-center rounded-full bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]">
+                  <Check className="size-3.5" strokeWidth={2.5} />
+                </span>
+                Included
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="flex size-6 items-center justify-center rounded-full bg-muted/40 text-muted-foreground/40">
+                  <Minus className="size-3" />
+                </span>
+                Not on this plan
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="rounded-md border border-[#bfc9c3]/25 bg-muted/30 px-2 py-0.5 text-[10px] font-semibold text-foreground dark:border-white/10">
+                  1 branch
+                </span>
+                Plan limit or detail
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function LandingPricing({
   defaultShowCompare = false,
@@ -348,89 +557,11 @@ export function LandingPricing({
           </Link>
         </motion.div>
 
-        <div id="pricing-compare" className="mt-24 border-t border-border/40 pt-16 text-center scroll-mt-24">
-          <h3 className="mb-6 font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight">
-            Compare all features
-          </h3>
-          <button
-            onClick={() => setShowCompare(!showCompare)}
-            className="mx-auto flex h-12 items-center justify-center gap-2 rounded-full border border-border/50 bg-background px-8 text-sm font-semibold text-foreground transition-colors hover:bg-surface-elevated"
-          >
-            {showCompare ? "Hide comparison" : "View complete feature matrix"}
-            <ChevronDown
-              className={`h-4 w-4 transition-transform duration-300 ${
-                showCompare ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          <div
-            className={`mt-12 overflow-hidden transition-all duration-500 ease-in-out ${
-              showCompare ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
-            }`}
-          >
-            <div className="relative overflow-x-auto pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted">
-              <div className="lg:hidden absolute top-0 right-0 h-full w-12 bg-gradient-to-l from-background to-transparent pointer-events-none" />
-              <table className="w-full text-left border-collapse min-w-[700px] lg:min-w-0">
-                <thead>
-                  <tr>
-                    <th className="w-1/3 pb-6 pl-4 font-semibold text-muted-foreground">
-                      Feature
-                    </th>
-                    <th className="pb-6 px-4 font-semibold text-center text-foreground text-lg">
-                      Starter
-                    </th>
-                    <th className="pb-6 px-4 font-semibold text-center text-secondary text-lg">
-                      Growth
-                    </th>
-                    <th className="pb-6 px-4 font-semibold text-center text-foreground text-lg">
-                      Pro
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonFeatures.map((section, secIdx) => (
-                    <React.Fragment key={secIdx}>
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="bg-surface-elevated/50 py-4 pl-4 font-bold text-foreground border-y border-border/20 uppercase tracking-widest text-xs"
-                        >
-                          {section.category}
-                        </td>
-                      </tr>
-                      {section.items.map((item, itemIdx) => (
-                        <tr
-                          key={itemIdx}
-                          className="border-b border-border/10 last:border-0 hover:bg-surface-elevated/20 transition-colors"
-                        >
-                          <td className="py-4 pl-4 text-sm font-medium text-foreground">
-                            {item.name}
-                          </td>
-                          {[item.starter, item.growth, item.pro].map((val, i) => (
-                            <td key={i} className="py-4 px-4 text-center">
-                              {typeof val === "boolean" ? (
-                                val ? (
-                                  <Check className="mx-auto h-5 w-5 text-[#006c49] dark:text-[#6ffbbe]" />
-                                ) : (
-                                  <span className="text-muted-foreground/30">—</span>
-                                )
-                              ) : (
-                                <span className="text-sm text-muted-foreground">
-                                  {val}
-                                </span>
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <PricingCompareMatrix
+          billingCycle={billingCycle}
+          showCompare={showCompare}
+          onToggle={() => setShowCompare(!showCompare)}
+        />
       </div>
     </section>
   );
