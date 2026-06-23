@@ -8,6 +8,7 @@ import { Skeleton } from "../ui/skeleton";
 import { useBranchContext } from "../branch-context";
 import { type ProductRow } from "../products/types";
 import { HomeQuickSaleCard } from "./home-quick-sale-card";
+import { HomeRetailProductCard } from "./home-retail-product-card";
 import {
   HomeVariationModal,
   sellableForLine,
@@ -26,9 +27,11 @@ const fetcher = async (url: string) => {
 function QuickSaleCarousel({
   products,
   onAdd,
+  variant = "classic",
 }: {
   products: ProductRow[];
   onAdd: (p: ProductRow) => void;
+  variant?: "classic" | "retail";
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
@@ -86,25 +89,38 @@ function QuickSaleCarousel({
   return (
     <div
       ref={scrollRef}
-      className="-mx-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className={`-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+        variant === "classic" ? "sm:-mx-6 sm:px-6" : ""
+      }`}
       role="region"
       aria-label="Top selling products carousel"
     >
-      <div className="flex w-max gap-3 py-1 sm:gap-4">
+      <div className="flex w-max gap-2.5 py-1 sm:gap-3">
         {loopProducts.map((product, index) => {
           const rank = (index % products.length) + 1;
           const isFirst = index === 0;
+          const stock = sellableForLine(product);
           return (
             <div
               key={`${product.id}-${index}`}
               data-tour-target={isFirst ? "home-quick-sale-item" : undefined}
             >
-              <HomeQuickSaleCard
-                product={product}
-                rank={rank <= 3 ? rank : undefined}
-                availableStock={sellableForLine(product)}
-                onAdd={() => onAdd(product)}
-              />
+              {variant === "retail" ? (
+                <HomeRetailProductCard
+                  product={product}
+                  availableStock={stock}
+                  onAdd={() => onAdd(product)}
+                  badge={rank <= 3 ? "Hot" : undefined}
+                  layout="row"
+                />
+              ) : (
+                <HomeQuickSaleCard
+                  product={product}
+                  rank={rank <= 3 ? rank : undefined}
+                  availableStock={stock}
+                  onAdd={() => onAdd(product)}
+                />
+              )}
             </div>
           );
         })}
@@ -162,10 +178,15 @@ function QuickSaleLoadingState() {
   );
 }
 
-export function HomeQuickSaleProducts() {
+export function HomeQuickSaleProducts({
+  variant = "classic",
+}: {
+  variant?: "classic" | "retail";
+} = {}) {
   const { branchId } = useBranchContext();
   const { data, isLoading } = useSWR(`/api/dashboard/home?b=${branchId}`, fetcher);
   const { handleAdd, variationProduct, setVariationProduct } = useHomeAddToCart();
+  const isRetail = variant === "retail";
 
   const products = useMemo(
     () => (data?.quickSaleProducts ?? []) as ProductRow[],
@@ -185,16 +206,26 @@ export function HomeQuickSaleProducts() {
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Trending
+            <h2
+              className={
+                isRetail
+                  ? "text-[17px] font-bold text-foreground"
+                  : "text-[13px] font-semibold uppercase tracking-wide text-muted-foreground"
+              }
+            >
+              {isRetail ? "Top sellers" : "Trending"}
             </h2>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">
-              Best sellers — swipe the row or tap + to add
-            </p>
+            {!isRetail ? (
+              <p className="mt-0.5 text-[12px] text-muted-foreground">
+                Best sellers — swipe the row or tap + to add
+              </p>
+            ) : null}
           </div>
           <Link
             href="/dashboard/pos/sale"
-            className="hidden items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-[#006c49] sm:inline-flex dark:text-[#6ffbbe]"
+            className={`items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-[#006c49] dark:text-[#6ffbbe] ${
+              isRetail ? "hidden" : "hidden sm:inline-flex"
+            }`}
           >
             Full POS
             <ArrowUpRight className="size-3.5" />
@@ -205,7 +236,7 @@ export function HomeQuickSaleProducts() {
           <QuickSaleEmptyState />
         ) : (
           <div data-tour-target="home-quick-sale" data-tour-mount="main">
-            <QuickSaleCarousel products={products} onAdd={handleAdd} />
+            <QuickSaleCarousel products={products} onAdd={handleAdd} variant={variant} />
           </div>
         )}
       </section>
