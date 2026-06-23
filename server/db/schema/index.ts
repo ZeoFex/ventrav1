@@ -37,6 +37,7 @@ export {
     salePaymentLines,
     saleStatusEnum,
 } from "./sales";
+export { saleReturnEvents } from "./sale-return-events";
 export {
     customers,
     customerStatusEnum,

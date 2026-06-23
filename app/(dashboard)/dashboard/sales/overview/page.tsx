@@ -2,10 +2,7 @@ import { cookies } from "next/headers";
 import { verifyAccessToken } from "@/server/auth/token-service";
 import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { getSalesOverview } from "@/server/pos/pos-service";
-import { SalesOverviewMetrics } from "@/app/components/dashboard/sales/sales-overview-metrics";
-import { SalesFluidChart } from "@/app/components/dashboard/sales/sales-fluid-chart";
-import { SalesTopProducts } from "@/app/components/dashboard/sales/sales-top-products";
-import { SalesOverviewSWRProvider } from "@/app/components/dashboard/sales/sales-overview-provider";
+import { SalesOverviewContent } from "@/app/components/dashboard/sales/sales-overview-content";
 
 export const metadata = {
     title: "Sales Overview | VentraPOS",
@@ -32,24 +29,11 @@ export default async function SalesOverviewPage() {
                     Sales Overview
                 </h1>
                 <p className="text-[14px] text-muted-foreground">
-                    Monitor your store's revenue, transactions, and performance.
+                    Monitor your store&apos;s revenue, transactions, and performance.
                 </p>
             </div>
 
-            <SalesOverviewSWRProvider fallback={{ "/api/sales/overview": fallbackData }}>
-                <div className="flex flex-col gap-6">
-                    <SalesOverviewMetrics />
-
-                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                        <div className="xl:col-span-2">
-                            <SalesFluidChart />
-                        </div>
-                        <div className="xl:col-span-1">
-                            <SalesTopProducts />
-                        </div>
-                    </div>
-                </div>
-            </SalesOverviewSWRProvider>
+            <SalesOverviewContent fallback={fallbackData} />
         </div>
     );
 }

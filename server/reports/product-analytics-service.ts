@@ -84,12 +84,79 @@ export function accraMonthBounds(dateKey: string): { start: Date; end: Date } {
     };
 }
 
+const ISO_DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Inclusive list of Accra calendar day keys from `fromKey` through `toKey`. */
+export function enumerateAccraDateKeys(fromKey: string, toKey: string): string[] {
+    const keys: string[] = [];
+    const cursor = new Date(`${fromKey}T12:00:00.000Z`);
+    const end = new Date(`${toKey}T12:00:00.000Z`);
+    while (cursor <= end) {
+        keys.push(cursor.toISOString().slice(0, 10));
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return keys;
+}
+
+export type SalesOverviewPeriod = {
+    fromKey: string;
+    toKey: string;
+    start: Date;
+    end: Date;
+    dayCount: number;
+};
+
+/** Resolve sales overview window; defaults to the last 7 Accra days ending today. */
+export function resolveSalesOverviewPeriod(
+    fromKey?: string | null,
+    toKey?: string | null,
+): SalesOverviewPeriod {
+    const to = parseReferenceDateKey(toKey ?? undefined);
+    let from = fromKey ? parseReferenceDateKey(fromKey) : undefined;
+    if (!from) {
+        const d = new Date(`${to}T12:00:00.000Z`);
+        d.setUTCDate(d.getUTCDate() - 6);
+        from = d.toISOString().slice(0, 10);
+    }
+    if (from > to) {
+        throw new Error("Invalid date range: from must be on or before to");
+    }
+    const dayCount = enumerateAccraDateKeys(from, to).length;
+    if (dayCount > 366) {
+        throw new Error("Date range cannot exceed 366 days");
+    }
+    return {
+        fromKey: from,
+        toKey: to,
+        start: accraDayBounds(from).start,
+        end: accraDayBounds(to).end,
+        dayCount,
+    };
+}
+
+/** Previous period of equal length immediately before `fromKey`. */
+export function previousSalesOverviewPeriod(period: SalesOverviewPeriod): SalesOverviewPeriod {
+    const prevTo = new Date(`${period.fromKey}T12:00:00.000Z`);
+    prevTo.setUTCDate(prevTo.getUTCDate() - 1);
+    const prevToKey = prevTo.toISOString().slice(0, 10);
+    const prevFrom = new Date(`${prevToKey}T12:00:00.000Z`);
+    prevFrom.setUTCDate(prevFrom.getUTCDate() - (period.dayCount - 1));
+    const prevFromKey = prevFrom.toISOString().slice(0, 10);
+    return {
+        fromKey: prevFromKey,
+        toKey: prevToKey,
+        start: accraDayBounds(prevFromKey).start,
+        end: accraDayBounds(prevToKey).end,
+        dayCount: period.dayCount,
+    };
+}
+
 /** Parse ISO timestamp or YYYY-MM-DD into an Accra calendar day key. */
 export function parseReferenceDateKey(referenceDate?: string | Date | null): string {
     if (!referenceDate) return accraDateKey();
     if (referenceDate instanceof Date) return accraDateKey(referenceDate);
     const str = referenceDate.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    if (ISO_DATE_KEY.test(str)) return str;
     const parsed = new Date(str);
     if (!Number.isNaN(parsed.getTime())) return accraDateKey(parsed);
     return accraDateKey();

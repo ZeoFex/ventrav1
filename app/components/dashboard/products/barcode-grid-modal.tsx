@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { X, Printer, Download, Plus, Minus } from "lucide-react";
 import { toPng } from "html-to-image";
 import { BarcodeItem } from "./product-barcode-preview";
+import { BarcodeHelpPanel } from "./barcode-help-panel";
 
 export type BarcodeProduct = {
     id: string;
@@ -82,6 +83,7 @@ export function BarcodeGridModal({
                         <p className="mt-0.5 text-sm text-muted-foreground">
                             Arrange barcodes in a grid for printing or saving.
                         </p>
+                        <BarcodeHelpPanel className="mt-3" />
                     </div>
                     <button
                         onClick={onClose}

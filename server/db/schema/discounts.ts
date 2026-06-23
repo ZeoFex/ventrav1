@@ -7,6 +7,7 @@ import {
     timestamp,
     index,
     pgEnum,
+    jsonb,
 } from "drizzle-orm/pg-core";
 import { businesses } from "./businesses";
 import { branches } from "./branches";
@@ -33,6 +34,8 @@ export const discounts = pgTable(
         isActive: boolean("is_active").default(true).notNull(),
         autoApply: boolean("auto_apply").default(false).notNull(),
         minOrderValueGhs: decimal("min_order_value_ghs", { precision: 12, scale: 2 }),
+        /** When set, discount applies only to these product IDs. Null/empty = all products. */
+        productIds: jsonb("product_ids").$type<string[] | null>(),
         startDate: timestamp("start_date", { withTimezone: true }),
         endDate: timestamp("end_date", { withTimezone: true }),
         createdAt: timestamp("created_at", { withTimezone: true })

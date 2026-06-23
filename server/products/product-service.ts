@@ -98,6 +98,7 @@ export async function getProducts(businessId: string, branchId?: string | null) 
             sku: products.sku,
             barcode: products.barcode,
             priceGhs: products.priceGhs,
+            costPriceGhs: products.costPriceGhs,
             stock: products.stock,
             stockReserved: products.stockReserved,
             unit: products.unit,

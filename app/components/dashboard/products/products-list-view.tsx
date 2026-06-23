@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   Download, Package, Plus, Printer, Search, Trash2,
-  FileSpreadsheet, FileText, Loader2
+  FileSpreadsheet, FileText, Loader2, PackagePlus,
 } from "lucide-react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { ProductsPageShell } from "./products-page-shell";
 import { ImportProductsModal } from "./import-products-modal";
 import { BarcodeGridModal } from "./barcode-grid-modal";
+import { BarcodeHelpPanel } from "./barcode-help-panel";
+import { StockAdjustModal, type StockAdjustProduct } from "./stock-adjust-modal";
 import { SyncProgressModal } from "./sync-progress-modal";
 import { BulkDeleteModal } from "./bulk-delete-modal";
 import { toast } from "sonner";
@@ -52,6 +54,7 @@ export function ProductsListView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [adjustingProduct, setAdjustingProduct] = useState<StockAdjustProduct | null>(null);
 
   // Real data hooks
   const { products = [], isLoading: isProductsLoading, mutate: mutateProducts } = useProducts();
@@ -291,6 +294,16 @@ export function ProductsListView() {
         count={selectedIds.size}
         isDeleting={isBulkDeleting}
       />
+      <StockAdjustModal
+        product={adjustingProduct}
+        onClose={() => setAdjustingProduct(null)}
+        onSaved={() => {
+          mutateProducts();
+          toast.success("Stock updated");
+        }}
+      />
+
+      <BarcodeHelpPanel className="mb-6" />
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row w-full min-w-0">
         <div className="relative flex-1 min-w-0">
@@ -365,6 +378,25 @@ export function ProductsListView() {
                   </div>
                 </div>
                 <div className="mt-4 flex gap-2 pt-3.5 border-t border-border/50 dark:border-white/5 w-full">
+                  {branchId !== "all" ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAdjustingProduct({
+                          id: p.id,
+                          name: p.name,
+                          stock: p.stock,
+                          priceGhs: p.priceGhs,
+                          costPriceGhs: p.costPriceGhs,
+                          unit: p.unit,
+                        })
+                      }
+                      className="tap-target flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[14px] font-semibold rounded-xl bg-[#006c49]/10 text-[#006c49] hover:bg-[#006c49]/15 border border-[#006c49]/15 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe] dark:border-[#6ffbbe]/20 transition-colors"
+                    >
+                      <PackagePlus className="size-4" />
+                      Stock
+                    </button>
+                  ) : null}
                   <Link href={`/dashboard/products/${p.id}/edit`} className="tap-target flex-1 flex items-center justify-center py-2.5 text-[14px] font-semibold rounded-xl bg-surface-elevated hover:bg-surface-elevated/80 border border-border text-foreground dark:bg-white/5 dark:border-white/10 transition-colors">
                     Edit
                   </Link>
@@ -426,6 +458,24 @@ export function ProductsListView() {
                     <td className="px-4 py-3 text-right tabular-nums">{formatQuantity(p.stock, p.unit)}</td>
                     <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {branchId !== "all" ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAdjustingProduct({
+                              id: p.id,
+                              name: p.name,
+                              stock: p.stock,
+                              priceGhs: p.priceGhs,
+                              costPriceGhs: p.costPriceGhs,
+                              unit: p.unit,
+                            })
+                          }
+                          className="text-[#006c49] font-medium mr-4"
+                        >
+                          Stock
+                        </button>
+                      ) : null}
                       <Link href={`/dashboard/products/${p.id}/edit`} className="text-[#006c49] font-medium mr-4">Edit</Link>
                       <button onClick={() => setDeletingProduct(p)} className="text-destructive font-medium">Delete</button>
                     </td>

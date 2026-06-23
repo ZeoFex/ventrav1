@@ -1,16 +1,6 @@
-export type BusinessTypeId =
-  | "pharmacy"
-  | "agrochemical_shop"
-  | "building_construction"
-  | "boutique_fashion"
-  | "supermarket"
-  | "cold_store"
-  | "electronics_store"
-  | "hardware_store"
-  | "stationery_bookshop"
-  | "furniture_store"
-  | "cosmetics_beauty"
-  | "general_retail_store";
+import type { BusinessTypeId } from "@/config/business-types";
+
+export type { BusinessTypeId };
 
 export type StoreStructure = "single" | "multi" | null;
 

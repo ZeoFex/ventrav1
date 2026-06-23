@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema/users";
 import { roles, permissions, rolePermissions, userRoles } from "@/server/db/schema/roles";
+import { branches } from "@/server/db/schema/branches";
 import { eq, and, sql, inArray, ne } from "drizzle-orm";
 import { hashPassword } from "@/server/auth/password-service";
 import {
@@ -131,6 +132,48 @@ export async function getStaffByBusiness(businessId: string, branchId?: string) 
         .innerJoin(userRoles, eq(users.id, userRoles.userId))
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
         .where(and(...filters));
+}
+
+export async function getStaffById(staffId: string, businessId: string) {
+    const [row] = await db
+        .select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            name: sql<string>`${users.firstName} || ' ' || COALESCE(${users.lastName}, '')`,
+            email: users.email,
+            phone: users.phone,
+            status: users.status,
+            avatarUrl: users.avatarUrl,
+            roleId: roles.id,
+            roleName: roles.name,
+            branchId: userRoles.branchId,
+            branchName: branches.name,
+        })
+        .from(users)
+        .innerJoin(userRoles, eq(users.id, userRoles.userId))
+        .innerJoin(roles, eq(userRoles.roleId, roles.id))
+        .leftJoin(branches, eq(userRoles.branchId, branches.id))
+        .where(and(eq(users.id, staffId), eq(users.businessId, businessId)))
+        .limit(1);
+
+    if (!row) return null;
+
+    const rolePerms = await db
+        .select({
+            key: permissions.key,
+            label: permissions.label,
+        })
+        .from(rolePermissions)
+        .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .where(eq(rolePermissions.roleId, row.roleId));
+
+    return {
+        ...row,
+        imageSrc: row.avatarUrl,
+        permissionKeys: rolePerms.map((p) => p.key),
+        permissions: rolePerms,
+    };
 }
 
 export async function getBusinessRoles(businessId: string) {

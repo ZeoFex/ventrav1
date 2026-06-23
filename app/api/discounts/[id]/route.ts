@@ -17,6 +17,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
             isActive,
             autoApply,
             minOrderValueGhs,
+            productIds,
             startDate,
             endDate,
         } = await req.json();
@@ -33,6 +34,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
                 isActive,
                 autoApply,
                 minOrderValueGhs: minOrderValueGhs ? minOrderValueGhs.toString() : null,
+                productIds: Array.isArray(productIds) && productIds.length > 0 ? productIds : null,
                 startDate: startDate ? new Date(startDate) : null,
                 endDate: endDate ? new Date(endDate) : null,
                 updatedAt: new Date(),

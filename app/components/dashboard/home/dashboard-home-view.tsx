@@ -1,4 +1,6 @@
 import { HomeGreeting } from "./home-greeting";
+import { HomeExpiryBanner } from "./home-expiry-banner";
+import { HomeReadyForPickupBanner } from "./home-ready-for-pickup-banner";
 import { HomeKpiCards } from "./home-kpi-cards";
 import { HomeQuickSaleProducts } from "./home-quick-sale-products";
 import { HomeRecentActivity } from "./home-recent-activity";
@@ -13,6 +15,10 @@ export function DashboardHomeView() {
         >
           <HomeGreeting />
         </div>
+
+        <HomeExpiryBanner />
+
+        <HomeReadyForPickupBanner />
 
         <section className="space-y-3 sm:space-y-4">
           <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">

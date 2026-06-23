@@ -185,6 +185,12 @@ export function StaffListView() {
 
                   <div className="mt-4 flex gap-2">
                     <Link
+                      href={`/dashboard/staff/${staff.id}`}
+                      className="flex-1 rounded-xl border border-[#e5e7eb] bg-white py-2 text-center text-[13px] font-medium hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
+                    >
+                      View
+                    </Link>
+                    <Link
                       href={`/dashboard/staff/${staff.id}/edit`}
                       className="flex-1 rounded-xl border border-[#e5e7eb] bg-white py-2 text-center text-[13px] font-medium hover:bg-[#fafafa] dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
                     >

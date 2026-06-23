@@ -5,6 +5,7 @@ export type OnboardingPrefillPayload = {
   businessId?: string;
   userId?: string;
   email?: string;
+  phone?: string;
   storeName?: string;
   legalName?: string;
   plan?: string;

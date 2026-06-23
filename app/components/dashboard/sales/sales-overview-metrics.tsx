@@ -1,9 +1,9 @@
 "use client";
 
 import useSWR from "swr";
-import { ArrowDownRight, ArrowUpRight, DollarSign, Receipt, ShoppingCart, Loader2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, DollarSign, Receipt, ShoppingCart } from "lucide-react";
 import Link from "next/link";
-import { useBranchContext } from "../branch-context";
+import { useSalesOverviewDate } from "./sales-overview-date-context";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -23,8 +23,8 @@ function formatGhs(n: number): string {
 }
 
 export function SalesOverviewMetrics() {
-    const { branchId } = useBranchContext();
-    const { data, isLoading } = useSWR(`/api/sales/overview?b=${branchId}`, fetcher);
+    const { overviewUrl } = useSalesOverviewDate();
+    const { data, isLoading } = useSWR(overviewUrl, fetcher);
     const metrics: OverviewMetric[] = data?.metrics ?? [];
 
     if (isLoading) {

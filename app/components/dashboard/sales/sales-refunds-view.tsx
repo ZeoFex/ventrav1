@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Package } from "lucide-react";
+import { ArrowLeft, Loader2, Package, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CatalogProductImage } from "../products/catalog-product-image";
@@ -35,6 +35,12 @@ type LookupLine = {
     sku: string | null;
     barcode: string | null;
     imageSrc: string | null;
+};
+
+type RestockSummaryLine = {
+    productName: string;
+    quantityReturned: number;
+    newStock: number | null;
 };
 
 const RETURN_REASONS = [
@@ -69,6 +75,7 @@ export function SalesRefundsView() {
     const [canReturn, setCanReturn] = useState(false);
     const [returnQty, setReturnQty] = useState<Record<string, number>>({});
     const [reason, setReason] = useState<string>(RETURN_REASONS[0].value);
+    const [restockSummary, setRestockSummary] = useState<RestockSummaryLine[] | null>(null);
 
     const resetToInvoice = useCallback(() => {
         setStep("invoice");
@@ -77,6 +84,7 @@ export function SalesRefundsView() {
         setReturnQty({});
         setCanReturn(false);
         setInvoiceInput("");
+        setRestockSummary(null);
     }, []);
 
     const applyPayload = useCallback((payload: { sale: LookupSale; lines: LookupLine[]; eligibility?: { canReturn: boolean } }) => {
@@ -169,6 +177,16 @@ export function SalesRefundsView() {
             if (!r.ok) {
                 throw new Error((data as { error?: string }).error || "Return failed");
             }
+            const restocked = (data as { restockedLines?: RestockSummaryLine[] }).restockedLines;
+            if (restocked?.length) {
+                setRestockSummary(
+                    restocked.map((l) => ({
+                        productName: l.productName,
+                        quantityReturned: l.quantityReturned,
+                        newStock: l.newStock,
+                    })),
+                );
+            }
             toast.success("Return recorded — stock restored and sale updated.");
             const nextStatus = (data as { sale?: { status?: string } }).sale?.status;
             if (nextStatus === "refunded") {
@@ -253,6 +271,30 @@ export function SalesRefundsView() {
                         </p>
                         <p className="mt-2 font-medium tabular-nums text-foreground">Total {formatGhs(Number(sale.totalGhs))}</p>
                     </div>
+
+                    {restockSummary && restockSummary.length > 0 ? (
+                        <div className="rounded-xl border border-[#006c49]/25 bg-[#006c49]/05 p-4 dark:border-[#6ffbbe]/25 dark:bg-[#6ffbbe]/05">
+                            <p className="flex items-center gap-2 text-[13px] font-semibold text-[#006c49] dark:text-[#6ffbbe]">
+                                <CheckCircle2 className="size-4 shrink-0" aria-hidden />
+                                Stock restored
+                            </p>
+                            <ul className="mt-2 space-y-1.5 text-[13px] text-foreground">
+                                {restockSummary.map((line, i) => (
+                                    <li key={`${line.productName}-${i}`} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                                        <span className="font-medium">{line.productName}</span>
+                                        <span className="tabular-nums text-muted-foreground">
+                                            +{line.quantityReturned}
+                                            {line.newStock != null ? (
+                                                <span className="ml-2 text-foreground">
+                                                    → {line.newStock} in stock
+                                                </span>
+                                            ) : null}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ) : null}
 
                     <div className="space-y-3">
                         <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">

@@ -134,6 +134,20 @@
       "when": 1779900000000,
       "tag": "0018_platform_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1780000000000,
+      "tag": "0019_sale_return_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1780100000000,
+      "tag": "0020_discount_product_ids",
+      "breakpoints": true
     }
   ]
 }

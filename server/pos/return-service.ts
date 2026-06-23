@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { products, productVariations } from "../db/schema/products";
 import { sales, saleItems } from "../db/schema/sales";
+import { saleReturnEvents } from "../db/schema/sale-return-events";
 import { invalidatePosBusinessCaches } from "./pos-service";
 
 function roundMoney(n: number): number {
@@ -45,6 +46,13 @@ export async function processSaleReturn(input: ProcessSaleReturnInput) {
 
     const saleId = input.saleId;
     const branchIdForCache: string | null = input.activeBranchId;
+
+    const restockedLines: {
+        saleItemId: string;
+        productName: string;
+        quantityReturned: number;
+        newStock: number | null;
+    }[] = [];
 
     await db.transaction(async (tx) => {
         const [sale] = await tx
@@ -117,23 +125,47 @@ export async function processSaleReturn(input: ProcessSaleReturnInput) {
                 throw new SaleReturnError("Could not update line (try again)", 409);
             }
 
+            let newStock: number | null = null;
+
             if (row.variationId) {
-                await tx
+                const [varRow] = await tx
                     .update(productVariations)
                     .set({
                         stock: sql`${productVariations.stock} + ${req.quantity}`,
                         updatedAt: new Date(),
                     })
-                    .where(eq(productVariations.id, row.variationId));
+                    .where(eq(productVariations.id, row.variationId))
+                    .returning({ stock: productVariations.stock });
+                newStock = varRow?.stock ?? null;
             } else if (row.productId) {
-                await tx
+                const [prodRow] = await tx
                     .update(products)
                     .set({
                         stock: sql`${products.stock} + ${req.quantity}`,
                         updatedAt: new Date(),
                     })
-                    .where(and(eq(products.id, row.productId), eq(products.businessId, input.businessId)));
+                    .where(and(eq(products.id, row.productId), eq(products.businessId, input.businessId)))
+                    .returning({ stock: products.stock });
+                newStock = prodRow?.stock ?? null;
             }
+
+            restockedLines.push({
+                saleItemId: req.saleItemId,
+                productName: row.productName,
+                quantityReturned: req.quantity,
+                newStock,
+            });
+
+            await tx.insert(saleReturnEvents).values({
+                businessId: input.businessId,
+                branchId: sale.branchId,
+                saleId,
+                saleItemId: req.saleItemId,
+                productId: row.productId,
+                variationId: row.variationId,
+                quantity: req.quantity,
+                userId: input.userId,
+            });
         }
 
         const refreshed = await tx
@@ -201,5 +233,6 @@ export async function processSaleReturn(input: ProcessSaleReturnInput) {
     return {
         sale: summary!,
         reason: input.reason ?? null,
+        restockedLines,
     };
 }

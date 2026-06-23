@@ -14,6 +14,7 @@ import { ArrowLeft, ImageIcon, Loader2, Printer, RefreshCw, X, Camera } from "lu
 import { toast } from "sonner";
 import { PosBarcodeCamera } from "../pos/sale/pos-barcode-camera";
 import { ProductBarcodePreview } from "./product-barcode-preview";
+import { BarcodeHelpPanel } from "./barcode-help-panel";
 import { generateProductSku } from "./product-catalog-codes";
 import { ProductsPageShell } from "./products-page-shell";
 import { BarcodeGridModal } from "./barcode-grid-modal";
@@ -488,6 +489,28 @@ export function ProductForm({
                   <button type="button" onClick={() => setSku(generateProductSku())} className="flex items-center justify-center px-5 border border-border rounded-2xl hover:bg-muted transition-colors dark:border-white/10" title="Generate Random SKU"><RefreshCw className="size-4" /></button>
                 </div>
               </div>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ProductBarcodePreview
+              productId={productId}
+              sku={sku}
+              name={name}
+              priceGhs={price}
+              categoryId={categoryId}
+            />
+            <div className="flex flex-col gap-3">
+              <BarcodeHelpPanel defaultOpen />
+              {sku.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setIsBarcodeModalOpen(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-[14px] font-semibold hover:bg-muted transition-colors dark:border-white/10"
+                >
+                  <Printer className="size-4" />
+                  Print barcode label
+                </button>
+              ) : null}
             </div>
           </div>
           <div className="space-y-2">

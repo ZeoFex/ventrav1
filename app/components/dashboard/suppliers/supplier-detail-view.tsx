@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useState, useEffect, type FormEvent } from "react";
 import useSWR from "swr";
 import {
     ArrowLeft,
@@ -29,6 +29,14 @@ const SUPPLY_PAYMENT_METHODS = [
     { value: "bank_transfer", label: "Bank transfer" },
     { value: "other", label: "Other" },
 ] as const;
+
+const CARTON_PRESETS = [1, 2, 3, 5, 6, 10, 12, 24, 48] as const;
+
+function generateGrnReference(): string {
+    const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Accra" }).format(new Date());
+    const suffix = Math.floor(1000 + Math.random() * 9000);
+    return `GRN-${dateKey.replace(/-/g, "")}-${suffix}`;
+}
 
 function labelForPaymentMethod(v: string | null | undefined): string {
     if (!v) return "—";
@@ -59,10 +67,10 @@ type LineDraft = {
 };
 
 function lineQuantity(l: LineDraft): number {
-    if (l.manualTotalItems != null) return Math.max(1, Math.floor(l.manualTotalItems));
+    if (l.manualTotalItems != null) return Math.max(0, Math.floor(l.manualTotalItems));
     const c = Math.max(0, l.cartons);
     const ipc = Math.max(1, l.itemsPerCarton);
-    if (c <= 0) return 1;
+    if (c <= 0) return 0;
     return c * ipc;
 }
 
@@ -72,7 +80,7 @@ function newLine(): LineDraft {
         productId: null,
         productName: "",
         categoryName: null,
-        cartons: 1,
+        cartons: 0,
         itemsPerCarton: 1,
         manualTotalItems: null,
         unitCostGhs: 0,
@@ -95,11 +103,18 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
     const { categories = [] } = useCategories();
 
     const [reference, setReference] = useState("");
+    const [referenceTouched, setReferenceTouched] = useState(false);
     const [amountPaidGhs, setAmountPaidGhs] = useState("0");
     const [paymentMethod, setPaymentMethod] = useState<string>("cash");
     const [supplyNotes, setSupplyNotes] = useState("");
     const [lines, setLines] = useState<LineDraft[]>([newLine()]);
     const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!referenceTouched && !reference.trim()) {
+            setReference(generateGrnReference());
+        }
+    }, [reference, referenceTouched]);
 
     const productById = useMemo(() => {
         const m = new Map<string, Product>();
@@ -214,7 +229,8 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
             const j = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(j.error || "Failed to save supply");
             toast.success("Supply recorded. Stock updated for linked catalog products.");
-            setReference("");
+            setReference(generateGrnReference());
+            setReferenceTouched(false);
             setAmountPaidGhs("0");
             setPaymentMethod("cash");
             setSupplyNotes("");
@@ -328,13 +344,31 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
                             <form onSubmit={handleRecordSupply} className="mt-4 space-y-4">
                                 <div>
                                     <label className="mb-1 block text-[13px] font-medium">Reference</label>
-                                    <input
-                                        required
-                                        value={reference}
-                                        onChange={(e) => setReference(e.target.value)}
-                                        placeholder="Invoice # / waybill"
-                                        className="w-full rounded-xl border px-3 py-2 dark:border-white/[0.12] dark:bg-[#111]"
-                                    />
+                                    <div className="flex gap-2">
+                                        <input
+                                            required
+                                            value={reference}
+                                            onChange={(e) => {
+                                                setReferenceTouched(true);
+                                                setReference(e.target.value);
+                                            }}
+                                            placeholder="Invoice # / waybill"
+                                            className="w-full rounded-xl border px-3 py-2 dark:border-white/[0.12] dark:bg-[#111]"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setReference(generateGrnReference());
+                                                setReferenceTouched(false);
+                                            }}
+                                            className="shrink-0 rounded-xl border px-3 py-2 text-[12px] font-semibold hover:bg-muted/40"
+                                        >
+                                            New #
+                                        </button>
+                                    </div>
+                                    <p className="mt-1 text-[11px] text-muted-foreground">
+                                        Auto-generated when you open this form — edit if needed.
+                                    </p>
                                 </div>
 
                                 <div className="space-y-3 rounded-xl border border-dashed p-4 dark:border-white/[0.12]">
@@ -409,39 +443,78 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
                                                 </div>
                                                 <div>
                                                     <label className="mb-1 block text-[12px] text-muted-foreground">
-                                                        Category (optional)
+                                                        Category
                                                     </label>
-                                                    <input
+                                                    <select
                                                         value={line.categoryName ?? ""}
                                                         onChange={(e) =>
                                                             updateLine(line.id, {
-                                                                categoryName: e.target.value.trim() || null,
+                                                                categoryName: e.target.value || null,
                                                             })
                                                         }
-                                                        placeholder="e.g. Beverages"
                                                         className="w-full rounded-lg border px-2 py-2 text-[13px] dark:border-white/[0.12] dark:bg-[#111]"
-                                                    />
+                                                    >
+                                                        <option value="">— Select category —</option>
+                                                        {(categories as { id: string; name: string }[]).map((c) => (
+                                                            <option key={c.id} value={c.name}>
+                                                                {c.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
                                                 </div>
+                                                {!line.productId && line.productName.trim() ? (
+                                                    <Link
+                                                        href={`/dashboard/products/new?name=${encodeURIComponent(line.productName.trim())}`}
+                                                        className="inline-flex text-[12px] font-semibold text-[#006c49] dark:text-[#6ffbbe]"
+                                                    >
+                                                        Add &quot;{line.productName.trim()}&quot; to catalog →
+                                                    </Link>
+                                                ) : null}
                                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                                     <div>
                                                         <label className="mb-1 block text-[12px] text-muted-foreground">
                                                             Cartons
                                                         </label>
-                                                        <input
-                                                            type="number"
-                                                            min={0}
-                                                            value={line.cartons}
-                                                            onChange={(e) =>
-                                                                updateLine(line.id, {
-                                                                    cartons: Math.max(
-                                                                        0,
-                                                                        parseInt(e.target.value, 10) || 0,
-                                                                    ),
-                                                                    manualTotalItems: null,
-                                                                })
+                                                        <select
+                                                            value={
+                                                                CARTON_PRESETS.includes(line.cartons as (typeof CARTON_PRESETS)[number])
+                                                                    ? String(line.cartons)
+                                                                    : "custom"
                                                             }
+                                                            onChange={(e) => {
+                                                                const v = e.target.value;
+                                                                if (v === "custom") return;
+                                                                updateLine(line.id, {
+                                                                    cartons: parseInt(v, 10) || 1,
+                                                                    manualTotalItems: null,
+                                                                });
+                                                            }}
                                                             className="w-full rounded-lg border px-2 py-2 text-[13px] dark:border-white/[0.12] dark:bg-[#111]"
-                                                        />
+                                                        >
+                                                            {CARTON_PRESETS.map((n) => (
+                                                                <option key={n} value={n}>
+                                                                    {n} carton{n === 1 ? "" : "s"}
+                                                                </option>
+                                                            ))}
+                                                            <option value="custom">Custom…</option>
+                                                        </select>
+                                                        {!CARTON_PRESETS.includes(line.cartons as (typeof CARTON_PRESETS)[number]) ? (
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                value={line.cartons}
+                                                                onChange={(e) =>
+                                                                    updateLine(line.id, {
+                                                                        cartons: Math.max(
+                                                                            0,
+                                                                            parseInt(e.target.value, 10) || 0,
+                                                                        ),
+                                                                        manualTotalItems: null,
+                                                                    })
+                                                                }
+                                                                className="mt-1 w-full rounded-lg border px-2 py-2 text-[13px] dark:border-white/[0.12] dark:bg-[#111]"
+                                                            />
+                                                        ) : null}
                                                     </div>
                                                     <div>
                                                         <label className="mb-1 block text-[12px] text-muted-foreground">

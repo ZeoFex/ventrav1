@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Loader2, Megaphone, Trash2, Edit2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Loader2, Megaphone, Trash2, Edit2, Search } from "lucide-react";
 import { MarketingPageShell } from "./marketing-page-shell";
 import { useDiscounts } from "./discounts-data-hooks";
 import { useBranchContext } from "../branch-context";
+import { useProducts } from "../products/products-data-hooks";
 
 export function DiscountsView() {
   const { branchId } = useBranchContext();
   const { discounts = [], isLoading, mutate } = useDiscounts();
+  const { products = [] } = useProducts();
   const [open, setOpen] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState<any>(null);
   const [deletingDiscount, setDeletingDiscount] = useState<any>(null);
@@ -19,9 +21,26 @@ export function DiscountsView() {
   const [value, setValue] = useState("");
   const [autoApply, setAutoApply] = useState(false);
   const [minOrderValueGhs, setMinOrderValueGhs] = useState("");
+  const [productIds, setProductIds] = useState<string[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [limitToProducts, setLimitToProducts] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p: { name: string; sku?: string }) =>
+      p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q),
+    );
+  }, [products, productSearch]);
+
+  function toggleProduct(id: string) {
+    setProductIds((prev) =>
+      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id],
+    );
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -38,6 +57,7 @@ export function DiscountsView() {
         value,
         autoApply,
         minOrderValueGhs: autoApply ? minOrderValueGhs : null,
+        productIds: limitToProducts ? productIds : null,
         isActive: true,
       };
 
@@ -86,6 +106,10 @@ export function DiscountsView() {
     setValue(d.value);
     setAutoApply(d.autoApply);
     setMinOrderValueGhs(d.minOrderValueGhs || "");
+    const ids = Array.isArray(d.productIds) ? d.productIds : [];
+    setProductIds(ids);
+    setLimitToProducts(ids.length > 0);
+    setProductSearch("");
     setOpen(true);
   }
 
@@ -97,6 +121,9 @@ export function DiscountsView() {
     setValue("");
     setAutoApply(false);
     setMinOrderValueGhs("");
+    setProductIds([]);
+    setLimitToProducts(false);
+    setProductSearch("");
   }
 
   return (
@@ -151,6 +178,11 @@ export function DiscountsView() {
                     </span>
                     <span className="text-sm font-medium text-muted-foreground">off</span>
                   </div>
+                  {Array.isArray(d.productIds) && d.productIds.length > 0 && (
+                    <p className="mt-2 text-[12px] text-muted-foreground">
+                      Applies to {d.productIds.length} selected {d.productIds.length === 1 ? "product" : "products"}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity border-t pt-3 dark:border-white/5 mt-auto">
@@ -225,6 +257,71 @@ export function DiscountsView() {
                           <input type="number" step="0.01" min="0" value={minOrderValueGhs} onChange={(e) => setMinOrderValueGhs(e.target.value)} placeholder="0.00" className="w-full py-2.5 pl-10 pr-4 rounded-xl border bg-white dark:bg-[#1a1a1a] font-medium" />
                         </div>
                       </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-xl border bg-muted/20">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <div className="flex h-5 items-center mt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={limitToProducts}
+                        onChange={(e) => {
+                          setLimitToProducts(e.target.checked);
+                          if (!e.target.checked) setProductIds([]);
+                        }}
+                        className="size-4 rounded border-primary"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-foreground">Limit to specific products</span>
+                      <span className="text-xs font-medium text-muted-foreground leading-relaxed mt-0.5">
+                        When enabled, this discount only applies to matching items in the cart.
+                      </span>
+                    </div>
+                  </label>
+
+                  {limitToProducts && (
+                    <div className="mt-4 space-y-3 border-t border-[#e5e7eb] pt-4 dark:border-white/10">
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          type="search"
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          placeholder="Search products…"
+                          className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-3 text-[14px] outline-none dark:bg-[#1a1a1a]"
+                        />
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border p-2 dark:border-white/10">
+                        {filteredProducts.length === 0 ? (
+                          <p className="px-2 py-3 text-center text-[13px] text-muted-foreground">No products found</p>
+                        ) : (
+                          filteredProducts.map((p: { id: string; name: string; sku?: string }) => (
+                            <label
+                              key={p.id}
+                              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 hover:bg-muted/40"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={productIds.includes(p.id)}
+                                onChange={() => toggleProduct(p.id)}
+                                className="size-4 rounded"
+                              />
+                              <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{p.name}</span>
+                              {p.sku && (
+                                <span className="shrink-0 text-[11px] text-muted-foreground">{p.sku}</span>
+                              )}
+                            </label>
+                          ))
+                        )}
+                      </div>
+                      {productIds.length > 0 && (
+                        <p className="text-[12px] font-medium text-muted-foreground">
+                          {productIds.length} product{productIds.length === 1 ? "" : "s"} selected
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

@@ -15,7 +15,7 @@ import { useBranchContext } from "../../branch-context";
 import { useSession } from "../../../auth/use-session";
 
 import type { CartLine } from "./pos-cart-totals";
-import { computePosTotals } from "./pos-cart-totals";
+import { computePosTotals, computeDiscountGhs, computeEligibleSubtotal } from "./pos-cart-totals";
 import { PosCartPanel, PosMobileCartDock } from "./pos-cart-panel";
 import { PosCategoryBar } from "./pos-category-bar";
 import { getPaymentMethod } from "./pos-payment-methods";
@@ -261,15 +261,7 @@ function PosSaleViewInner() {
     return m;
   }, [products]);
 
-  // 1. Calculate subtotal first to check min order values
-  const preDiscountSubtotal = useMemo(() => {
-    return lines.reduce((sum, line) => {
-      const p = productById.get(line.productId);
-      return sum + (p ? Number(p.priceGhs) * line.qty : 0);
-    }, 0);
-  }, [lines, productById]);
-
-  // 2. Determine applied discount
+  // Determine applied discount and totals
   const appliedDiscount = useMemo(() => {
     if (manualDiscountId) {
       return discounts.find((d: Discount) => d.id === manualDiscountId) || null;
@@ -280,27 +272,25 @@ function PosSaleViewInner() {
 
     for (const d of discounts) {
       if (!d.isActive || !d.autoApply) continue;
-      if (d.minOrderValueGhs && preDiscountSubtotal < Number(d.minOrderValueGhs)) continue;
-      
-      const amount = d.type === "percentage" 
-        ? preDiscountSubtotal * (Number(d.value) / 100)
-        : Number(d.value);
-        
+
+      const eligibleSubtotal = computeEligibleSubtotal(lines, productById, d);
+      if (eligibleSubtotal <= 0) continue;
+      if (d.minOrderValueGhs && eligibleSubtotal < Number(d.minOrderValueGhs)) continue;
+
+      const amount = computeDiscountGhs(d, lines, productById);
       if (amount > maxDiscountAmount) {
         maxDiscountAmount = amount;
         bestDiscount = d;
       }
     }
     return bestDiscount;
-  }, [manualDiscountId, discounts, preDiscountSubtotal]);
+  }, [manualDiscountId, discounts, lines, productById]);
 
-  // 3. Compute discountGhs
+  // Compute discountGhs
   const discountGhs = useMemo(() => {
     if (!appliedDiscount) return 0;
-    return appliedDiscount.type === "percentage"
-      ? preDiscountSubtotal * (Number(appliedDiscount.value) / 100)
-      : Number(appliedDiscount.value);
-  }, [appliedDiscount, preDiscountSubtotal]);
+    return computeDiscountGhs(appliedDiscount, lines, productById);
+  }, [appliedDiscount, lines, productById]);
 
   const totals = useMemo(
     () => computePosTotals(lines, productById, { taxRate, discountGhs }),

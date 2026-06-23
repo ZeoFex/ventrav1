@@ -83,6 +83,7 @@ function applyPrefill(
   if (!prefill) return snapshot;
   const next: OnboardingData = { ...snapshot };
   if (prefill.email && !next.email) next.email = prefill.email;
+  if (prefill.phone && !next.phone) next.phone = prefill.phone;
   if (prefill.storeName && !next.storeName) next.storeName = prefill.storeName;
   if (prefill.legalName && !next.legalName) next.legalName = prefill.legalName;
   if (prefill.plan) {
@@ -91,6 +92,18 @@ function applyPrefill(
   }
   if (prefill.cycle) next.cycle = prefill.cycle as OnboardingData["cycle"];
   return next;
+}
+
+function applyAccountDefaults(
+  snapshot: OnboardingData,
+  defaults?: { phone?: string | null; email?: string | null },
+): OnboardingData {
+  if (!defaults) return snapshot;
+  return {
+    ...snapshot,
+    phone: snapshot.phone || defaults.phone || "",
+    email: snapshot.email || defaults.email || "",
+  };
 }
 
 export function OnboardingView() {
@@ -118,6 +131,7 @@ export function OnboardingView() {
     (async () => {
       const prefill = consumeOnboardingPrefill();
       let hydrated = false;
+      let accountDefaults: { phone?: string | null; email?: string | null } | undefined;
 
       try {
         const res = await fetch("/api/onboarding/progress", {
@@ -128,10 +142,12 @@ export function OnboardingView() {
           const json = (await res.json()) as {
             onboardingCompleted: boolean;
             progress: StoredProgress | null;
+            accountDefaults?: { phone?: string | null; email?: string | null };
           };
           if (cancelled) return;
 
-          // Already finished — no reason to be on the wizard.
+          accountDefaults = json.accountDefaults;
+
           if (json.onboardingCompleted) {
             clearLocalProgress();
             router.replace("/dashboard");
@@ -140,7 +156,12 @@ export function OnboardingView() {
 
           if (json.progress) {
             const saved = json.progress;
-            setData((d) => applyPrefill(mergeProgress(d, saved.data), prefill));
+            setData((d) =>
+              applyAccountDefaults(
+                applyPrefill(mergeProgress(d, saved.data), prefill),
+                accountDefaults,
+              ),
+            );
             if (typeof saved.stepIndex === "number") {
               setStepIndex(Math.max(0, saved.stepIndex));
             }
@@ -154,7 +175,12 @@ export function OnboardingView() {
       if (!hydrated) {
         const local = readLocalProgress();
         if (local) {
-          setData((d) => applyPrefill(mergeProgress(d, local.data), prefill));
+          setData((d) =>
+            applyAccountDefaults(
+              applyPrefill(mergeProgress(d, local.data), prefill),
+              accountDefaults,
+            ),
+          );
           if (typeof local.stepIndex === "number") {
             setStepIndex(Math.max(0, local.stepIndex));
           }
@@ -162,8 +188,12 @@ export function OnboardingView() {
         }
       }
 
-      if (!hydrated && prefill) {
-        setData((d) => applyPrefill(d, prefill));
+      if (!hydrated) {
+        setData((d) =>
+          applyAccountDefaults(applyPrefill(d, prefill), accountDefaults),
+        );
+      } else if (accountDefaults) {
+        setData((d) => applyAccountDefaults(d, accountDefaults));
       }
 
       if (!cancelled) setIsHydrated(true);

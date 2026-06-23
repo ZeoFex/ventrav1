@@ -53,6 +53,7 @@ export async function POST(req: Request) {
             isActive = true,
             autoApply = false,
             minOrderValueGhs,
+            productIds,
             startDate,
             endDate,
         } = await req.json();
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
                 isActive,
                 autoApply,
                 minOrderValueGhs: minOrderValueGhs ? minOrderValueGhs.toString() : null,
+                productIds: Array.isArray(productIds) && productIds.length > 0 ? productIds : null,
                 startDate: startDate ? new Date(startDate) : null,
                 endDate: endDate ? new Date(endDate) : null,
             })
