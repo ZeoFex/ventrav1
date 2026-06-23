@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { ArrowUpRight, PackageOpen, Store } from "lucide-react";
@@ -35,17 +35,9 @@ function QuickSaleCarousel({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
-  const [manualScroll, setManualScroll] = useState(false);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1023px), (pointer: coarse)");
-    const update = () => setManualScroll(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-
-  const enableAutoScroll = products.length >= 3 && !manualScroll;
+  const enableAutoScroll = products.length >= 3;
   const loopProducts = enableAutoScroll ? [...products, ...products] : products;
 
   useEffect(() => {
@@ -71,30 +63,59 @@ function QuickSaleCarousel({
 
     frame = requestAnimationFrame(tick);
 
+    const clearResumeTimer = () => {
+      if (resumeTimerRef.current) {
+        clearTimeout(resumeTimerRef.current);
+        resumeTimerRef.current = null;
+      }
+    };
+
     const pause = () => {
       pausedRef.current = true;
+      clearResumeTimer();
     };
-    const resume = () => {
+
+    const scheduleResume = (delayMs = 2200) => {
+      clearResumeTimer();
+      resumeTimerRef.current = setTimeout(() => {
+        pausedRef.current = false;
+      }, delayMs);
+    };
+
+    const resumeNow = () => {
+      clearResumeTimer();
       pausedRef.current = false;
     };
 
+    const onPointerUp = () => scheduleResume();
+    const onTouchEnd = () => scheduleResume();
+    const onScroll = () => scheduleResume(2800);
+
     el.addEventListener("pointerenter", pause);
-    el.addEventListener("pointerleave", resume);
+    el.addEventListener("pointerleave", resumeNow);
     el.addEventListener("pointerdown", pause);
-    el.addEventListener("pointerup", resume);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("touchstart", pause, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+
     return () => {
       cancelAnimationFrame(frame);
+      clearResumeTimer();
       el.removeEventListener("pointerenter", pause);
-      el.removeEventListener("pointerleave", resume);
+      el.removeEventListener("pointerleave", resumeNow);
       el.removeEventListener("pointerdown", pause);
-      el.removeEventListener("pointerup", resume);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("touchstart", pause);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("scroll", onScroll);
     };
   }, [enableAutoScroll, products.length]);
 
   return (
     <div
       ref={scrollRef}
-      className={`-mx-4 overflow-x-auto overscroll-x-contain px-4 pb-2 touch-pan-x snap-x snap-mandatory [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${
+      className={`-mx-4 overflow-x-auto overscroll-x-contain px-4 pb-2 touch-pan-x [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${
         variant === "classic" ? "sm:-mx-6 sm:px-6" : ""
       }`}
       role="region"
@@ -108,7 +129,6 @@ function QuickSaleCarousel({
           return (
             <div
               key={`${product.id}-${index}`}
-              className="snap-start"
               data-tour-target={isFirst ? "home-quick-sale-item" : undefined}
             >
               {variant === "retail" ? (
