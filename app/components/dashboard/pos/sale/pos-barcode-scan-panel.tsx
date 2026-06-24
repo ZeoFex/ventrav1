@@ -12,12 +12,14 @@ import {
   useCallback,
   useEffect,
   useId,
-  useRef,
   useState,
 } from "react";
 import type { CartLine } from "./pos-cart-totals";
-import { PosBarcodeCamera } from "./pos-barcode-camera";
+import { PosBarcodeScanner } from "./pos-barcode-scanner";
+import { PosCreateProductFromScanModal } from "./pos-create-product-from-scan-modal";
 import { resolveProductFromScan } from "./pos-barcode-resolve";
+import type { GlobalBarcodePrefill } from "@/app/lib/pos/pending-product-barcode";
+import { storePendingProductFromScan } from "@/app/lib/pos/pending-product-barcode";
 import { useIsDesktopLayout } from "./use-pos-keyboard-wedge";
 import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
@@ -55,49 +57,41 @@ export function PosBarcodeScanPanel({
   const [pairToken, setPairToken] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [relayError, setRelayError] = useState<string | null>(null);
-  const [banner, setBanner] = useState<{
-    tone: "ok" | "err";
-    text: string;
+  const [createModal, setCreateModal] = useState<{
+    barcode: string;
+    globalPrefill: GlobalBarcodePrefill | null;
   } | null>(null);
-  const lastEmitRef = useRef<{ raw: string; at: number } | null>(null);
 
   const applyScan = useCallback(
-    (raw: string) => {
-      console.log(`[scan:apply] raw barcode: "${raw}"`);
-      const now = Date.now();
-      const prev = lastEmitRef.current;
-      if (prev && prev.raw === raw && now - prev.at < 500) {
-        console.log(`[scan:apply] ⏭ duplicate scan skipped (same barcode within 500ms)`);
-        return;
-      }
-      lastEmitRef.current = { raw, at: now };
-
-      console.log(`[scan:apply] resolving barcode against ${products.length} products…`);
-      const result = resolveProductFromScan(raw, products);
-      if (!result.ok) {
-        console.log(`[scan:apply] resolve failed: ${result.message}`);
-        setBanner({ tone: "err", text: result.message });
-        return;
-      }
-      console.log(`[scan:apply] matched: "${result.product.name}" (id=${result.product.id})`);
-      onProductAdded(result.product);
-
-      // Desktop: toast-style banner. Mobile with inline cart: list updates; camera stays open.
-      if (isDesktop || !mobileCart) {
-        setBanner({
-          tone: "ok",
-          text: `Added · ${result.product.name}`,
-        });
-      }
+    (product: ProductRow, _barcode: string) => {
+      onProductAdded(product);
     },
-    [isDesktop, mobileCart, onProductAdded, products],
+    [onProductAdded],
   );
 
-  useEffect(() => {
-    if (!banner) return;
-    const t = window.setTimeout(() => setBanner(null), 2800);
-    return () => window.clearTimeout(t);
-  }, [banner]);
+  const handleCreateProduct = useCallback(
+    (barcode: string, globalPrefill: GlobalBarcodePrefill | null) => {
+      storePendingProductFromScan({
+        barcode,
+        productName: globalPrefill?.productName,
+        description: globalPrefill?.description ?? undefined,
+        imageSrc: globalPrefill?.imageSrc,
+        unit: globalPrefill?.unit,
+        fromGlobalCatalog: Boolean(globalPrefill),
+        sourceBusinessName: globalPrefill?.sourceBusinessName,
+      });
+      setCreateModal({ barcode, globalPrefill });
+    },
+    [],
+  );
+
+  const handleProductCreatedFromScan = useCallback(
+    (product: ProductRow) => {
+      onProductAdded(product);
+      setCreateModal(null);
+    },
+    [onProductAdded],
+  );
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -163,7 +157,8 @@ export function PosBarcodeScanPanel({
           console.log(`[scan:poll] 📥 received ${data.scans.length} scan(s):`, data.scans.map(s => s.barcode));
         }
         for (const s of data.scans) {
-          applyScan(s.barcode);
+          const result = resolveProductFromScan(s.barcode, products);
+          if (result.ok) applyScan(result.product, result.normalizedBarcode);
         }
       } catch (err) {
         console.error(`[scan:poll] ❌ poll error:`, err);
@@ -177,12 +172,11 @@ export function PosBarcodeScanPanel({
       window.clearInterval(id);
       console.log(`[scan:poll] stopped poll loop`);
     };
-  }, [isDesktop, sessionId, pairToken, applyScan]);
+  }, [isDesktop, sessionId, pairToken, applyScan, products]);
 
   useEffect(() => {
     if (!open) {
       setDesktopTab("phone");
-      setBanner(null);
     }
   }, [open]);
 
@@ -230,7 +224,7 @@ export function PosBarcodeScanPanel({
             <p className="mt-0.5 text-[12px] text-muted-foreground sm:text-[13px]">
               {isDesktop
                 ? "Use your phone below, or scan from the sale screen with a handheld scanner."
-                : "Point at the product QR or barcode."}
+                : "Point at the product — any angle or orientation."}
             </p>
           </div>
           <button
@@ -242,17 +236,6 @@ export function PosBarcodeScanPanel({
             <X className="size-5" strokeWidth={2} aria-hidden />
           </button>
         </div>
-
-        {banner ? (
-          <div
-            className={`shrink-0 px-4 py-2 text-[13px] sm:px-5 ${banner.tone === "ok"
-              ? "bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
-              : "bg-red-500/10 text-red-700 dark:text-red-300"
-              } ${showMobileCart && banner.tone === "ok" ? "hidden" : ""}`}
-          >
-            {banner.text}
-          </div>
-        ) : null}
 
         {isDesktop ? (
           <div className="flex min-h-0 flex-1 flex-col">
@@ -333,18 +316,14 @@ export function PosBarcodeScanPanel({
           </div>
         ) : showMobileCart && mobileCart ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="relative w-full shrink-0 bg-black">
-              <PosBarcodeCamera
-                active
-                onScan={applyScan}
-                className="h-[min(280px,42svh)] w-full min-h-[200px] [&_video]:h-full [&_video]:object-cover [&_video]:rounded-none"
-              />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-2.5 pt-8">
-                <p className="text-center text-[12px] leading-snug text-white/88">
-                  Align code in frame · items appear below
-                </p>
-              </div>
-            </div>
+            <PosBarcodeScanner
+              active
+              products={products}
+              onProductFound={applyScan}
+              onCreateProduct={handleCreateProduct}
+              compactFooter
+              className="shrink-0 [&_.relative.min-h-0.flex-1]:h-[min(280px,42svh)] [&_.relative.min-h-0.flex-1]:min-h-[200px]"
+            />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#F8F9FA] dark:bg-[#0a0a0a]">
               <div className="flex shrink-0 items-center justify-between border-b border-[#e5e7eb] px-4 py-2.5 dark:border-white/[0.08]">
@@ -458,20 +437,23 @@ export function PosBarcodeScanPanel({
             </div>
           </div>
         ) : (
-          <div className="relative flex min-h-0 flex-1 flex-col bg-black">
-            <PosBarcodeCamera
-              active
-              onScan={applyScan}
-              className="min-h-[min(70dvh,520px)] w-full [&_video]:rounded-none"
-            />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-12">
-              <p className="text-center text-[13px] text-white/90">
-                Align the barcode or QR inside the frame
-              </p>
-            </div>
-          </div>
+          <PosBarcodeScanner
+            active
+            products={products}
+            onProductFound={applyScan}
+            onCreateProduct={handleCreateProduct}
+            className="min-h-0 flex-1"
+          />
         )}
       </div>
+
+      <PosCreateProductFromScanModal
+        open={Boolean(createModal)}
+        barcode={createModal?.barcode ?? ""}
+        globalPrefill={createModal?.globalPrefill}
+        onClose={() => setCreateModal(null)}
+        onProductCreated={handleProductCreatedFromScan}
+      />
     </div>
   );
 }

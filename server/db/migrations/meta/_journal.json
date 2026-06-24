@@ -148,6 +148,27 @@
       "when": 1780100000000,
       "tag": "0020_discount_product_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1780200000000,
+      "tag": "0021_product_barcode_labels",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1780300000000,
+      "tag": "0022_barcode_labels_optional_product",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1780400000000,
+      "tag": "0023_global_barcode_catalog",
+      "breakpoints": true
     }
   ]
 }

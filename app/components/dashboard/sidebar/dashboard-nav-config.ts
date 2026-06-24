@@ -95,6 +95,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         href: "/dashboard/products",
       },
       {
+        id: "barcodes",
+        label: "Barcodes",
+        href: "/dashboard/products/barcodes",
+      },
+      {
         id: "categories",
         label: "Categories",
         href: "/dashboard/products/categories",
@@ -108,6 +113,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         id: "stock",
         label: "Stock / inventory",
         href: "/dashboard/inventory",
+      },
+      {
+        id: "expiring-stock",
+        label: "Expiring stock",
+        href: "/dashboard/inventory/expiring",
       },
       {
         id: "stock-take",

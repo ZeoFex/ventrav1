@@ -10,14 +10,11 @@ import {
   useEffect,
   type FormEvent,
 } from "react";
-import { ArrowLeft, ImageIcon, Loader2, Printer, RefreshCw, X, Camera } from "lucide-react";
+import { ArrowLeft, ImageIcon, Loader2, RefreshCw, X, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { PosBarcodeCamera } from "../pos/sale/pos-barcode-camera";
-import { ProductBarcodePreview } from "./product-barcode-preview";
-import { BarcodeHelpPanel } from "./barcode-help-panel";
 import { generateProductSku } from "./product-catalog-codes";
 import { ProductsPageShell } from "./products-page-shell";
-import { BarcodeGridModal } from "./barcode-grid-modal";
 import { useCategories, useTags } from "./products-data-hooks";
 import { SearchableCombobox, type ComboboxOption } from "@/components/ui/searchable-combobox";
 import { useUploadThing } from "@/app/lib/uploadthing";
@@ -32,6 +29,8 @@ import {
 export type ProductFormInitialValues = {
   name: string;
   sku: string;
+  /** Retail barcode (EAN/UPC/Code128) — separate from internal SKU. */
+  barcode?: string;
   description: string;
   price: number | "";
   /** Cost per unit (GHS); optional — used for COGS / P&L. */
@@ -71,6 +70,7 @@ export function ProductForm({
 
   const [name, setName] = useState(initial.name);
   const [sku, setSku] = useState(initial.sku);
+  const [barcode, setBarcode] = useState(initial.barcode ?? "");
   const [description, setDescription] = useState(initial.description);
   const [price, setPrice] = useState<number | "">(initial.price);
   const [costPrice, setCostPrice] = useState<number | "">(
@@ -142,7 +142,6 @@ export function ProductForm({
     );
   };
 
-  const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initial.imageSrc);
 
@@ -220,44 +219,55 @@ export function ProductForm({
 
   const handleBarcodeScan = useCallback(
     async (scannedCode: string) => {
-      const code = scannedCode.trim();
+      const code = scannedCode.trim().replace(/\s+/g, "");
       setIsScanningMode(false);
-      setSku(code);
+      setBarcode(code);
 
-      // Edit: only replace SKU from the scanner; keep the rest of the product as-is.
       if (mode === "edit") {
         setIsLookingUp(true);
-        toast.info("Checking catalog…");
-        try {
-          const res = await fetch(
-            `/api/products/lookup?barcode=${encodeURIComponent(code)}`,
-          );
-          const result = await res.json();
-
-          if (res.ok && result.found) {
-            toast.success(
-              "SKU updated. Catalog lists this barcode — your saved name, description, and image were kept.",
-            );
-          } else {
-            toast.success(
-              "SKU updated. No catalog match — your existing product details are unchanged.",
-            );
-          }
-        } catch {
-          toast.success(
-            "SKU updated. Catalog check failed — your existing details are unchanged.",
-          );
-        } finally {
-          setIsLookingUp(false);
-        }
+        toast.success("Barcode updated.");
+        setIsLookingUp(false);
         return;
       }
 
-      // New product: fill from registry when found, otherwise leave fields for manual entry.
       setIsLookingUp(true);
       toast.info("Looking up product details…");
 
       try {
+        const ventraRes = await fetch(
+          `/api/products/barcodes/lookup?sku=${encodeURIComponent(code)}`,
+        );
+        const ventraResult = await ventraRes.json();
+
+        if (ventraRes.ok && ventraResult.found) {
+          setName(ventraResult.data.name);
+          setDescription(ventraResult.data.description || "");
+          if (ventraResult.data.imageUrl) {
+            setImagePreview(ventraResult.data.imageUrl);
+            setSelectedFile(null);
+          }
+          toast.success("Details loaded from your barcode label.");
+          return;
+        }
+
+        const globalRes = await fetch(
+          `/api/barcodes/global/lookup?barcode=${encodeURIComponent(code)}`,
+        );
+        if (globalRes.ok) {
+          const global = await globalRes.json();
+          if (global.found && global.productName) {
+            setName(global.productName);
+            setDescription(global.description || "");
+            if (global.imageSrc) {
+              setImagePreview(global.imageSrc);
+              setSelectedFile(null);
+            }
+            if (global.unit) setUnitSelect(global.unit.toLowerCase());
+            toast.success("Loaded from Ventra shared catalog. Set your prices.");
+            return;
+          }
+        }
+
         const res = await fetch(
           `/api/products/lookup?barcode=${encodeURIComponent(code)}`,
         );
@@ -268,15 +278,14 @@ export function ProductForm({
           setDescription(result.data.description || "");
           if (result.data.imageUrl) {
             setImagePreview(result.data.imageUrl);
+            setSelectedFile(null);
           }
           toast.success("Product details found!");
         } else {
-          toast.info(
-            "Product not found in global registry. Please enter details manually.",
-          );
+          toast.info("Barcode captured. Enter product details and save.");
         }
       } catch {
-        toast.error("Lookup failed. Please enter details manually.");
+        toast.error("Lookup failed. Barcode captured — enter details manually.");
       } finally {
         setIsLookingUp(false);
       }
@@ -303,6 +312,7 @@ export function ProductForm({
     const productData = {
       name,
       sku,
+      barcode: barcode.trim() || null,
       description,
       priceGhs: price.toString(),
       costPriceGhs: costStr,
@@ -344,7 +354,10 @@ export function ProductForm({
           }),
         });
 
-        if (!res.ok) throw new Error("Save failed");
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(typeof err.error === "string" ? err.error : "Save failed");
+        }
 
         await revalidateProductCaches(
           (key) => typeof key === "string" && key.startsWith("/api/products"),
@@ -383,7 +396,7 @@ export function ProductForm({
       router.push("/dashboard/products");
       router.refresh();
     } catch (err) {
-      alert("Failed to save product. Please check your connection.");
+      toast.error(err instanceof Error ? err.message : "Failed to save product. Please check your connection.");
     } finally {
       setIsSaving(false);
     }
@@ -478,39 +491,31 @@ export function ProductForm({
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">Barcode / SKU *</label>
+              <label className="text-sm font-semibold ml-1">Internal SKU *</label>
               <div className="flex flex-col sm:flex-row gap-2">
-                <input required value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Scan or type..." />
-                <div className="flex gap-2 h-[50px] sm:h-auto">
-                  <button type="button" onClick={() => setIsScanningMode(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20" title="Scan Barcode">
-                    {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-                    <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
-                  </button>
-                  <button type="button" onClick={() => setSku(generateProductSku())} className="flex items-center justify-center px-5 border border-border rounded-2xl hover:bg-muted transition-colors dark:border-white/10" title="Generate Random SKU"><RefreshCw className="size-4" /></button>
-                </div>
+                <input required value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Auto-generated" />
+                <button type="button" onClick={() => setSku(generateProductSku())} className="flex items-center justify-center px-5 border border-border rounded-2xl hover:bg-muted transition-colors dark:border-white/10 h-[50px]" title="Generate Random SKU"><RefreshCw className="size-4" /></button>
               </div>
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <ProductBarcodePreview
-              productId={productId}
-              sku={sku}
-              name={name}
-              priceGhs={price}
-              categoryId={categoryId}
-            />
-            <div className="flex flex-col gap-3">
-              <BarcodeHelpPanel defaultOpen />
-              {sku.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => setIsBarcodeModalOpen(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-[14px] font-semibold hover:bg-muted transition-colors dark:border-white/10"
-                >
-                  <Printer className="size-4" />
-                  Print barcode label
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Retail barcode</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value.replace(/\s+/g, ""))}
+                  className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                  placeholder="EAN / UPC / Code 128"
+                />
+                <button type="button" onClick={() => setIsScanningMode(true)} className="flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20 h-[50px]" title="Scan Barcode">
+                  {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+                  <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
                 </button>
-              ) : null}
+              </div>
+              <p className="ml-1 text-[12px] text-muted-foreground">
+                Scanned retail barcode — stored separately from your internal SKU.
+              </p>
             </div>
           </div>
           <div className="space-y-2">
@@ -807,12 +812,6 @@ export function ProductForm({
           </button>
         </div>
       </form>
-
-      <BarcodeGridModal
-        isOpen={isBarcodeModalOpen}
-        onClose={() => setIsBarcodeModalOpen(false)}
-        products={[{ id: productId, name, sku, priceGhs: Number(price) || 0 }]}
-      />
 
       {isScanningMode && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">

@@ -115,7 +115,7 @@ function RemoteScanContent() {
               <p className="text-[13px] text-red-300">{lastMsg}</p>
             ) : (
               <p className="text-[13px] text-white/85">
-                Point at a barcode or product QR
+                Point at a barcode — any angle works
               </p>
             )}
           </div>

@@ -1,59 +1,81 @@
 import { parseProductBarcodePayload } from "@/app/components/dashboard/products/product-catalog-codes";
+import {
+  barcodeLookupVariants,
+  normalizeScannedBarcode,
+  POS_BARCODE_NOT_FOUND_MESSAGE,
+} from "@/app/lib/pos/barcode-scanner/normalize";
 import { type ProductRow } from "../../products/types";
 
 export type ResolveScanResult =
-  | { ok: true; product: ProductRow }
-  | { ok: false; message: string };
+  | { ok: true; product: ProductRow; normalizedBarcode: string }
+  | { ok: false; message: string; normalizedBarcode: string };
 
+function matchesAnyVariant(value: string | null | undefined, variants: Set<string>): boolean {
+  if (!value) return false;
+  const cleaned = normalizeScannedBarcode(value);
+  if (variants.has(cleaned) || variants.has(cleaned.toUpperCase())) return true;
+  const digits = cleaned.replace(/\D/g, "");
+  return digits.length > 0 && variants.has(digits);
+}
+
+/**
+ * Resolve a scanned barcode against the current register catalog (business/branch products).
+ * Tries product barcode, SKU, variation barcodes, and Ventra JSON QR payloads.
+ */
 export function resolveProductFromScan(
   raw: string,
   products: ProductRow[],
 ): ResolveScanResult {
-  const trimmed = raw.trim();
-  console.log(`[resolve] input: "${trimmed}" (${trimmed.length} chars)`);
-
-  if (!trimmed) {
-    return { ok: false, message: "Empty scan" };
+  const normalized = normalizeScannedBarcode(raw);
+  if (!normalized) {
+    return { ok: false, message: "Empty scan", normalizedBarcode: "" };
   }
 
-  const json = parseProductBarcodePayload(trimmed);
+  const variants = new Set<string>();
+  for (const v of barcodeLookupVariants(normalized)) {
+    variants.add(v);
+    variants.add(v.toUpperCase());
+    const digits = v.replace(/\D/g, "");
+    if (digits) variants.add(digits);
+  }
+
+  const json = parseProductBarcodePayload(normalized);
   if (json) {
-    console.log(`[resolve] parsed as JSON payload → id="${json.id}" sku="${json.sku}"`);
     const byId = products.find((p) => p.id === json.id);
     if (byId) {
-      console.log(`[resolve] ✅ matched by id → "${byId.name}"`);
-      return { ok: true, product: byId };
+      return { ok: true, product: byId, normalizedBarcode: normalized };
     }
     const sku = json.sku.trim().toUpperCase();
-
-    // Check products by SKU
     const bySku = products.find((p) => p.sku.toUpperCase() === sku);
     if (bySku) {
-      console.log(`[resolve] ✅ matched by sku → "${bySku.name}"`);
-      return { ok: true, product: bySku };
+      return { ok: true, product: bySku, normalizedBarcode: normalized };
     }
-
-    console.log(`[resolve] ❌ JSON payload id/sku not found in catalog`);
-    return { ok: false, message: "Product not in this register’s catalog" };
+    return {
+      ok: false,
+      message: POS_BARCODE_NOT_FOUND_MESSAGE,
+      normalizedBarcode: normalized,
+    };
   }
 
-  console.log(`[resolve] not JSON — trying raw SKU/Barcode match: "${trimmed.toUpperCase()}"`);
-  const matchStr = trimmed.toUpperCase();
-
-  // 1. Direct product SKU match
-  const bySku = products.find((p) => p.sku.toUpperCase() === matchStr);
-  if (bySku) {
-    console.log(`[resolve] ✅ matched by SKU → "${bySku.name}"`);
-    return { ok: true, product: bySku };
+  for (const p of products) {
+    if (matchesAnyVariant(p.sku, variants)) {
+      return { ok: true, product: p, normalizedBarcode: normalized };
+    }
+    if (matchesAnyVariant(p.barcode, variants)) {
+      return { ok: true, product: p, normalizedBarcode: normalized };
+    }
+    for (const v of p.variations ?? []) {
+      if (matchesAnyVariant(v.sku, variants) || matchesAnyVariant(v.barcode, variants)) {
+        return { ok: true, product: p, normalizedBarcode: normalized };
+      }
+    }
   }
 
-  // 2. Direct product Barcode match
-  const byBarcode = products.find((p: any) => p.barcode?.toUpperCase() === matchStr);
-  if (byBarcode) {
-    console.log(`[resolve] ✅ matched by Barcode → "${byBarcode.name}"`);
-    return { ok: true, product: byBarcode };
-  }
-
-  console.log(`[resolve] ❌ no match found`);
-  return { ok: false, message: "Unknown barcode — try search or check SKU" };
+  return {
+    ok: false,
+    message: POS_BARCODE_NOT_FOUND_MESSAGE,
+    normalizedBarcode: normalized,
+  };
 }
+
+export { POS_BARCODE_NOT_FOUND_MESSAGE };

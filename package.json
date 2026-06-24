@@ -33,6 +33,7 @@
     "@upstash/redis": "^1.37.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "@zxing/library": "^0.22.0",
     "ai": "^6.0.168",
     "bullmq": "^5.71.0",
     "class-variance-authority": "^0.7.1",

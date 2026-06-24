@@ -2,12 +2,12 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Loader2, X } from "lucide-react";
-import { toast } from "sonner";
-import { PosBarcodeCamera } from "../pos/sale/pos-barcode-camera";
+import { PosBarcodeScanner } from "../pos/sale/pos-barcode-scanner";
+import { PosCreateProductFromScanModal } from "../pos/sale/pos-create-product-from-scan-modal";
 import { useProducts } from "../products/products-data-hooks";
-import { resolveProductFromScan } from "../pos/sale/pos-barcode-resolve";
 import { useGlobalCart } from "../pos/global-cart-context";
-import { playPosAddProductBeep } from "../pos/sale/pos-add-beep";
+import type { GlobalBarcodePrefill } from "@/app/lib/pos/pending-product-barcode";
+import { type ProductRow } from "../products/types";
 
 export function GlobalBarcodeModal({
   isOpen,
@@ -19,52 +19,47 @@ export function GlobalBarcodeModal({
   const { products = [], isLoading } = useProducts(isOpen);
   const { addToCart } = useGlobalCart();
   const [cameraActive, setCameraActive] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  const [createModal, setCreateModal] = useState<{
+    barcode: string;
+    globalPrefill: GlobalBarcodePrefill | null;
+  } | null>(null);
   const closeTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Activate camera shortly after opening to allow animation
   useEffect(() => {
     if (isOpen) {
       const t = setTimeout(() => setCameraActive(true), 150);
       return () => clearTimeout(t);
-    } else {
-      setCameraActive(false);
-      setProcessing(false);
     }
+    setCameraActive(false);
+    setCreateModal(null);
   }, [isOpen]);
 
-  const handleScan = useCallback(
-    (code: string) => {
-      if (processing || !products.length || !isOpen) return;
-
-      setProcessing(true);
-      const result = resolveProductFromScan(code, products);
-
-      if (result.ok) {
-        addToCart(result.product.id, undefined, result.product.stock);
-        playPosAddProductBeep();
-        toast.success(`Success! Added ${result.product.name}`);
-        
-        // Success cooldown
-        if (closeTimeout.current) clearTimeout(closeTimeout.current);
-        closeTimeout.current = setTimeout(() => {
-           setProcessing(false);
-           console.log("Scanner ready for next item");
-        }, 1250);
-      } else {
-        toast.error("Product not found");
-        setProcessing(false); // allow immediate retry on failure
-      }
+  const handleProductFound = useCallback(
+    (product: ProductRow) => {
+      addToCart(product.id, undefined, product.stock);
+      if (closeTimeout.current) clearTimeout(closeTimeout.current);
+      closeTimeout.current = setTimeout(() => {}, 1250);
     },
-    [products, addToCart, processing, isOpen, onClose],
+    [addToCart],
+  );
+
+  const handleCreateProduct = useCallback(
+    (barcode: string, globalPrefill: GlobalBarcodePrefill | null) => {
+      setCreateModal({ barcode, globalPrefill });
+    },
+    [],
+  );
+
+  const handleProductCreated = useCallback(
+    (product: ProductRow) => {
+      addToCart(product.id, undefined, product.stock);
+      setCreateModal(null);
+    },
+    [addToCart],
   );
 
   const handleClose = useCallback(() => {
-    console.log("Attempting to close GlobalBarcodeModal manually.");
-    if (closeTimeout.current) {
-        clearTimeout(closeTimeout.current);
-    }
-    setProcessing(false);
+    if (closeTimeout.current) clearTimeout(closeTimeout.current);
     onClose();
   }, [onClose]);
 
@@ -76,45 +71,46 @@ export function GlobalBarcodeModal({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={handleClose}
       />
-      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-background shadow-2xl dark:border dark:border-white/10">
+      <div className="relative flex w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-background shadow-2xl dark:border dark:border-white/10">
         <div className="flex items-center justify-between border-b p-4 dark:border-white/10">
           <h2 className="font-semibold">Scan Product Barcode</h2>
           <button
             type="button"
             onClick={(e) => {
-               e.preventDefault();
-               e.stopPropagation();
-               handleClose();
+              e.preventDefault();
+              e.stopPropagation();
+              handleClose();
             }}
             className="tap-target rounded-full p-2 hover:bg-muted"
           >
             <X className="size-5" />
           </button>
         </div>
-        <div className="relative h-[300px] w-full sm:h-[400px]">
-          <PosBarcodeCamera
-            active={cameraActive}
-            onScan={handleScan}
-            className="h-full w-full"
+        <div className="relative min-h-[480px] w-full">
+          {isLoading ? (
+            <div className="absolute top-4 right-4 z-10 flex items-center gap-2 rounded-xl bg-black/60 px-3 py-1.5 backdrop-blur-md text-white">
+              <Loader2 className="size-3.5 animate-spin text-[#FFD60A]" />
+              <span className="text-xs font-medium">Syncing catalog…</span>
+            </div>
+          ) : null}
+
+          <PosBarcodeScanner
+            active={cameraActive && !isLoading}
+            products={products}
+            onProductFound={handleProductFound}
+            onCreateProduct={handleCreateProduct}
+            className="h-full min-h-[480px]"
           />
-
-          {isLoading && (
-            <div className="absolute top-4 right-4 flex items-center gap-2 rounded-xl bg-black/60 px-3 py-1.5 backdrop-blur-md text-white">
-               <Loader2 className="size-3.5 animate-spin text-[#00ff9d]" />
-               <span className="text-xs font-medium">Syncing...</span>
-            </div>
-          )}
-
-          {processing && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-lg dark:bg-[#111]">
-                   <Loader2 className="size-5 animate-spin text-[#006c49]" />
-                   <span className="font-medium">Adding to cart...</span>
-                </div>
-            </div>
-          )}
         </div>
       </div>
+
+      <PosCreateProductFromScanModal
+        open={Boolean(createModal)}
+        barcode={createModal?.barcode ?? ""}
+        globalPrefill={createModal?.globalPrefill ?? null}
+        onClose={() => setCreateModal(null)}
+        onProductCreated={handleProductCreated}
+      />
     </div>
   );
 }

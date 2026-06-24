@@ -19,6 +19,8 @@ export interface ProductRow {
     description?: string;
     imageSrc?: string | null;
     slug?: string;
+    /** Retail / label barcode (EAN-13, UPC-A, Code 128, etc.) */
+    barcode?: string | null;
     /** Unit of measure (e.g. "piece", "kg", "g", "lb"). Defaults to "piece". */
     unit?: string | null;
     variations?: ProductVariation[];
