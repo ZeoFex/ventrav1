@@ -3,12 +3,6 @@
 import { Zap, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  BarcodeScanEngine,
-  drawDetectionOverlay,
-} from "@/app/lib/pos/barcode-scanner/engine";
-import type { DetectedBarcode } from "@/app/lib/pos/barcode-scanner/types";
-import { POS_BARCODE_SCANNER_CONFIG } from "@/app/lib/pos/barcode-scanner/config";
 
 export type PosBarcodeScanResult = {
   text: string;
@@ -24,18 +18,35 @@ type PosBarcodeCameraProps = {
   className?: string;
 };
 
+type BarcodeDetectionResult = {
+  codeResult?: {
+    code?: string;
+    format?: string;
+  };
+};
+
 type CameraConstraintSet = MediaTrackConstraintSet & {
   torch?: boolean;
   zoom?: number;
-  focusMode?: string;
+};
+
+type QuaggaModule = {
+  init: (
+    config: Record<string, unknown>,
+    callback: (error?: unknown) => void,
+  ) => void;
+  start: () => void;
+  stop: () => void;
+  onDetected: (callback: (result: BarcodeDetectionResult) => void) => void;
+  offDetected: (callback: (result: BarcodeDetectionResult) => void) => void;
+  CameraAccess: {
+    getActiveTrack: () => MediaStreamTrack | null;
+  };
 };
 
 /**
- * Intelligent full-frame barcode camera.
- *
- * Uses the Shape Detection BarcodeDetector API when available (orientation +
- * perspective tolerant), with a ZXing polyfill + multi-rotation fallback.
- * Replaces the previous Quagga2 scan-line approach.
+ * High-performance 1D barcode camera using Quagga2.
+ * Proven reliable for retail EAN/UPC/Code128 at distance; supports pause during lookup.
  */
 export function PosBarcodeCamera({
   active,
@@ -44,67 +55,29 @@ export function PosBarcodeCamera({
   className,
 }: PosBarcodeCameraProps) {
   const onScanRef = useRef(onScan);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const overlayRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const engineRef = useRef<BarcodeScanEngine | null>(null);
-  const overlayRafRef = useRef(0);
+  const scanEnabledRef = useRef(scanEnabled);
+  const lastRef = useRef<{ text: string; at: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const quaggaRef = useRef<QuaggaModule | null>(null);
 
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [zoomSupported, setZoomSupported] = useState(false);
   const [zoomValue, setZoomValue] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1, step: 0.1 });
-  const [backendLabel, setBackendLabel] = useState<string | null>(null);
-  const latestDetectionRef = useRef<DetectedBarcode | null>(null);
 
   onScanRef.current = onScan;
+  scanEnabledRef.current = scanEnabled;
 
   const getCameraTrack = useCallback(() => {
-    return streamRef.current?.getVideoTracks()[0] ?? null;
-  }, []);
+    const quagga = quaggaRef.current;
+    if (!quagga) return null;
 
-  const syncOverlaySize = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = overlayRef.current;
-    if (!video || !canvas) return;
-
-    const rect = video.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-  }, []);
-
-  const paintOverlay = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = overlayRef.current;
-    if (!video || !canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    drawDetectionOverlay(ctx, latestDetectionRef.current, video, canvas);
-  }, []);
-
-  const startOverlayLoop = useCallback(() => {
-    const loop = () => {
-      paintOverlay();
-      overlayRafRef.current = requestAnimationFrame(loop);
-    };
-    overlayRafRef.current = requestAnimationFrame(loop);
-  }, [paintOverlay]);
-
-  const stopOverlayLoop = useCallback(() => {
-    if (overlayRafRef.current) {
-      cancelAnimationFrame(overlayRafRef.current);
-      overlayRafRef.current = 0;
+    try {
+      return quagga.CameraAccess.getActiveTrack();
+    } catch {
+      return null;
     }
-    const canvas = overlayRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    latestDetectionRef.current = null;
   }, []);
 
   const toggleTorch = useCallback(async () => {
@@ -145,160 +118,156 @@ export function PosBarcodeCamera({
     if (!active) return;
 
     let cancelled = false;
-    const video = videoRef.current;
-    if (!video) return;
+    let handleDetected: ((result: BarcodeDetectionResult) => void) | null = null;
 
-    const startCamera = async () => {
+    const startScanner = async () => {
+      if (!containerRef.current) return;
+
       try {
-        const { camera } = POS_BARCODE_SCANNER_CONFIG;
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: camera.facingMode,
-            width: camera.width,
-            height: camera.height,
-            // Continuous autofocus for nearby products (Chrome/Android)
-            focusMode: { ideal: camera.focusMode },
-          } as MediaTrackConstraints,
-          audio: false,
-        });
+        const { default: Quagga } = await import("@ericblade/quagga2");
+        if (cancelled || !containerRef.current) return;
 
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
+        const scanner = Quagga as unknown as QuaggaModule;
+        quaggaRef.current = scanner;
 
-        streamRef.current = stream;
-        video.srcObject = stream;
-        await video.play();
+        handleDetected = (result: BarcodeDetectionResult) => {
+          if (!scanEnabledRef.current) return;
 
-        syncOverlaySize();
-        startOverlayLoop();
+          const code = result.codeResult?.code?.trim();
+          if (!code) return;
 
-        const track = stream.getVideoTracks()[0];
-        if (track) {
-          const caps = track.getCapabilities() as MediaTrackCapabilities & {
-            torch?: boolean;
-            zoom?: { min?: number; max?: number; step?: number } | number;
-            focusMode?: string[];
-          };
+          const now = Date.now();
+          const prev = lastRef.current;
+          if (prev && prev.text === code && now - prev.at < 800) {
+            return;
+          }
+          lastRef.current = { text: code, at: now };
+          onScanRef.current(code, {
+            text: code,
+            format: result.codeResult?.format,
+            confidence: 1,
+          });
+        };
 
-          if (caps.torch) setTorchSupported(true);
-
-          if (caps.focusMode?.includes("continuous")) {
-            try {
-              await track.applyConstraints({
-                advanced: [{ focusMode: "continuous" } as CameraConstraintSet],
-              });
-            } catch {
-              /* optional */
+        scanner.init(
+          {
+            inputStream: {
+              type: "LiveStream",
+              target: containerRef.current,
+              constraints: {
+                width: { min: 640, ideal: 1920 },
+                height: { min: 480, ideal: 1080 },
+                facingMode: "environment",
+                aspectRatio: { ideal: 1.7777777778 },
+              },
+              area: { top: "25%", right: "0%", left: "0%", bottom: "25%" },
+            },
+            decoder: {
+              readers: [
+                "code_128_reader",
+                "ean_reader",
+                "ean_8_reader",
+                "upc_reader",
+                "upc_e_reader",
+              ],
+              multiple: false,
+            },
+            locate: true,
+            numOfWorkers: navigator.hardwareConcurrency || 4,
+            frequency: 10,
+          },
+          (err) => {
+            if (err) {
+              console.error("Quagga initialization failed:", err);
+              toast.error(
+                "Camera access denied or unsupported. Use HTTPS and allow camera permissions.",
+              );
+              return;
             }
-          }
 
-          if (caps.zoom) {
-            const zoomCapabilities =
-              typeof caps.zoom === "number"
-                ? { min: caps.zoom, max: caps.zoom, step: 0.1 }
-                : caps.zoom;
+            if (cancelled) {
+              scanner.stop();
+              return;
+            }
 
-            setZoomSupported(true);
-            setZoomRange({
-              min: zoomCapabilities.min || 1,
-              max: zoomCapabilities.max || 1,
-              step: zoomCapabilities.step || 0.1,
-            });
-            setZoomValue(zoomCapabilities.min || 1);
-          }
-        }
+            scanner.start();
+            if (handleDetected) {
+              scanner.onDetected(handleDetected);
+            }
 
-        const engine = new BarcodeScanEngine({
-          onDetection: (detection) => {
-            latestDetectionRef.current = detection;
+            setTimeout(() => {
+              const track = getCameraTrack();
+              if (!track) return;
+
+              const caps = track.getCapabilities() as MediaTrackCapabilities & {
+                torch?: boolean;
+                zoom?: { min?: number; max?: number; step?: number } | number;
+              };
+
+              if (caps.torch) setTorchSupported(true);
+
+              if (caps.zoom) {
+                const zoomCapabilities =
+                  typeof caps.zoom === "number"
+                    ? { min: caps.zoom, max: caps.zoom, step: 0.1 }
+                    : caps.zoom;
+
+                setZoomSupported(true);
+                setZoomRange({
+                  min: zoomCapabilities.min || 1,
+                  max: zoomCapabilities.max || 1,
+                  step: zoomCapabilities.step || 0.1,
+                });
+                setZoomValue(zoomCapabilities.min || 1);
+              }
+            }, 800);
           },
-          onAcceptedScan: (detection) => {
-            latestDetectionRef.current = detection;
-            onScanRef.current(detection.rawValue, {
-              text: detection.rawValue,
-              format: detection.format,
-              confidence: detection.confidence,
-            });
-          },
-          onError: (err) => {
-            console.warn("[barcode-engine]", err);
-          },
-        });
-
-        engineRef.current = engine;
-        const backend = await engine.start(video);
-        if (!cancelled) {
-          setBackendLabel(backend === "native" ? "HD scan" : "Compat scan");
-        }
-      } catch (err) {
-        console.error("Camera / scanner startup failed:", err);
-        toast.error(
-          "Camera access denied or unsupported. Use HTTPS and allow camera permissions.",
         );
+      } catch (err) {
+        console.error("Failed to load barcode scanner:", err);
+        toast.error("Barcode scanner failed to load on this device.");
       }
     };
 
-    void startCamera();
-
-    const onResize = () => syncOverlaySize();
-    window.addEventListener("resize", onResize);
+    void startScanner();
 
     return () => {
       cancelled = true;
-      window.removeEventListener("resize", onResize);
-      stopOverlayLoop();
-      engineRef.current?.stop();
-      engineRef.current = null;
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      if (video) video.srcObject = null;
-      setBackendLabel(null);
+      const scanner = quaggaRef.current;
+      if (scanner && handleDetected) {
+        scanner.offDetected(handleDetected);
+      }
+      scanner?.stop();
+      quaggaRef.current = null;
       setTorchSupported(false);
       setTorchOn(false);
       setZoomSupported(false);
     };
-  }, [active, startOverlayLoop, stopOverlayLoop, syncOverlaySize]);
-
-  useEffect(() => {
-    const engine = engineRef.current;
-    if (!engine) return;
-    if (scanEnabled) engine.resume();
-    else engine.pause();
-  }, [scanEnabled]);
+  }, [active, getCameraTrack]);
 
   if (!active) return null;
 
   return (
     <div className={`relative overflow-hidden ${className ?? ""}`}>
-      <video
-        ref={videoRef}
-        playsInline
-        muted
-        autoPlay
-        className="h-full w-full object-cover bg-black"
+      <div
+        ref={containerRef}
+        className="h-full w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"
         aria-label="Barcode camera preview"
       />
 
-      <canvas
-        ref={overlayRef}
-        className="pointer-events-none absolute inset-0 h-full w-full"
-        aria-hidden
-      />
-
-      {/* Soft vignette — no fixed scan line; full frame is analyzed */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.35)_100%)]" />
-
-      {backendLabel ? (
-        <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-white/75 backdrop-blur-sm">
-          {backendLabel}
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4">
+        <div className="relative h-[40%] w-full max-h-[220px] max-w-[440px]">
+          <div className="absolute top-0 left-0 h-8 w-8 rounded-tl-2xl border-t-[3px] border-l-[3px] border-[#FFD60A] drop-shadow-[0_0_8px_rgba(255,214,10,0.45)]" />
+          <div className="absolute top-0 right-0 h-8 w-8 rounded-tr-2xl border-t-[3px] border-r-[3px] border-[#FFD60A] drop-shadow-[0_0_8px_rgba(255,214,10,0.45)]" />
+          <div className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-2xl border-b-[3px] border-l-[3px] border-[#FFD60A] drop-shadow-[0_0_8px_rgba(255,214,10,0.45)]" />
+          <div className="absolute bottom-0 right-0 h-8 w-8 rounded-br-2xl border-b-[3px] border-r-[3px] border-[#FFD60A] drop-shadow-[0_0_8px_rgba(255,214,10,0.45)]" />
+          <div className="absolute inset-x-4 top-1/2 h-[1px] -translate-y-1/2 bg-gradient-to-r from-transparent via-[#FFD60A] to-transparent opacity-60 shadow-[0_0_12px_#FFD60A] animate-pulse" />
         </div>
-      ) : null}
+      </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-[4.5rem] px-4 sm:bottom-[5rem]">
         <p className="text-center text-[12px] leading-snug text-white/80 drop-shadow-sm">
-          Hold the product naturally — any angle works
+          Hold the barcode in frame — EAN, UPC, and Code 128
         </p>
       </div>
 

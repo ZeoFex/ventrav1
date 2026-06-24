@@ -189,7 +189,7 @@ export function PosBarcodeScanner({
     onCreateProduct?.(lastBarcode, globalPrefill);
   }, [globalPrefill, lastBarcode, onCreateProduct]);
 
-  const scanEnabled = state === "scanning";
+  const scanEnabled = state === "scanning" || state === "error";
 
   return (
     <div className={`relative flex flex-col ${className ?? ""}`}>
