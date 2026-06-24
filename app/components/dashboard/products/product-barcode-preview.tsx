@@ -61,7 +61,7 @@ export function BarcodeItem({
           {description}
         </div>
       ) : null}
-      <svg ref={svgRef} className="block h-auto w-full" />
+      <svg ref={svgRef} className="barcode-svg block h-auto w-full bg-white" />
       {typeof priceGhs === "number" && (
         <div className="mt-1 text-center text-[11px] font-bold tabular-nums">
           GHS {priceGhs.toFixed(2)}

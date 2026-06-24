@@ -284,11 +284,20 @@ export function BarcodeGridModal({
     box-shadow: none !important;
     page-break-inside: avoid;
   }
-  #barcode-print-grid svg,
-  #barcode-print-grid svg * {
+  #barcode-print-grid svg {
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #barcode-print-grid svg text {
     fill: #000 !important;
-    stroke: #000 !important;
     color: #000 !important;
+  }
+  #barcode-print-grid svg rect.barcode-bar {
+    fill: #000 !important;
+  }
+  #barcode-print-grid svg rect.barcode-bg {
+    fill: #fff !important;
   }
 }
 `,

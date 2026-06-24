@@ -33,11 +33,30 @@ export function renderCode128Barcode(
       displayValue: true,
       fontSize,
       margin: 6,
-      background: "#ffffff",
+      background: "transparent",
       lineColor,
       fontOptions: "bold",
       textMargin: 2,
     });
+
+    // Tag rects so print CSS keeps bars black and any backdrop white.
+    svg.querySelectorAll("rect").forEach((rect) => {
+      const fill = (rect.getAttribute("fill") || "").toLowerCase();
+      const isBackground =
+        fill === "#ffffff" ||
+        fill === "#fff" ||
+        fill === "white" ||
+        fill === "transparent" ||
+        fill === "none";
+      if (isBackground) {
+        rect.classList.add("barcode-bg");
+      } else {
+        rect.setAttribute("fill", lineColor);
+        rect.classList.add("barcode-bar");
+      }
+    });
+
+    svg.classList.add("barcode-svg");
     return true;
   } catch {
     return false;
