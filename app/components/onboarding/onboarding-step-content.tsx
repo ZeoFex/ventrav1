@@ -700,7 +700,9 @@ export function OnboardingStepContent({
 
     case "structure": {
       const maxBranches = PLAN_LIMITS[data.plan].maxBranches;
-      const multiBranchLocked = maxBranches === 1;
+      const multiBranchLocked = maxBranches <= 1;
+      const planLabel =
+        data.plan === "pro" ? "Pro" : data.plan === "growth" ? "Growth" : "Starter";
 
       return (
         <div className="space-y-6">
@@ -714,6 +716,12 @@ export function OnboardingStepContent({
             <p className="mt-2 text-[15px] text-muted-foreground">
               One shop today, or several branches—you can add branches next.
             </p>
+            {!multiBranchLocked ? (
+              <p className="mt-2 text-[13px] font-medium text-[#006c49] dark:text-[#6ffbbe]">
+                Your {planLabel} plan includes up to {maxBranches} branch
+                {maxBranches === 1 ? "" : "es"}.
+              </p>
+            ) : null}
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {(
@@ -726,7 +734,10 @@ export function OnboardingStepContent({
                 {
                   id: "multi" as const,
                   title: "Multiple branches",
-                  desc: "Head office + outlets.",
+                  desc:
+                    maxBranches > 1
+                      ? `Head office + up to ${maxBranches} outlets.`
+                      : "Head office + outlets.",
                 },
               ] as const
             ).map((opt) => {

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { BRANCH_ADDON_PRICE_MONTHLY_GHS } from "@/config/plans";
 import type { CatalogShop } from "./catalog-admin-types";
 import {
     formatDate,
@@ -52,6 +53,8 @@ export function CatalogShopSubscriptionPanel({ token, shop, onUpdated, onDeleted
     );
 
     const daysLeft = subscriptionDaysLeft(shop.currentPeriodEnd);
+    const branchAddonMonthly =
+        (shop.paidExtraBranches ?? 0) * BRANCH_ADDON_PRICE_MONTHLY_GHS;
     const periodProgress =
         daysLeft !== null && daysLeft > 0
             ? Math.min(100, Math.max(8, (daysLeft / 30) * 100))
@@ -134,6 +137,13 @@ export function CatalogShopSubscriptionPanel({ token, shop, onUpdated, onDeleted
                             />
                             <AccountStatusBadge status={shop.status} />
                         </div>
+                        {(shop.paidExtraBranches ?? 0) > 0 ? (
+                            <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-400">
+                                +GHS {branchAddonMonthly}/month for {shop.paidExtraBranches}{" "}
+                                extra branch{shop.paidExtraBranches === 1 ? "" : "es"} (GHS{" "}
+                                {BRANCH_ADDON_PRICE_MONTHLY_GHS} each)
+                            </p>
+                        ) : null}
                     </div>
                     <div className="text-right">
                         <p className="text-xs text-muted-foreground">Period ends</p>

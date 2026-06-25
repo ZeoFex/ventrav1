@@ -7,6 +7,24 @@ export const MAX_BRANCHES_BY_PLAN: Record<PlanId, number> = {
   pro: 5,
 };
 
+/** Monthly add-on price per admin-granted extra branch (GHS). */
+export const BRANCH_ADDON_PRICE_MONTHLY_GHS = 50;
+
+export function getEffectiveMaxBranches(
+  plan: PlanId,
+  paidExtraBranches = 0,
+): number {
+  return (MAX_BRANCHES_BY_PLAN[plan] ?? 1) + Math.max(0, paidExtraBranches);
+}
+
+export function getBranchAddonPriceGhs(
+  paidExtraBranches: number,
+  cycle: "monthly" | "annually",
+): number {
+  const monthly = BRANCH_ADDON_PRICE_MONTHLY_GHS * Math.max(0, paidExtraBranches);
+  return cycle === "monthly" ? monthly : monthly * 12;
+}
+
 /** Free trial length for Growth and Pro signups (days). */
 export const PREMIUM_TRIAL_DAYS = 14;
 

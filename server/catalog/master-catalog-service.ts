@@ -81,6 +81,7 @@ export type CatalogShopDto = {
     registeredEmails: string[];
     productCount: number;
     branchCount: number;
+    paidExtraBranches: number;
     plan: "starter" | "growth" | "pro";
     status: "active" | "suspended" | "deactivated";
     subscriptionStatus: "active" | "past_due" | "canceled";
@@ -979,6 +980,7 @@ function mapCatalogShopRow(
         createdAt: Date;
         updatedAt: Date;
         onboardingCompleted: boolean | null;
+        paidExtraBranches: number;
         productCount: number;
     },
     registeredEmails: string[],
@@ -998,6 +1000,7 @@ function mapCatalogShopRow(
         registeredEmails,
         productCount: Number(r.productCount),
         branchCount,
+        paidExtraBranches: r.paidExtraBranches ?? 0,
         plan: r.plan,
         status: r.status,
         subscriptionStatus: r.subscriptionStatus,
@@ -1065,6 +1068,7 @@ export async function listCatalogShops(params: CatalogShopListParams) {
             createdAt: businesses.createdAt,
             updatedAt: businesses.updatedAt,
             onboardingCompleted: businesses.onboardingCompleted,
+            paidExtraBranches: businesses.paidExtraBranches,
             productCount: sql<number>`count(${products.id})::int`,
         })
         .from(businesses)
@@ -1084,7 +1088,8 @@ export async function listCatalogShops(params: CatalogShopListParams) {
             businesses.currentPeriodEnd,
             businesses.createdAt,
             businesses.updatedAt,
-            businesses.onboardingCompleted
+            businesses.onboardingCompleted,
+            businesses.paidExtraBranches
         )
         .orderBy(orderFn(sortCol))
         .limit(params.limit)
@@ -1168,6 +1173,7 @@ export async function getCatalogShopById(
             createdAt: businesses.createdAt,
             updatedAt: businesses.updatedAt,
             onboardingCompleted: businesses.onboardingCompleted,
+            paidExtraBranches: businesses.paidExtraBranches,
         })
         .from(businesses)
         .where(eq(businesses.id, businessId))

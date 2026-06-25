@@ -23,6 +23,8 @@ export const branches = pgTable(
             .notNull()
             .references(() => businesses.id, { onDelete: "cascade" }),
         name: varchar("name", { length: 255 }).notNull(),
+        /** Shop type slug for this branch (defaults to business type when unset). */
+        businessType: varchar("business_type", { length: 100 }),
         code: varchar("code", { length: 20 }),
         region: varchar("region", { length: 100 }),
         address: text("address"),

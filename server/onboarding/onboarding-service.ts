@@ -41,6 +41,7 @@ export interface OnboardingInput {
     branches: {
         name: string;
         region: string;
+        shopType: string | null;
         isMain: boolean;
     }[];
     plan: "starter" | "growth" | "pro";
@@ -111,11 +112,18 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
         }
 
         // Update the existing Main branch
+        const mainBranchInput =
+            input.structure === "multi" && input.branches.length > 0
+                ? input.branches.find((b) => b.isMain) || input.branches[0]
+                : null;
+
         await tx
             .update(branches)
             .set({
                 name: mainBranchData.name,
                 region: mainBranchData.region,
+                businessType:
+                    mainBranchInput?.shopType ?? input.businessType ?? null,
                 updatedAt: now,
             })
             .where(and(eq(branches.businessId, input.businessId), eq(branches.isMain, true)));
@@ -136,30 +144,26 @@ export async function completeOnboarding(input: OnboardingInput): Promise<void> 
                         name: b.name.trim(),
                         code: `BR-${i + 1}`,
                         region: b.region || null,
+                        businessType: b.shopType ?? input.businessType ?? null,
                         isMain: false,
                     }))
                 );
             }
         }
 
-        // 4. Seed default categories for the main branch (shop type defaults)
-        const [mainBranch] = await tx
-            .select({ id: branches.id })
+        // 4. Seed default categories for every branch (shop type per branch)
+        const allBranchRows = await tx
+            .select({ id: branches.id, businessType: branches.businessType })
             .from(branches)
-            .where(
-                and(
-                    eq(branches.businessId, input.businessId),
-                    eq(branches.isMain, true),
-                ),
-            )
-            .limit(1);
+            .where(eq(branches.businessId, input.businessId));
 
-        if (mainBranch) {
+        for (const branchRow of allBranchRows) {
             await seedDefaultCategoriesForBusiness(
                 {
                     businessId: input.businessId,
-                    branchId: mainBranch.id,
-                    businessType: input.businessType,
+                    branchId: branchRow.id,
+                    businessType:
+                        branchRow.businessType ?? input.businessType,
                     skipIfExists: true,
                 },
                 tx,

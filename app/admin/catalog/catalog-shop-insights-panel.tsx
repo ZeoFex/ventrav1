@@ -7,8 +7,11 @@ import {
     Loader2,
     MapPin,
     Percent,
+    Plus,
     Users,
 } from "lucide-react";
+import { BRANCH_ADDON_PRICE_MONTHLY_GHS } from "@/config/plans";
+import { BUSINESS_TYPES } from "@/config/business-types";
 import { cn } from "@/lib/utils";
 import type { CatalogShop } from "./catalog-admin-types";
 import { authHeaders, formatWhen } from "./catalog-admin-utils";
@@ -20,6 +23,7 @@ type Branch = {
     region: string | null;
     status: string;
     isMain: boolean;
+    businessType?: string | null;
 };
 
 type Discount = {
@@ -43,18 +47,47 @@ type ShopStats = {
     counts: Record<string, number>;
 };
 
+const GHANA_REGIONS = [
+    "Greater Accra",
+    "Ashanti",
+    "Western",
+    "Central",
+    "Eastern",
+    "Volta",
+    "Northern",
+    "Upper East",
+    "Upper West",
+    "Bono",
+    "Bono East",
+    "Ahafo",
+    "Oti",
+    "Savannah",
+    "North East",
+    "Western North",
+] as const;
+
 export function CatalogShopInsightsPanel({
     token,
     shop,
+    onShopUpdated,
 }: {
     token: string;
     shop: CatalogShop;
+    onShopUpdated?: (patch: Partial<CatalogShop>) => void;
 }) {
     const [stats, setStats] = useState<ShopStats | null>(null);
     const [branches, setBranches] = useState<Branch[]>([]);
     const [discounts, setDiscounts] = useState<Discount[]>([]);
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const [addOpen, setAddOpen] = useState(false);
+    const [addName, setAddName] = useState("");
+    const [addRegion, setAddRegion] = useState("");
+    const [addShopType, setAddShopType] = useState(shop.shopType || "");
+    const [adding, setAdding] = useState(false);
+    const [addError, setAddError] = useState<string | null>(null);
+    const [addSuccess, setAddSuccess] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -86,6 +119,51 @@ export function CatalogShopInsightsPanel({
         void load();
     }, [load]);
 
+    const monthlyAddon =
+        (shop.paidExtraBranches ?? 0) * BRANCH_ADDON_PRICE_MONTHLY_GHS;
+
+    const handleAddBranch = async () => {
+        if (!addName.trim()) {
+            setAddError("Branch name is required.");
+            return;
+        }
+        setAdding(true);
+        setAddError(null);
+        setAddSuccess(null);
+        try {
+            const res = await fetch("/api/platform/branches", {
+                method: "POST",
+                headers: {
+                    ...authHeaders(token),
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    businessId: shop.id,
+                    name: addName.trim(),
+                    region: addRegion || undefined,
+                    businessType: addShopType || undefined,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to add branch");
+            }
+            setAddSuccess(data.message || "Branch added.");
+            setAddName("");
+            setAddRegion("");
+            setAddOpen(false);
+            onShopUpdated?.({
+                branchCount: shop.branchCount + 1,
+                paidExtraBranches: data.paidExtraBranches ?? shop.paidExtraBranches,
+            });
+            await load();
+        } catch (err) {
+            setAddError(err instanceof Error ? err.message : "Failed to add branch");
+        } finally {
+            setAdding(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card py-12 text-sm text-muted-foreground">
@@ -108,10 +186,99 @@ export function CatalogShopInsightsPanel({
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <section className="rounded-xl border border-border bg-card p-5">
-                    <h3 className="flex items-center gap-2 font-semibold text-foreground">
-                        <Building2 className="h-4 w-4" />
-                        Branches
-                    </h3>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <h3 className="flex items-center gap-2 font-semibold text-foreground">
+                            <Building2 className="h-4 w-4" />
+                            Branches
+                        </h3>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAddOpen((v) => !v);
+                                setAddError(null);
+                                setAddSuccess(null);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800"
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            Add branch
+                        </button>
+                    </div>
+
+                    {(shop.paidExtraBranches ?? 0) > 0 && (
+                        <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
+                            {shop.paidExtraBranches} paid extra branch
+                            {shop.paidExtraBranches === 1 ? "" : "es"} · +GHS {monthlyAddon}/month
+                            on subscription
+                        </p>
+                    )}
+
+                    {addSuccess ? (
+                        <p className="mt-3 text-sm text-emerald-600">{addSuccess}</p>
+                    ) : null}
+
+                    {addOpen ? (
+                        <div className="mt-4 space-y-3 rounded-lg border border-dashed border-emerald-500/30 bg-emerald-500/5 p-4">
+                            <p className="text-xs text-muted-foreground">
+                                Grant a branch when the owner requests it. Branches beyond their
+                                plan limit add GHS {BRANCH_ADDON_PRICE_MONTHLY_GHS}/month each.
+                            </p>
+                            <input
+                                value={addName}
+                                onChange={(e) => setAddName(e.target.value)}
+                                placeholder="Branch name"
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <select
+                                value={addRegion}
+                                onChange={(e) => setAddRegion(e.target.value)}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            >
+                                <option value="">Region (optional)</option>
+                                {GHANA_REGIONS.map((r) => (
+                                    <option key={r} value={r}>
+                                        {r}
+                                    </option>
+                                ))}
+                            </select>
+                            <select
+                                value={addShopType}
+                                onChange={(e) => setAddShopType(e.target.value)}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            >
+                                <option value="">Shop type (optional)</option>
+                                {BUSINESS_TYPES.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                        {t.label}
+                                    </option>
+                                ))}
+                            </select>
+                            {addError ? (
+                                <p className="text-xs text-red-600">{addError}</p>
+                            ) : null}
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    disabled={adding}
+                                    onClick={() => void handleAddBranch()}
+                                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                                >
+                                    {adding ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : null}
+                                    Confirm add
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setAddOpen(false)}
+                                    className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
+
                     {branches.length === 0 ? (
                         <p className="mt-4 text-sm text-muted-foreground">No branches yet.</p>
                     ) : (

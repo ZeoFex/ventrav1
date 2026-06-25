@@ -1,4 +1,4 @@
-import { PLANS, type PlanId } from "@/config/plans";
+import { PLANS, type PlanId, getBranchAddonPriceGhs } from "@/config/plans";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 import { eq } from "drizzle-orm";
@@ -10,6 +10,8 @@ export async function getSubscriptionQuoteForBusiness(
     cycle: "monthly" | "annually",
 ): Promise<{
     subtotalGhs: number;
+    branchAddonGhs: number;
+    paidExtraBranches: number;
     discountGhs: number;
     totalGhs: number;
     totalPesewas: number;
@@ -18,22 +20,28 @@ export async function getSubscriptionQuoteForBusiness(
     const planDetails = PLANS.find((p) => p.id === plan);
     if (!planDetails) return null;
 
-    const subtotalGhs =
+    const basePlanGhs =
         cycle === "monthly"
             ? planDetails.priceMonthly
             : planDetails.priceAnnually;
 
     let reservedBps = 0;
+    let paidExtraBranches = 0;
     if (businessId) {
         const [row] = await db
             .select({
                 reserved: businesses.referralDiscountReservedBps,
+                paidExtraBranches: businesses.paidExtraBranches,
             })
             .from(businesses)
             .where(eq(businesses.id, businessId))
             .limit(1);
         reservedBps = row?.reserved ?? 0;
+        paidExtraBranches = row?.paidExtraBranches ?? 0;
     }
+
+    const branchAddonGhs = getBranchAddonPriceGhs(paidExtraBranches, cycle);
+    const subtotalGhs = basePlanGhs + branchAddonGhs;
 
     const { pesewas, discountGhs } = applyReservedReferralDiscountPesewas(
         subtotalGhs,
@@ -42,6 +50,8 @@ export async function getSubscriptionQuoteForBusiness(
 
     return {
         subtotalGhs,
+        branchAddonGhs,
+        paidExtraBranches,
         discountGhs,
         totalGhs: pesewas / 100,
         totalPesewas: pesewas,

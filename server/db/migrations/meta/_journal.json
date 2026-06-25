@@ -169,6 +169,13 @@
       "when": 1780400000000,
       "tag": "0023_global_barcode_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1780500000000,
+      "tag": "0024_verification_link_and_branch_addons",
+      "breakpoints": true
     }
   ]
 }

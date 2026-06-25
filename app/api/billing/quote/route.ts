@@ -50,6 +50,8 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             subtotalGhs: quote.subtotalGhs,
+            branchAddonGhs: quote.branchAddonGhs,
+            paidExtraBranches: quote.paidExtraBranches,
             discountGhs: quote.discountGhs,
             totalGhs: quote.totalGhs,
             reservedBpsApplied: quote.reservedBpsApplied,

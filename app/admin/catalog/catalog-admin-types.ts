@@ -80,6 +80,7 @@ export type CatalogShop = {
     registeredEmails: string[];
     productCount: number;
     branchCount: number;
+    paidExtraBranches: number;
     plan: BusinessPlan;
     status: BusinessStatus;
     subscriptionStatus: SubscriptionStatus;
