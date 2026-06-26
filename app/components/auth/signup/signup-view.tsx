@@ -67,14 +67,6 @@ function SignupViewContent() {
   // API states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
-
-  const applyDevOtp = useCallback((code: string) => {
-    const digits = code.replace(/\D/g, "").slice(0, 6);
-    if (digits.length !== 6) return;
-    setOtp(digits.split(""));
-    setDevOtpHint(`Development: verification code ${digits} (email may not arrive until ventrapos.com is verified in Resend).`);
-  }, []);
 
   const passwordChecks = useMemo(
     (): PasswordChecks => getPasswordChecks(password),
@@ -166,11 +158,6 @@ function SignupViewContent() {
         return;
       }
 
-      if (typeof data._devOtp === "string") {
-        applyDevOtp(data._devOtp);
-      }
-
-      // Success — move to OTP step
       setStep("otp");
     } catch {
       setApiError("Network error. Please check your connection.");
@@ -232,11 +219,10 @@ function SignupViewContent() {
     setResendSeconds(30);
     setOtp(Array(6).fill(""));
     setApiError(null);
-    setDevOtpHint(null);
     otpRefs.current[0]?.focus();
 
     try {
-      const res = await fetch("/api/auth/resend-otp", {
+      await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -245,10 +231,6 @@ function SignupViewContent() {
           phone: otpChannel === "sms" ? phone.trim() : undefined,
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (typeof data._devOtp === "string") {
-        applyDevOtp(data._devOtp);
-      }
     } catch {
       // Silently fail — don't reveal anything
     }
@@ -260,11 +242,10 @@ function SignupViewContent() {
     setResendSeconds(30);
     setOtp(Array(6).fill(""));
     setApiError(null);
-    setDevOtpHint(null);
     setTimeout(() => otpRefs.current[0]?.focus(), 100);
 
     try {
-      const res = await fetch("/api/auth/resend-otp", {
+      await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -273,10 +254,6 @@ function SignupViewContent() {
           phone: newChannel === "sms" ? phone.trim() : undefined,
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (typeof data._devOtp === "string") {
-        applyDevOtp(data._devOtp);
-      }
     } catch {
       // Silently fail
     }
@@ -356,7 +333,6 @@ function SignupViewContent() {
             otpComplete={otpComplete}
             isSubmitting={isSubmitting}
             apiError={apiError}
-            devOtpHint={devOtpHint}
             onOtpDigit={setOtpDigit}
             onOtpPaste={handleOtpPaste}
             onVerify={handleVerifyOtp}

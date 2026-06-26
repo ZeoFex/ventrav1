@@ -10,7 +10,6 @@ type SignupOtpFormProps = {
   otpComplete: boolean;
   isSubmitting: boolean;
   apiError: string | null;
-  devOtpHint?: string | null;
   onOtpDigit: (index: number, value: string) => void;
   onOtpPaste: (e: React.ClipboardEvent<HTMLFormElement>) => void;
   onVerify: (e: React.FormEvent) => void;
@@ -37,7 +36,6 @@ export function SignupOtpForm({
   otpComplete,
   isSubmitting,
   apiError,
-  devOtpHint,
   onOtpDigit,
   onOtpPaste,
   onVerify,
@@ -80,16 +78,10 @@ export function SignupOtpForm({
               <span className="font-medium text-foreground">
                 {email || "your email"}
               </span>
-              . Enter the code below or tap the link in your email.
+              . Check your inbox or spam folder, or tap the link in the email.
             </>
           )}
         </p>
-
-        {devOtpHint ? (
-          <p className="mt-4 rounded-xl border border-[#95d3ba]/40 bg-[#003527]/5 px-4 py-3 text-[13px] leading-relaxed text-[#006c49] dark:border-[#6ffbbe]/30 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]">
-            {devOtpHint}
-          </p>
-        ) : null}
 
         <form
           onSubmit={onVerify}

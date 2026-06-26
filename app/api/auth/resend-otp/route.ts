@@ -42,15 +42,11 @@ export async function POST(request: NextRequest) {
         }
 
         const { email, channel, phone } = parsed.data;
-        const result = await resendOtp(email, channel, phone);
-
-        // Always return success — enumeration protection
-        const isDev = process.env.NODE_ENV === "development";
+        await resendOtp(email, channel, phone);
 
         return NextResponse.json({
             message:
                 "If an account exists and needs verification, a new code has been sent.",
-            ...(isDev && result ? { _devOtp: result.otpCode } : {}),
         });
     } catch (error) {
         console.error("[resend-otp] Unexpected error:", error);

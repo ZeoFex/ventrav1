@@ -19,7 +19,7 @@ import { sendOtpSms } from "./sms-service";
 import { OTP_TTL, OTP_MAX_ATTEMPTS, RESET_TOKEN_TTL } from "../config/auth-config";
 import { PREMIUM_TRIAL_DAYS, type PlanId, isValidPlanId } from "@/config/plans";
 import crypto from "crypto";
-import { resolveAppBaseUrl } from "../lib/app-url";
+import { resolveEmailLinkBaseUrl } from "../lib/app-url";
 import {
     resolveReferrerBusinessIdFromCode,
     ensureReferralCodeForBusiness,
@@ -197,10 +197,12 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
         expiresAt: new Date(Date.now() + OTP_TTL * 1000),
     });
 
-    console.log(`[Signup API] Generated OTP ${code} for ${emailNormalized}`);
+    console.log(`[Signup API] OTP email queued for ${emailNormalized}`);
 
-    const baseUrl = resolveAppBaseUrl();
-    const verificationLink = buildVerificationLink(baseUrl, linkRawToken);
+    const verificationLink = buildVerificationLink(
+        resolveEmailLinkBaseUrl(),
+        linkRawToken,
+    );
 
     // Fire and forget email delivery via Resend
     sendOtpEmail({
@@ -536,7 +538,7 @@ export async function resendOtp(
         expiresAt: new Date(Date.now() + OTP_TTL * 1000),
     });
 
-    console.log(`[Resend OTP API] Resending new OTP ${code} to ${emailNormalized} via ${channel}`);
+    console.log(`[Resend OTP API] Resending OTP to ${emailNormalized} via ${channel}`);
 
     if (channel === "sms" && phone) {
         sendOtpSms({ to: phone, code }).catch((err) =>
@@ -544,7 +546,7 @@ export async function resendOtp(
         );
     } else {
         const verificationLink = buildVerificationLink(
-            resolveAppBaseUrl(),
+            resolveEmailLinkBaseUrl(),
             linkRawToken,
         );
         sendOtpEmail({

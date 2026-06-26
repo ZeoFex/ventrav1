@@ -3,7 +3,6 @@
  *
  * Creates a new user account + business tenant.
  * Returns 201 on success with a message to verify email.
- * In development, returns the OTP code for testing convenience.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -52,15 +51,10 @@ export async function POST(request: NextRequest) {
         // 2. Call signup service
         const result = await signup(parsed.data);
 
-        // 3. In development, return OTP for testing.
-        //    In production, OTP is only sent via email (BullMQ job).
-        const isDev = process.env.NODE_ENV === "development";
-
         return NextResponse.json(
             {
                 message: "Account created. Please check your email for a verification code.",
                 email: result.email,
-                ...(isDev ? { _devOtp: result.otpCode } : {}),
             },
             { status: 201 }
         );

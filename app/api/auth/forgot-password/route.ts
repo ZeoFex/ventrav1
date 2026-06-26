@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requestPasswordReset } from "@/server/auth/auth-service";
 import { env } from "@/server/config/env";
 import { rateLimitKey } from "@/server/lib/rate-limit";
+import { resolveEmailLinkBaseUrl } from "@/server/lib/app-url";
 
 const forgotPasswordSchema = z.object({
     email: z.string().trim().email(),
@@ -33,13 +34,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Generate base URL for the email link (e.g., https://yourdomain.com)
-        const protocol = req.headers.get("x-forwarded-proto") || "http";
-        const host = req.headers.get("host") || "localhost:3000";
-        const baseUrl = `${protocol}://${host}`;
-
-        // Triggers the email securely, won't throw if user doesn't exist
-        await requestPasswordReset(parsed.data.email, baseUrl);
+        await requestPasswordReset(parsed.data.email, resolveEmailLinkBaseUrl());
 
         return NextResponse.json(
             { message: "If the email is registered, a reset link was sent." },

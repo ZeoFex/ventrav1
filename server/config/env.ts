@@ -33,7 +33,6 @@ const envSchema = z.object({
 
     /**
      * Verified Resend sender, e.g. `VentraPOS <noreply@ventrapos.com>` or `noreply@yourdomain.com`.
-     * In development, defaults to Resend's onboarding@resend.dev when unset.
      */
     RESEND_FROM_EMAIL: z.string().optional().default(""),
 
@@ -58,6 +57,12 @@ const envSchema = z.object({
         .string()
         .optional()
         .default("http://localhost:3000"),
+
+    /**
+     * Base URL for links in outbound emails (verify-email, password reset).
+     * Defaults to https://www.ventrapos.com when NEXT_PUBLIC_APP_URL is localhost.
+     */
+    EMAIL_LINK_BASE_URL: z.string().optional().default(""),
 
     /**
      * Comma-separated CORS allowlist (e.g. `https://admin.ventrapos.com`).
