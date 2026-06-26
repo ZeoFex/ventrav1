@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUserAuthFromContext } from "@/server/auth/api-request-auth";
-import {
-    listRecentGlobalBarcodeLabels,
-    searchGlobalBarcodeLabels,
-} from "@/server/products/barcode-label-service";
+import { suggestBarcodeProductsByName } from "@/server/products/barcode-suggest-service";
 
 export async function GET(req: Request) {
     try {
@@ -13,29 +10,20 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const q = searchParams.get("q")?.trim() ?? "";
-        const recent = searchParams.get("recent") === "1";
-        const limit = Number(searchParams.get("limit") ?? 40);
-
-        if (recent) {
-            const labels = await listRecentGlobalBarcodeLabels({
-                limit: Math.min(limit, 24),
-                viewerBusinessId: payload.bid,
-            });
-            return NextResponse.json(labels);
-        }
+        const limit = Number(searchParams.get("limit") ?? 8);
 
         if (q.length < 2) {
             return NextResponse.json([]);
         }
 
-        const labels = await searchGlobalBarcodeLabels(q, {
+        const suggestions = await suggestBarcodeProductsByName(q, {
             limit,
             viewerBusinessId: payload.bid,
         });
 
-        return NextResponse.json(labels);
+        return NextResponse.json(suggestions);
     } catch (error) {
-        console.error("GET /api/products/barcodes/catalog failed:", error);
+        console.error("GET /api/barcodes/suggest failed:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
