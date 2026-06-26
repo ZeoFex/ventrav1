@@ -82,6 +82,8 @@ export const businesses = pgTable("businesses", {
     referralDiscountReservedBps: integer("referral_discount_reserved_bps")
         .default(0)
         .notNull(),
+    /** Extra branches granted by platform admin (GHS 50/month each). */
+    paidExtraBranches: integer("paid_extra_branches").default(0).notNull(),
 }, (t) => [
     index("businesses_referral_code_idx").on(t.referralCode),
     index("businesses_referred_by_idx").on(t.referredByBusinessId),

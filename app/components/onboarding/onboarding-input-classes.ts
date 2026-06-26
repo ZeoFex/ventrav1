@@ -3,3 +3,10 @@ export const field =
   "w-full rounded-xl border border-[#bfc9c3]/35 bg-surface-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground outline-none transition-[box-shadow,border-color] focus:border-[#95d3ba] focus:ring-2 focus:ring-[#95d3ba]/25 dark:border-white/[0.12] dark:bg-[#171717]";
 
 export const fieldSelect = `${field} appearance-none bg-[length:1rem] bg-[right_0.75rem_center] bg-no-repeat pr-10`;
+
+/** Accent panel used on key onboarding steps. */
+export const stepPanel =
+  "rounded-2xl border border-[#95d3ba]/25 bg-gradient-to-br from-[#003527]/5 to-transparent p-5 dark:border-[#6ffbbe]/15 dark:from-[#6ffbbe]/5";
+
+export const stepBadge =
+  "inline-flex items-center rounded-full bg-[#003527]/8 px-3 py-1 text-[12px] font-semibold uppercase tracking-wide text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]";

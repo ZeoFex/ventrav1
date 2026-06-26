@@ -26,6 +26,7 @@ export type BranchData = {
   id: string;
   name: string;
   region: string;
+  shopType: BusinessTypeId | null;
   isMain: boolean;
 };
 
@@ -86,5 +87,5 @@ export const defaultOnboardingData = (): OnboardingData => ({
   plan: "starter",
   cycle: "annually",
   billingComplete: false,
-  branches: [{ id: "main-1", name: "", region: "", isMain: true }],
+  branches: [{ id: "main-1", name: "", region: "", shopType: null, isMain: true }],
 });

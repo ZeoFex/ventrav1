@@ -22,6 +22,8 @@ export const emailVerifications = pgTable(
             .notNull()
             .references(() => users.id, { onDelete: "cascade" }),
         codeHash: varchar("code_hash", { length: 128 }).notNull(),
+        /** SHA-256 hash of one-click verification link token (optional). */
+        linkTokenHash: varchar("link_token_hash", { length: 128 }),
         attempts: integer("attempts").default(0).notNull(),
         isUsed: boolean("is_used").default(false).notNull(),
         createdAt: timestamp("created_at", { withTimezone: true })

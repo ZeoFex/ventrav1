@@ -31,6 +31,12 @@ const envSchema = z.object({
 
     RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required"),
 
+    /**
+     * Verified Resend sender, e.g. `VentraPOS <noreply@ventrapos.com>` or `noreply@yourdomain.com`.
+     * In development, defaults to Resend's onboarding@resend.dev when unset.
+     */
+    RESEND_FROM_EMAIL: z.string().optional().default(""),
+
     // SMS (optional — only required if SMS OTP is enabled)
     AGOO_API_KEY: z.string().optional().default(""),
     /** Approved AgooSMS sender ID (3–11 alphanumeric). Omit to use provider default (“AgooSMS”). */

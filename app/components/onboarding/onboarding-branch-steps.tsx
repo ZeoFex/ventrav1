@@ -1,9 +1,11 @@
 "use client";
 
 import { nanoid } from "nanoid";
+import { MAX_BRANCHES_BY_PLAN, type PlanId } from "@/config/plans";
+import { BUSINESS_TYPES } from "./constants";
 import { GHANA_REGIONS } from "./constants";
 import { field, fieldSelect } from "./onboarding-input-classes";
-import type { OnboardingData, BranchData } from "./types";
+import type { BusinessTypeId, OnboardingData, BranchData } from "./types";
 
 type SetData = React.Dispatch<React.SetStateAction<OnboardingData>>;
 
@@ -11,7 +13,42 @@ const labelClass = "text-[13px] font-medium text-muted-foreground";
 
 function StepCaption({ text }: { text: string | null }) {
   if (!text) return null;
-  return <p className={labelClass}>{text}</p>;
+  return (
+    <span className="inline-flex items-center rounded-full bg-[#003527]/8 px-3 py-1 text-[12px] font-semibold uppercase tracking-wide text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]">
+      {text}
+    </span>
+  );
+}
+
+function ShopTypePicker({
+  value,
+  onChange,
+}: {
+  value: BusinessTypeId | null;
+  onChange: (id: BusinessTypeId) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {BUSINESS_TYPES.map((type) => {
+        const selected = value === type.id;
+        return (
+          <button
+            key={type.id}
+            type="button"
+            onClick={() => onChange(type.id)}
+            className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+              selected
+                ? "border-[#006c49]/40 bg-[#003527]/10 ring-2 ring-[#006c49] dark:bg-[#6ffbbe]/10 dark:ring-[#6ffbbe]"
+                : "border-[#bfc9c3]/35 bg-surface-card hover:border-[#95d3ba]/50 dark:border-white/[0.12] dark:bg-[#141414]"
+            }`}
+          >
+            <p className="text-[14px] font-medium text-foreground">{type.label}</p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">{type.hint}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function MultiBranchStepContent({
@@ -23,12 +60,23 @@ export function MultiBranchStepContent({
   data: OnboardingData;
   setData: SetData;
 }) {
+  const maxBranches = MAX_BRANCHES_BY_PLAN[data.plan as PlanId] ?? 1;
+  const atLimit = data.branches.length >= maxBranches;
+  const planLabel = data.plan === "growth" ? "Growth" : data.plan === "pro" ? "Pro" : "Starter";
+
   const addBranch = () => {
+    if (atLimit) return;
     setData((d) => ({
       ...d,
       branches: [
         ...d.branches,
-        { id: nanoid(6), name: "", region: "", isMain: false },
+        {
+          id: nanoid(6),
+          name: "",
+          region: "",
+          shopType: d.businessType,
+          isMain: false,
+        },
       ],
     }));
   };
@@ -49,66 +97,86 @@ export function MultiBranchStepContent({
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
+      <div className="rounded-2xl border border-[#95d3ba]/30 bg-gradient-to-br from-[#003527]/5 to-transparent p-5 dark:border-[#6ffbbe]/20 dark:from-[#6ffbbe]/5">
         <StepCaption text={formStepLabel} />
-        <h2 className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+        <h2 className="mt-3 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           Branches & Outlets
         </h2>
         <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-          You're growing! Add all your branch locations. Each branch acts as a separate
-          outlet for point-of-sale, inventory, and staff assignment.
+          Add each location you operate. Pick a shop type per branch so we seed the right
+          product categories for that outlet.
+        </p>
+        <p className="mt-3 text-[13px] font-medium text-[#006c49] dark:text-[#6ffbbe]">
+          {planLabel} plan · up to {maxBranches} branch{maxBranches === 1 ? "" : "es"} ·{" "}
+          {data.branches.length}/{maxBranches} used
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {data.branches.map((branch, index) => (
           <div
             key={branch.id}
-            className="flex flex-col sm:flex-row gap-4 rounded-xl border border-[#bfc9c3]/30 bg-surface-card p-4 dark:border-white/[0.12] dark:bg-[#111]"
+            className="overflow-hidden rounded-2xl border border-[#bfc9c3]/30 bg-surface-card shadow-sm dark:border-white/[0.12] dark:bg-[#111]"
           >
-            <div className="flex-1 space-y-3">
-              <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
-                  {branch.isMain ? "Main Branch Name" : `Branch ${index + 1} Name`}
-                </label>
-                <input
-                  value={branch.name}
-                  onChange={(e) => updateBranch(branch.id, { name: e.target.value })}
-                  placeholder={branch.isMain ? "e.g. Headquarters" : "e.g. Kumasi Mall"}
-                  className={field}
-                />
+            <div className="flex items-center justify-between gap-3 border-b border-[#bfc9c3]/20 bg-[#003527]/5 px-4 py-3 dark:border-white/[0.08] dark:bg-[#6ffbbe]/5">
+              <div className="flex items-center gap-2">
+                <span className="flex size-7 items-center justify-center rounded-full bg-[#003527] text-[12px] font-bold text-white dark:bg-[#064e3b]">
+                  {index + 1}
+                </span>
+                <p className="text-[14px] font-semibold text-foreground">
+                  {branch.isMain ? "Main Branch" : `Branch ${index + 1}`}
+                </p>
               </div>
-            </div>
-            <div className="flex-1 space-y-3">
-              <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
-                  Region
-                </label>
-                <select
-                  value={branch.region}
-                  onChange={(e) => updateBranch(branch.id, { region: e.target.value })}
-                  className={fieldSelect}
-                >
-                  <option value="">Select region</option>
-                  {GHANA_REGIONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {!branch.isMain && (
-              <div className="flex items-end pb-1">
+              {!branch.isMain && (
                 <button
                   type="button"
                   onClick={() => removeBranch(branch.id)}
-                  className="flex size-10 items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
-                  title="Remove branch"
+                  className="rounded-lg px-2 py-1 text-[13px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                  Remove
                 </button>
+              )}
+            </div>
+
+            <div className="space-y-4 p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={`mb-1.5 block ${labelClass}`}>Branch name</label>
+                  <input
+                    value={branch.name}
+                    onChange={(e) => updateBranch(branch.id, { name: e.target.value })}
+                    placeholder={branch.isMain ? "e.g. Headquarters" : "e.g. Kumasi Mall"}
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className={`mb-1.5 block ${labelClass}`}>Region</label>
+                  <select
+                    value={branch.region}
+                    onChange={(e) => updateBranch(branch.id, { region: e.target.value })}
+                    className={fieldSelect}
+                  >
+                    <option value="">Select region</option>
+                    {GHANA_REGIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            )}
+
+              <div>
+                <label className={`mb-2 block ${labelClass}`}>Shop type</label>
+                <p className="mb-3 text-[13px] text-muted-foreground">
+                  Categories for this branch are based on the shop type you choose.
+                </p>
+                <ShopTypePicker
+                  value={branch.shopType}
+                  onChange={(id) => updateBranch(branch.id, { shopType: id })}
+                />
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -116,10 +184,13 @@ export function MultiBranchStepContent({
       <button
         type="button"
         onClick={addBranch}
-        className="flex items-center justify-center gap-2 w-full rounded-xl border border-dashed border-[#bfc9c3]/50 bg-transparent px-4 py-3.5 text-[14px] font-medium text-foreground hover:bg-[#003527]/5 hover:border-[#006c49]/50 transition-colors dark:border-white/[0.15] dark:hover:bg-[#6ffbbe]/10"
+        disabled={atLimit}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#95d3ba]/50 bg-[#003527]/[0.03] px-4 py-3.5 text-[14px] font-medium text-foreground transition-colors hover:border-[#006c49]/50 hover:bg-[#003527]/5 disabled:cursor-not-allowed disabled:opacity-45 dark:border-[#6ffbbe]/30 dark:bg-[#6ffbbe]/5 dark:hover:bg-[#6ffbbe]/10"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-        Add another branch
+        {atLimit
+          ? `Maximum ${maxBranches} branches on ${planLabel} plan`
+          : "Add another branch"}
       </button>
     </div>
   );

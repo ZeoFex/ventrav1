@@ -371,7 +371,11 @@ export function CatalogShopsPanel({
                 ) : null}
 
                 {detailTab === "insights" ? (
-                    <CatalogShopInsightsPanel token={token} shop={selectedShop} />
+                    <CatalogShopInsightsPanel
+                        token={token}
+                        shop={selectedShop}
+                        onShopUpdated={patchShop}
+                    />
                 ) : null}
 
                 {detailTab === "products" ? (

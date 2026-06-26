@@ -9,7 +9,6 @@ import { redis } from "../lib/redis";
 import { invalidateCustomerCaches } from "../customers/customer-account-service";
 import { sellableUnits } from "../stock/sellable-stock";
 import { countReadyForPickupOrders } from "../customer-orders/customer-order-service";
-import { getExpiringInventory } from "../inventory/expiring-service";
 import {
     accraDateKey,
     accraDayBounds,
@@ -22,35 +21,6 @@ import {
     buildSalesInsights,
     pctChange,
 } from "../reports/reports-dashboard-service";
-
-export type SalesSummaryReportOptions = {
-    periodDays?: number;
-    fromKey?: string;
-    toKey?: string;
-};
-
-function formatSalesSummaryPeriodLabel(fromKey: string, toKey: string, dayCount: number): string {
-    const fmt = (key: string) =>
-        new Date(`${key}T12:00:00.000Z`).toLocaleDateString("en-GH", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            timeZone: "Africa/Accra",
-        });
-    if (fromKey === toKey) return fmt(fromKey);
-    return `${fmt(fromKey)} – ${fmt(toKey)} (${dayCount} day${dayCount === 1 ? "" : "s"})`;
-}
-
-function resolveSalesSummaryPeriod(options?: SalesSummaryReportOptions) {
-    if (options?.fromKey && options?.toKey) {
-        return resolveSalesOverviewPeriod(options.fromKey, options.toKey);
-    }
-    const days = options?.periodDays ?? 30;
-    const toKey = accraDateKey();
-    const fromDate = new Date(`${toKey}T12:00:00.000Z`);
-    fromDate.setUTCDate(fromDate.getUTCDate() - (days - 1));
-    return resolveSalesOverviewPeriod(fromDate.toISOString().slice(0, 10), toKey);
-}
 
 const CACHE_KEYS = {
     PRODUCTS_LIST: (bizId: string, brn?: string | null) => `products:biz_${bizId}:brn_${brn || 'all'}:list`,
@@ -489,7 +459,6 @@ export async function getSalesOverview(
 
 const QUICK_SALE_LIMIT = 20;
 const QUICK_SALE_PERIOD_DAYS = 30;
-const HOME_EXPIRY_ALERT_DAYS = 14;
 
 /**
  * Top product IDs by net units sold in the last 30 days (branch-scoped when set).
@@ -597,7 +566,6 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
         recentSales,
         quickSaleProducts,
         readyForPickupCount,
-        expiringLines,
     ] = await Promise.all([
         // 1. Today's stats
         db.select({
@@ -642,9 +610,6 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
 
         // 5. Layaway orders awaiting pickup
         countReadyForPickupOrders(businessId, branchId),
-
-        // 6. Supply lines nearing expiry
-        getExpiringInventory(businessId, HOME_EXPIRY_ALERT_DAYS, branchId),
     ]);
 
     const todayRev = Number(todayTotals.totalRevenue);
@@ -657,10 +622,6 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
     } else if (todayRev > 0) {
         vsYesterdayPercent = 100;
     }
-
-    const expiringProductCount = new Set(
-        expiringLines.map((line) => line.productId ?? line.productName),
-    ).size;
 
     const homeData = {
         todaySalesGhs: todayRev,
@@ -676,14 +637,6 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
         })),
         quickSaleProducts,
         readyForPickupCount,
-        expiringAlert:
-            expiringLines.length > 0
-                ? {
-                      lineCount: expiringLines.length,
-                      productCount: expiringProductCount,
-                      days: HOME_EXPIRY_ALERT_DAYS,
-                  }
-                : null,
     };
 
     await redis.setex(cacheKey, 30, JSON.stringify(homeData));
@@ -808,6 +761,36 @@ export async function getRevenueDetails(businessId: string, periodDays: number =
     return details;
 }
 
+export type SalesSummaryReportOptions = {
+    /** Rolling window ending today (Accra); used when fromKey/toKey omitted. */
+    periodDays?: number;
+    fromKey?: string;
+    toKey?: string;
+};
+
+function formatSalesSummaryPeriodLabel(fromKey: string, toKey: string, dayCount: number): string {
+    const fmt = (key: string) =>
+        new Date(`${key}T12:00:00.000Z`).toLocaleDateString("en-GH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "Africa/Accra",
+        });
+    if (fromKey === toKey) return fmt(fromKey);
+    return `${fmt(fromKey)} – ${fmt(toKey)} (${dayCount} day${dayCount === 1 ? "" : "s"})`;
+}
+
+function resolveSalesSummaryPeriod(options?: SalesSummaryReportOptions) {
+    if (options?.fromKey && options?.toKey) {
+        return resolveSalesOverviewPeriod(options.fromKey, options.toKey);
+    }
+    const days = options?.periodDays ?? 30;
+    const toKey = accraDateKey();
+    const fromDate = new Date(`${toKey}T12:00:00.000Z`);
+    fromDate.setUTCDate(fromDate.getUTCDate() - (days - 1));
+    return resolveSalesOverviewPeriod(fromDate.toISOString().slice(0, 10), toKey);
+}
+
 /**
  * Fetch detailed metrics for the Sales Summary Report
  */
@@ -845,6 +828,7 @@ export async function getSalesSummaryReport(
     );
 
     const todayBounds = accraDayBounds(todayKey);
+
     const hourlyPromise = includesToday
         ? db
               .select({
@@ -862,7 +846,7 @@ export async function getSalesSummaryReport(
               )
               .groupBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`)
               .orderBy(sql`TO_CHAR(${sales.createdAt} AT TIME ZONE 'Africa/Accra', 'HH24:00')`)
-        : Promise.resolve([] as { hour: string; sales: number; transactions: number }[]);
+        : Promise.resolve([]);
 
     const [
         [kpis],
@@ -991,9 +975,10 @@ export async function getSalesSummaryReport(
         avgOrderValue: pctChange(avgOrderValue, prevAvgOrderValue),
     };
 
+    const { fromKey, toKey, dayCount: periodDays } = period;
     const dayFormatter = new Intl.DateTimeFormat("en-GH", {
         timeZone: "Africa/Accra",
-        ...(period.dayCount <= 14 ? { weekday: "short" as const } : {}),
+        ...(periodDays <= 14 ? { weekday: "short" as const } : {}),
         month: "short",
         day: "numeric",
     });
@@ -1009,7 +994,7 @@ export async function getSalesSummaryReport(
         ]),
     );
 
-    const dailyTrend = enumerateAccraDateKeys(period.fromKey, period.toKey).map((dateKey) => {
+    const dailyTrend = enumerateAccraDateKeys(fromKey, toKey).map((dateKey) => {
         const row = dailyByKey.get(dateKey);
         return {
             dateKey,
@@ -1071,7 +1056,7 @@ export async function getSalesSummaryReport(
     );
 
     const insights = buildSalesInsights({
-        periodDays: period.dayCount,
+        periodDays,
         kpis: reportKpis,
         trends,
         avgOrderValue,
@@ -1085,10 +1070,10 @@ export async function getSalesSummaryReport(
 
     const result = {
         period: {
-            days: period.dayCount,
-            fromKey: period.fromKey,
-            toKey: period.toKey,
-            label: formatSalesSummaryPeriodLabel(period.fromKey, period.toKey, period.dayCount),
+            days: periodDays,
+            fromKey,
+            toKey,
+            label: formatSalesSummaryPeriodLabel(fromKey, toKey, periodDays),
         },
         kpis: reportKpis,
         trends,

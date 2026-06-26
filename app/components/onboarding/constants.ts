@@ -1,5 +1,6 @@
 import type { BusinessTypeId, OnboardingData, StoreStructure } from "./types";
 import { BUSINESS_TYPES } from "@/config/business-types";
+import { MAX_BRANCHES_BY_PLAN, type PlanId } from "@/config/plans";
 
 export { BUSINESS_TYPES };
 export type { BusinessTypeId };
@@ -116,11 +117,19 @@ export function canProceedStep(
       return true;
     case "structure":
       return data.structure != null;
-    case "branches":
+    case "branches": {
+      const maxBranches = MAX_BRANCHES_BY_PLAN[data.plan as PlanId] ?? 1;
       return (
         data.branches.length > 0 &&
-        data.branches.every((b) => b.name.trim().length > 0 && b.region.length > 0)
+        data.branches.length <= maxBranches &&
+        data.branches.every(
+          (b) =>
+            b.name.trim().length > 0 &&
+            b.region.length > 0 &&
+            b.shopType != null,
+        )
       );
+    }
     case "billing":
       return data.billingComplete;
     case "checklist":

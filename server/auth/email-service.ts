@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { env } from "../config/env";
+import { getResendFromEmail } from "./email-config";
 
 const resend = new Resend(env.RESEND_API_KEY);
 
@@ -7,12 +8,13 @@ interface SendOtpEmailProps {
   to: string;
   firstName: string;
   code: string;
+  verificationLink?: string;
 }
 
-export async function sendOtpEmail({ to, firstName, code }: SendOtpEmailProps) {
+export async function sendOtpEmail({ to, firstName, code, verificationLink }: SendOtpEmailProps) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS <noreply@ventrapos.com>", // TODO: replace with verified domain in prod
+      from: getResendFromEmail(),
       to: [to],
       subject: "Your VentraPOS Verification Code",
       html: `
@@ -29,6 +31,24 @@ export async function sendOtpEmail({ to, firstName, code }: SendOtpEmailProps) {
               ${code}
             </span>
           </div>
+          ${
+            verificationLink
+              ? `
+          <p style="color: #374151; font-size: 16px; line-height: 24px;">
+            Or verify instantly with one click:
+          </p>
+          <div style="text-align: center; margin: 24px 0 32px;">
+            <a href="${verificationLink}" style="background-color: #003527; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+              Verify Email
+            </a>
+          </div>
+          <p style="color: #374151; font-size: 14px; margin-top: 16px;">
+            Or copy and paste this link into your browser:<br>
+            <a href="${verificationLink}" style="color: #006c49; word-break: break-all;">${verificationLink}</a>
+          </p>
+          `
+              : ""
+          }
           <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
             This code will expire in 10 minutes. If you didn't request this, please ignore this email.
           </p>
@@ -58,7 +78,7 @@ interface SendPasswordResetEmailProps {
 export async function sendPasswordResetEmail({ to, firstName, resetLink }: SendPasswordResetEmailProps) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS <noreply@ventrapos.com>", // replace in prod
+      from: getResendFromEmail(), // replace in prod
       to: [to],
       subject: "Reset your VentraPOS password",
       html: `
@@ -119,7 +139,7 @@ export async function sendSubscriptionEmail({
     const subject = `Receipt for your VentraPOS ${planName} Plan`;
 
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS <noreply@ventrapos.com>",
+      from: getResendFromEmail(),
       to: [to],
       subject,
       html: `
@@ -204,7 +224,7 @@ export async function sendBroadcastEmail({
     const recipients = Array.isArray(to) ? to : [to];
 
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS <noreply@ventrapos.com>",
+      from: getResendFromEmail(),
       to: recipients,
       subject,
       html: `
@@ -363,7 +383,7 @@ export async function sendContactEmail({
 }: SendContactEmailProps) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS Contact Form <noreply@ventrapos.com>",
+      from: getResendFromEmail("VentraPOS Contact Form"),
       to: ["support@ventrapos.com"],
       subject: `[Contact Form] ${contactSubject}`,
       replyTo: senderEmail,
@@ -434,7 +454,7 @@ export async function sendWeeklyReportEmail({
 }: SendWeeklyReportEmailProps) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "VentraPOS Reports <reports@ventrapos.com>",
+      from: getResendFromEmail("VentraPOS Reports"),
       to: [to],
       subject: `Weekly Performance Report: ${businessName} (${reportDate})`,
       attachments: [

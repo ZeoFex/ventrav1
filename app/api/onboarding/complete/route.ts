@@ -8,10 +8,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { completeOnboarding } from "@/server/onboarding/onboarding-service";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
+import { MAX_BRANCHES_BY_PLAN, type PlanId } from "@/config/plans";
 
 const branchSchema = z.object({
     name: z.string().min(1, "Branch name required"),
     region: z.string(),
+    shopType: z.string().nullable(),
     isMain: z.boolean(),
 });
 
@@ -62,9 +64,29 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        const payload = parsed.data;
+        if (payload.structure === "multi") {
+            const maxBranches = MAX_BRANCHES_BY_PLAN[payload.plan as PlanId] ?? 1;
+            if (payload.branches.length > maxBranches) {
+                return NextResponse.json(
+                    {
+                        error: `Your ${payload.plan} plan allows up to ${maxBranches} branches.`,
+                    },
+                    { status: 400 },
+                );
+            }
+            const invalidBranch = payload.branches.find((b) => !b.shopType);
+            if (invalidBranch) {
+                return NextResponse.json(
+                    { error: "Each branch must have a shop type selected." },
+                    { status: 400 },
+                );
+            }
+        }
+
         // 3. Complete onboarding using authenticated IDs
         await completeOnboarding({
-            ...parsed.data,
+            ...payload,
             userId,
             businessId,
         });

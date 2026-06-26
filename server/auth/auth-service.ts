@@ -19,6 +19,7 @@ import { sendOtpSms } from "./sms-service";
 import { OTP_TTL, OTP_MAX_ATTEMPTS, RESET_TOKEN_TTL } from "../config/auth-config";
 import { PREMIUM_TRIAL_DAYS, type PlanId, isValidPlanId } from "@/config/plans";
 import crypto from "crypto";
+import { resolveAppBaseUrl } from "../lib/app-url";
 import {
     resolveReferrerBusinessIdFromCode,
     ensureReferralCodeForBusiness,
@@ -61,6 +62,16 @@ export interface VerifyEmailResult {
     permissions: string[];
     plan: string;
     onboardingCompleted: boolean;
+}
+
+function generateVerificationLinkToken(): { rawToken: string; tokenHash: string } {
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    return { rawToken, tokenHash };
+}
+
+function buildVerificationLink(baseUrl: string, rawToken: string): string {
+    return `${baseUrl.replace(/\/$/, "")}/verify-email?token=${rawToken}`;
 }
 
 // ─── Signup ─────────────────────────────────────────────────────
@@ -174,22 +185,29 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
         return { userId: user.id, businessId: business.id };
     });
 
-    // 6. Generate OTP
+    // 6. Generate OTP + one-click verification link token
     const { code, codeHash } = generateOtp();
+    const { rawToken: linkRawToken, tokenHash: linkTokenHash } =
+        generateVerificationLinkToken();
 
     await db.insert(emailVerifications).values({
         userId: result.userId,
         codeHash,
+        linkTokenHash,
         expiresAt: new Date(Date.now() + OTP_TTL * 1000),
     });
 
     console.log(`[Signup API] Generated OTP ${code} for ${emailNormalized}`);
+
+    const baseUrl = resolveAppBaseUrl();
+    const verificationLink = buildVerificationLink(baseUrl, linkRawToken);
 
     // Fire and forget email delivery via Resend
     sendOtpEmail({
         to: emailNormalized,
         firstName,
         code,
+        verificationLink,
     }).catch((err) => console.error("[Signup API] Failed to trigger sendOtpEmail:", err));
 
     // 7. Audit log
@@ -294,45 +312,7 @@ export async function verifyEmail(
     }
 
     // 5. Mark OTP used + activate user (transaction)
-    await db.transaction(async (tx) => {
-        await tx
-            .update(emailVerifications)
-            .set({ isUsed: true })
-            .where(eq(emailVerifications.id, otpRecord.id));
-
-        await tx
-            .update(users)
-            .set({
-                emailVerified: true,
-                status: "active",
-                updatedAt: new Date(),
-            })
-            .where(eq(users.id, user.id));
-
-        // Reconcile pending subscription if user paid before signing up
-        const [pending] = await tx
-            .select()
-            .from(pendingSubscriptions)
-            .where(eq(pendingSubscriptions.email, emailNormalized))
-            .limit(1);
-
-        if (pending && pending.status === "success") {
-            console.log(`[Auth Service] Reconciling pending subscription for ${emailNormalized} → ${pending.plan}`);
-            const daysToAdd = pending.cycle === "annually" ? 365 : 30;
-            const newExpiry = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000);
-
-            await tx.update(businesses)
-                .set({
-                    plan: pending.plan as "starter" | "growth" | "pro",
-                    subscriptionStatus: "active",
-                    currentPeriodEnd: newExpiry,
-                })
-                .where(eq(businesses.id, user.businessId));
-            
-            // Cleanup: delete the pending record after it's applied
-            await tx.delete(pendingSubscriptions).where(eq(pendingSubscriptions.id, pending.id));
-        }
-    });
+    await activateVerifiedUser(user.id, user.businessId, emailNormalized, otpRecord.id);
 
     console.log(`[Verify API] Successfully verified OTP for ${emailNormalized}`);
 
@@ -345,7 +325,161 @@ export async function verifyEmail(
         resourceId: user.id,
     });
 
-    // 7. Load role and permissions
+    return buildVerifyEmailResult(
+        user.id,
+        emailNormalized,
+        user.businessId,
+        user.plan,
+        !!user.onboardingCompleted,
+    );
+}
+
+/**
+ * Verify email via one-click link token (from signup / resend email).
+ */
+export async function verifyEmailByToken(token: string): Promise<VerifyEmailResult> {
+    const trimmed = token.trim();
+    if (!trimmed) {
+        throw new AuthError("INVALID_OTP", "Invalid or expired verification link");
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(trimmed).digest("hex");
+
+    const [otpRecord] = await db
+        .select()
+        .from(emailVerifications)
+        .where(eq(emailVerifications.linkTokenHash, tokenHash))
+        .limit(1);
+
+    if (!otpRecord || otpRecord.isUsed || new Date() > otpRecord.expiresAt) {
+        throw new AuthError("INVALID_OTP", "Invalid or expired verification link");
+    }
+
+    const [user] = await db
+        .select({
+            id: users.id,
+            businessId: users.businessId,
+            firstName: users.firstName,
+            status: users.status,
+            plan: businesses.plan,
+            onboardingCompleted: businesses.onboardingCompleted,
+        })
+        .from(users)
+        .innerJoin(businesses, eq(users.businessId, businesses.id))
+        .where(eq(users.id, otpRecord.userId))
+        .limit(1);
+
+    if (!user) {
+        throw new AuthError("INVALID_OTP", "Invalid or expired verification link");
+    }
+
+    if (user.status === "active") {
+        throw new AuthError("ALREADY_VERIFIED", "Email is already verified");
+    }
+
+    const [emailRow] = await db
+        .select({ emailNormalized: users.emailNormalized })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
+    const emailNormalized = emailRow?.emailNormalized ?? "";
+
+    await activateVerifiedUser(user.id, user.businessId, emailNormalized, otpRecord.id);
+
+    const [freshUser] = await db
+        .select({
+            plan: businesses.plan,
+            onboardingCompleted: businesses.onboardingCompleted,
+        })
+        .from(users)
+        .innerJoin(businesses, eq(users.businessId, businesses.id))
+        .where(eq(users.id, user.id))
+        .limit(1);
+
+    await db.insert(auditLogs).values({
+        userId: user.id,
+        businessId: user.businessId,
+        action: "email_verified_link",
+        resource: "user",
+        resourceId: user.id,
+    });
+
+    return buildVerifyEmailResult(
+        user.id,
+        emailNormalized,
+        user.businessId,
+        freshUser?.plan ?? user.plan,
+        !!freshUser?.onboardingCompleted,
+    );
+}
+
+async function activateVerifiedUser(
+    userId: string,
+    businessId: string,
+    emailNormalized: string,
+    verificationId: string,
+): Promise<void> {
+    await db.transaction(async (tx) => {
+        await tx
+            .update(emailVerifications)
+            .set({ isUsed: true })
+            .where(eq(emailVerifications.id, verificationId));
+
+        await tx
+            .update(users)
+            .set({
+                emailVerified: true,
+                status: "active",
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, userId));
+
+        if (emailNormalized) {
+            const [pending] = await tx
+                .select()
+                .from(pendingSubscriptions)
+                .where(eq(pendingSubscriptions.email, emailNormalized))
+                .limit(1);
+
+            if (pending && pending.status === "success") {
+                console.log(
+                    `[Auth Service] Reconciling pending subscription for ${emailNormalized} → ${pending.plan}`,
+                );
+                const daysToAdd = pending.cycle === "annually" ? 365 : 30;
+                const newExpiry = new Date(
+                    Date.now() + daysToAdd * 24 * 60 * 60 * 1000,
+                );
+
+                await tx
+                    .update(businesses)
+                    .set({
+                        plan: pending.plan as "starter" | "growth" | "pro",
+                        subscriptionStatus: "active",
+                        currentPeriodEnd: newExpiry,
+                    })
+                    .where(eq(businesses.id, businessId));
+
+                await tx
+                    .delete(pendingSubscriptions)
+                    .where(eq(pendingSubscriptions.id, pending.id));
+            }
+        }
+    });
+}
+
+async function buildVerifyEmailResult(
+    userId: string,
+    emailNormalized: string,
+    businessId: string,
+    plan: string,
+    onboardingCompleted: boolean,
+): Promise<VerifyEmailResult> {
+    const [userRow] = await db
+        .select({ firstName: users.firstName })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
     const roleData = await db
         .select({
             roleName: roles.name,
@@ -356,18 +490,18 @@ export async function verifyEmail(
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
         .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
         .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-        .where(eq(userRoles.userId, user.id));
+        .where(eq(userRoles.userId, userId));
 
     return {
-        userId: user.id,
-        businessId: user.businessId,
-        firstName: user.firstName,
+        userId,
+        businessId,
+        firstName: userRow?.firstName ?? "",
         email: emailNormalized,
         role: roleData[0]?.roleName || "owner",
         branchId: roleData[0]?.branchId || undefined,
-        permissions: roleData.map(r => r.permissionKey).filter((p): p is string => !!p),
-        plan: user.plan,
-        onboardingCompleted: !!user.onboardingCompleted,
+        permissions: roleData.map((r) => r.permissionKey).filter((p): p is string => !!p),
+        plan,
+        onboardingCompleted,
     };
 }
 
@@ -392,10 +526,13 @@ export async function resendOtp(
     }
 
     const { code, codeHash } = generateOtp();
+    const { rawToken: linkRawToken, tokenHash: linkTokenHash } =
+        generateVerificationLinkToken();
 
     await db.insert(emailVerifications).values({
         userId: user.id,
         codeHash,
+        linkTokenHash,
         expiresAt: new Date(Date.now() + OTP_TTL * 1000),
     });
 
@@ -406,11 +543,18 @@ export async function resendOtp(
             console.error("[Resend OTP API] Failed to send SMS OTP:", err)
         );
     } else {
+        const verificationLink = buildVerificationLink(
+            resolveAppBaseUrl(),
+            linkRawToken,
+        );
         sendOtpEmail({
             to: emailNormalized,
             firstName: user.firstName,
             code,
-        }).catch((err) => console.error("[Resend OTP API] Failed to trigger sendOtpEmail:", err));
+            verificationLink,
+        }).catch((err) =>
+            console.error("[Resend OTP API] Failed to trigger sendOtpEmail:", err)
+        );
     }
 
     return { otpCode: code };

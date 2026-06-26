@@ -3,7 +3,7 @@ import { db } from "../db";
 import { branches } from "../db/schema/branches";
 import { businesses } from "../db/schema/businesses";
 import { redis } from "../lib/redis";
-import { MAX_BRANCHES_BY_PLAN, type PlanId } from "@/config/plans";
+import { getEffectiveMaxBranches, type PlanId } from "@/config/plans";
 
 export class BranchLimitExceededError extends Error {
     readonly code = "BRANCH_LIMIT_EXCEEDED" as const;
@@ -59,13 +59,19 @@ export async function getBranches(businessId: string) {
  */
 export async function saveBranch(input: BranchInput) {
     const [biz] = await db
-        .select({ plan: businesses.plan })
+        .select({
+            plan: businesses.plan,
+            paidExtraBranches: businesses.paidExtraBranches,
+        })
         .from(businesses)
         .where(eq(businesses.id, input.businessId))
         .limit(1);
 
     const plan = (biz?.plan ?? "starter") as PlanId;
-    const maxBranches = MAX_BRANCHES_BY_PLAN[plan] ?? 1;
+    const maxBranches = getEffectiveMaxBranches(
+        plan,
+        biz?.paidExtraBranches ?? 0,
+    );
 
     const [{ n }] = await db
         .select({ n: count() })

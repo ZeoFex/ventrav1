@@ -94,6 +94,16 @@ function applyPrefill(
   return next;
 }
 
+function applyBusinessPlan(
+  snapshot: OnboardingData,
+  plan?: string | null,
+): OnboardingData {
+  if (plan === "starter" || plan === "growth" || plan === "pro") {
+    return { ...snapshot, plan };
+  }
+  return snapshot;
+}
+
 function applyAccountDefaults(
   snapshot: OnboardingData,
   defaults?: { phone?: string | null; email?: string | null },
@@ -132,6 +142,7 @@ export function OnboardingView() {
       const prefill = consumeOnboardingPrefill();
       let hydrated = false;
       let accountDefaults: { phone?: string | null; email?: string | null } | undefined;
+      let businessPlan: string | undefined;
 
       try {
         const res = await fetch("/api/onboarding/progress", {
@@ -142,11 +153,13 @@ export function OnboardingView() {
           const json = (await res.json()) as {
             onboardingCompleted: boolean;
             progress: StoredProgress | null;
+            businessPlan?: string;
             accountDefaults?: { phone?: string | null; email?: string | null };
           };
           if (cancelled) return;
 
           accountDefaults = json.accountDefaults;
+          businessPlan = json.businessPlan;
 
           if (json.onboardingCompleted) {
             clearLocalProgress();
@@ -157,9 +170,12 @@ export function OnboardingView() {
           if (json.progress) {
             const saved = json.progress;
             setData((d) =>
-              applyAccountDefaults(
-                applyPrefill(mergeProgress(d, saved.data), prefill),
-                accountDefaults,
+              applyBusinessPlan(
+                applyAccountDefaults(
+                  applyPrefill(mergeProgress(d, saved.data), prefill),
+                  accountDefaults,
+                ),
+                businessPlan,
               ),
             );
             if (typeof saved.stepIndex === "number") {
@@ -172,14 +188,17 @@ export function OnboardingView() {
         /* offline or server error — fall back to local cache */
       }
 
+      const finalize = (snapshot: OnboardingData) =>
+        applyBusinessPlan(
+          applyAccountDefaults(snapshot, accountDefaults),
+          businessPlan,
+        );
+
       if (!hydrated) {
         const local = readLocalProgress();
         if (local) {
           setData((d) =>
-            applyAccountDefaults(
-              applyPrefill(mergeProgress(d, local.data), prefill),
-              accountDefaults,
-            ),
+            finalize(applyPrefill(mergeProgress(d, local.data), prefill)),
           );
           if (typeof local.stepIndex === "number") {
             setStepIndex(Math.max(0, local.stepIndex));
@@ -189,11 +208,9 @@ export function OnboardingView() {
       }
 
       if (!hydrated) {
-        setData((d) =>
-          applyAccountDefaults(applyPrefill(d, prefill), accountDefaults),
-        );
-      } else if (accountDefaults) {
-        setData((d) => applyAccountDefaults(d, accountDefaults));
+        setData((d) => finalize(applyPrefill(d, prefill)));
+      } else if (accountDefaults || businessPlan) {
+        setData((d) => finalize(d));
       }
 
       if (!cancelled) setIsHydrated(true);
@@ -257,8 +274,8 @@ export function OnboardingView() {
     setData((d) => {
       let changed = false;
       const newBranches = d.branches.map((b) => {
+        const nextB = { ...b };
         if (b.isMain) {
-          const nextB = { ...b };
           if (!nextB.name.trim() && d.storeName.trim()) {
             nextB.name = d.storeName;
             changed = true;
@@ -267,13 +284,16 @@ export function OnboardingView() {
             nextB.region = d.region;
             changed = true;
           }
-          return nextB;
         }
-        return b;
+        if (!nextB.shopType && d.businessType) {
+          nextB.shopType = d.businessType;
+          changed = true;
+        }
+        return nextB;
       });
       return changed ? { ...d, branches: newBranches } : d;
     });
-  }, [currentStepId]);
+  }, [currentStepId, data.businessType, data.region, data.storeName]);
 
   const contentMax =
     stepIndex === 0 && !isCompleteStep ? "max-w-6xl" : "max-w-2xl";
@@ -329,6 +349,7 @@ export function OnboardingView() {
             ? data.branches.map((b) => ({
               name: b.name,
               region: b.region,
+              shopType: b.shopType,
               isMain: b.isMain,
             }))
             : [],

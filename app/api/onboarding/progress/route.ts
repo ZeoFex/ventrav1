@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
                 onboardingProgress: businesses.onboardingProgress,
                 businessPhone: businesses.phone,
                 businessEmail: businesses.contactEmail,
+                plan: businesses.plan,
             })
             .from(businesses)
             .where(eq(businesses.id, session.businessId))
@@ -58,6 +59,7 @@ export async function GET(req: NextRequest) {
         const response = NextResponse.json({
             onboardingCompleted: !!row?.onboardingCompleted,
             progress,
+            businessPlan: row?.plan ?? "starter",
             accountDefaults: {
                 phone: row?.businessPhone || userRow?.phone || null,
                 email: row?.businessEmail || userRow?.email || null,
