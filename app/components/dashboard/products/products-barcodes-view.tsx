@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   Globe,
   History,
   ImageIcon,
@@ -11,6 +13,7 @@ import {
   Plus,
   Printer,
   RefreshCw,
+  Save,
   Search,
   Trash2,
 } from "lucide-react";
@@ -43,6 +46,49 @@ export type GlobalBarcodeLabelRow = BarcodeLabelRow & {
   isOwnShop: boolean;
 };
 
+export type BarcodeProductSuggestion = {
+  id: string;
+  productName: string;
+  description: string | null;
+  imageSrc: string | null;
+  sku: string | null;
+  source: "barcode_label" | "global_catalog" | "inventory" | "master_catalog";
+  sourceBusinessName: string | null;
+  isOwnShop?: boolean;
+};
+
+function suggestionSourceLabel(source: BarcodeProductSuggestion["source"]) {
+  switch (source) {
+    case "barcode_label":
+      return "Barcode label";
+    case "global_catalog":
+      return "Shared barcode";
+    case "inventory":
+      return "Shop inventory";
+    case "master_catalog":
+      return "Ventra catalog";
+    default:
+      return "Product";
+  }
+}
+
+function mergeSuggestions(
+  local: BarcodeProductSuggestion[],
+  remote: BarcodeProductSuggestion[],
+  limit = 10,
+): BarcodeProductSuggestion[] {
+  const seen = new Set<string>();
+  const merged: BarcodeProductSuggestion[] = [];
+  for (const item of [...local, ...remote]) {
+    const key = item.productName.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+    if (merged.length >= limit) break;
+  }
+  return merged;
+}
+
 type TabId = "generate" | "history" | "catalog";
 
 async function barcodeLabelsFetcher(url: string) {
@@ -55,6 +101,13 @@ async function barcodeLabelsFetcher(url: string) {
 async function catalogFetcher(url: string) {
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to search barcodes");
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function suggestFetcher(url: string) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to load suggestions");
   const data = await res.json();
   return Array.isArray(data) ? data : [];
 }
@@ -233,7 +286,20 @@ export function ProductsBarcodesView() {
     catalogFetcher,
   );
 
+  const { data: catalogPreview = [], isLoading: catalogPreviewLoading } = useSWR<
+    GlobalBarcodeLabelRow[]
+  >(
+    activeTab === "catalog" && debouncedCatalogQuery.length < 2
+      ? "/api/products/barcodes/catalog?recent=1&limit=12"
+      : null,
+    catalogFetcher,
+  );
+
+  const catalogSliderRef = useRef<HTMLDivElement>(null);
+
   const [productName, setProductName] = useState("");
+  const [debouncedProductName, setDebouncedProductName] = useState("");
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [labelDescription, setLabelDescription] = useState("");
   const [sku, setSku] = useState(() => generateProductSku());
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -246,6 +312,76 @@ export function ProductsBarcodesView() {
   const [rowPrintQty, setRowPrintQty] = useState<Record<string, number>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nameSuggestRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedProductName(productName.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [productName]);
+
+  const { data: nameSuggestionsRemote = [], isLoading: nameSuggestionsLoading } = useSWR<
+    BarcodeProductSuggestion[]
+  >(
+    debouncedProductName.length >= 2 && showNameSuggestions
+      ? `/api/barcodes/suggest?q=${encodeURIComponent(debouncedProductName)}&limit=10`
+      : null,
+    suggestFetcher,
+  );
+
+  const localNameSuggestions = useMemo((): BarcodeProductSuggestion[] => {
+    const q = debouncedProductName.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return history
+      .filter(
+        (row) =>
+          row.productName.toLowerCase().includes(q) ||
+          row.labelDescription.toLowerCase().includes(q) ||
+          row.sku.toLowerCase().includes(q),
+      )
+      .map((row) => ({
+        id: `local:${row.id}`,
+        productName: row.productName,
+        description: row.labelDescription || null,
+        imageSrc: row.imageSrc || null,
+        sku: row.sku || null,
+        source: "barcode_label" as const,
+        sourceBusinessName: "Your branch",
+        isOwnShop: true,
+      }));
+  }, [debouncedProductName, history]);
+
+  const nameSuggestions = useMemo(
+    () => mergeSuggestions(localNameSuggestions, nameSuggestionsRemote, 10),
+    [localNameSuggestions, nameSuggestionsRemote],
+  );
+
+  useEffect(() => {
+    if (!showNameSuggestions) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!nameSuggestRef.current?.contains(e.target as Node)) {
+        setShowNameSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [showNameSuggestions]);
+
+  const applyNameSuggestion = useCallback((suggestion: BarcodeProductSuggestion) => {
+    setProductName(suggestion.productName);
+    setLabelDescription(suggestion.description ?? "");
+    if (suggestion.imageSrc) {
+      setImagePreview(suggestion.imageSrc);
+      setSelectedFile(null);
+    }
+    if (suggestion.sku) {
+      setSku(suggestion.sku);
+    }
+    setShowNameSuggestions(false);
+    const from = suggestion.sourceBusinessName
+      ? ` (from ${suggestion.sourceBusinessName})`
+      : "";
+    toast.success(`Loaded "${suggestion.productName}"${from}. Review and continue.`);
+  }, []);
 
   const { startUpload, isUploading } = useUploadThing("productImage");
 
@@ -260,6 +396,8 @@ export function ProductsBarcodesView() {
 
   function resetForm() {
     setProductName("");
+    setDebouncedProductName("");
+    setShowNameSuggestions(false);
     setLabelDescription("");
     setSku(generateProductSku());
     setImagePreview(null);
@@ -280,8 +418,9 @@ export function ProductsBarcodesView() {
     setIsPrintOpen(true);
   }
 
-  async function handleGenerate(e: React.FormEvent) {
+  async function handleGenerate(e: React.FormEvent, options?: { openPrint?: boolean }) {
     e.preventDefault();
+    const openPrint = options?.openPrint ?? false;
     if (!branchSelected) {
       toast.error("Select a branch to generate barcodes.");
       return;
@@ -332,9 +471,15 @@ export function ProductsBarcodesView() {
 
       const saved = (await res.json()) as BarcodeLabelRow;
       await mutate();
-      toast.success("Barcode saved to the shared catalog. Print the label, then scan when adding the product.");
+      toast.success(
+        openPrint
+          ? "Barcode saved. Opening print preview…"
+          : "Barcode saved to your history and the shared catalog.",
+      );
 
-      openPrintModal(toLabelProduct(saved), quantity);
+      if (openPrint) {
+        openPrintModal(toLabelProduct(saved), quantity);
+      }
       resetForm();
       setActiveTab("history");
     } catch (err) {
@@ -426,19 +571,94 @@ export function ProductsBarcodesView() {
             </p>
           </div>
         ) : (
-          <form onSubmit={handleGenerate} className="grid gap-8 lg:grid-cols-2">
+          <form onSubmit={(e) => void handleGenerate(e, { openPrint: false })} className="grid gap-8 lg:grid-cols-2">
             <div className="space-y-5">
-              <div className="space-y-2">
+              <div className="space-y-2" ref={nameSuggestRef}>
                 <label className="text-sm font-semibold ml-1">Product name *</label>
-                <input
-                  required
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  placeholder="e.g. Auntie Ama's Palm Oil"
-                  className="w-full rounded-2xl border border-border bg-transparent p-3 text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 dark:border-white/10"
-                />
+                <div className="relative">
+                  <input
+                    required
+                    value={productName}
+                    onChange={(e) => {
+                      setProductName(e.target.value);
+                      setShowNameSuggestions(true);
+                    }}
+                    onFocus={() => {
+                      if (productName.trim().length >= 2) setShowNameSuggestions(true);
+                    }}
+                    autoComplete="off"
+                    placeholder="e.g. Auntie Ama's Palm Oil"
+                    className="w-full rounded-2xl border border-border bg-transparent p-3 text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 dark:border-white/10"
+                  />
+                  {showNameSuggestions && debouncedProductName.length >= 2 ? (
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded-2xl border border-border bg-white shadow-lg dark:border-white/10 dark:bg-[#111]">
+                      {nameSuggestionsLoading ? (
+                        <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-muted-foreground">
+                          <Loader2 className="size-4 animate-spin" />
+                          Searching Ventra catalog…
+                        </div>
+                      ) : nameSuggestions.length === 0 ? (
+                        <p className="px-4 py-3 text-[13px] text-muted-foreground">
+                          No matches yet — keep typing to add a new product.
+                        </p>
+                      ) : (
+                        <ul className="max-h-64 overflow-y-auto py-1">
+                          {nameSuggestions.map((suggestion) => (
+                            <li key={suggestion.id}>
+                              <button
+                                type="button"
+                                onClick={() => applyNameSuggestion(suggestion)}
+                                className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/60 dark:hover:bg-white/5"
+                              >
+                                {suggestion.imageSrc ? (
+                                  <CatalogProductImage
+                                    src={suggestion.imageSrc}
+                                    alt=""
+                                    className="size-10 shrink-0 rounded-lg object-cover bg-white"
+                                  />
+                                ) : (
+                                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-[11px] font-semibold uppercase text-muted-foreground">
+                                    {suggestion.productName.charAt(0)}
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-[14px] font-semibold text-foreground">
+                                    {suggestion.productName}
+                                    {suggestion.isOwnShop ? (
+                                      <span className="ml-1.5 text-[11px] font-medium text-[#006c49] dark:text-[#6ffbbe]">
+                                        Your shop
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                  {suggestion.description ? (
+                                    <p className="line-clamp-1 text-[12px] text-muted-foreground">
+                                      {suggestion.description}
+                                    </p>
+                                  ) : null}
+                                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                    {suggestionSourceLabel(suggestion.source)}
+                                    {suggestion.sourceBusinessName
+                                      ? ` · ${suggestion.sourceBusinessName}`
+                                      : ""}
+                                    {suggestion.sku ? (
+                                      <>
+                                        {" · "}
+                                        <span className="font-mono">{suggestion.sku}</span>
+                                      </>
+                                    ) : null}
+                                  </p>
+                                </div>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
                 <p className="ml-1 text-[12px] text-muted-foreground">
-                  Type the name — check <button type="button" onClick={() => setActiveTab("catalog")} className="font-medium text-[#006c49] underline dark:text-[#6ffbbe]">All barcodes</button> first if another shop may have already created this label.
+                  After 2 characters, matching products from your branch and across Ventra appear —
+                  select one to avoid duplicates, or keep typing to add something new.
                 </p>
               </div>
 
@@ -534,15 +754,27 @@ export function ProductsBarcodesView() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={!canGenerate || isSaving || isUploading}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-6 py-3.5 text-[15px] font-bold text-white shadow-lg disabled:opacity-50"
-              >
-                {(isSaving || isUploading) && <Loader2 className="size-4 animate-spin" />}
-                <Printer className="size-4" />
-                Generate &amp; print
-              </button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="submit"
+                  disabled={!canGenerate || isSaving || isUploading}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-6 py-3.5 text-[15px] font-bold text-foreground shadow-sm disabled:opacity-50 dark:border-white/12 dark:bg-[#141414]"
+                >
+                  {(isSaving || isUploading) && <Loader2 className="size-4 animate-spin" />}
+                  <Save className="size-4" />
+                  Save barcode
+                </button>
+                <button
+                  type="button"
+                  disabled={!canGenerate || isSaving || isUploading}
+                  onClick={(e) => void handleGenerate(e, { openPrint: true })}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-6 py-3.5 text-[15px] font-bold text-white shadow-lg disabled:opacity-50"
+                >
+                  {(isSaving || isUploading) && <Loader2 className="size-4 animate-spin" />}
+                  <Printer className="size-4" />
+                  Save &amp; print
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -633,11 +865,99 @@ export function ProductsBarcodesView() {
           </p>
 
           {debouncedCatalogQuery.length < 2 ? (
-            <div className="rounded-2xl border border-dashed border-border p-10 text-center dark:border-white/10">
-              <Globe className="mx-auto mb-3 size-9 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Type at least 2 characters to search the shared barcode catalog.
-              </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[13px] font-semibold text-foreground">
+                  Recently generated barcodes
+                </p>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      catalogSliderRef.current?.scrollBy({ left: -280, behavior: "smooth" })
+                    }
+                    className="flex size-9 items-center justify-center rounded-xl border border-border hover:bg-muted dark:border-white/10"
+                    aria-label="Scroll left"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      catalogSliderRef.current?.scrollBy({ left: 280, behavior: "smooth" })
+                    }
+                    className="flex size-9 items-center justify-center rounded-xl border border-border hover:bg-muted dark:border-white/10"
+                    aria-label="Scroll right"
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                </div>
+              </div>
+
+              {catalogPreviewLoading ? (
+                <div className="flex h-40 items-center justify-center">
+                  <Loader2 className="size-7 animate-spin text-muted-foreground" />
+                </div>
+              ) : catalogPreview.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border p-10 text-center dark:border-white/10">
+                  <Globe className="mx-auto mb-3 size-9 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    No shared barcodes yet. Generate one under the Generate tab, or search above.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  ref={catalogSliderRef}
+                  className="custom-scrollbar flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory"
+                >
+                  {catalogPreview.map((row) => (
+                    <div
+                      key={row.id}
+                      className="w-[200px] shrink-0 snap-start rounded-2xl border border-border bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111]"
+                    >
+                      <div className="mb-3 flex items-center gap-2">
+                        <CatalogProductImage
+                          src={row.imageSrc}
+                          alt={row.labelName}
+                          className="size-10 rounded-lg object-cover bg-white"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-semibold">{row.labelName}</p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {(row as GlobalBarcodeLabelRow).businessName ?? "Ventra shop"}
+                          </p>
+                        </div>
+                      </div>
+                      <BarcodeItem
+                        sku={row.sku}
+                        name={row.labelName}
+                        description={row.labelDescription}
+                        imageSrc={row.imageSrc}
+                        width={1.2}
+                        height={36}
+                        fontSize={9}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openPrintModal(toLabelProduct(row), getRowPrintQty(row.id, 1))
+                        }
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border py-2 text-[12px] font-semibold hover:bg-muted dark:border-white/10"
+                      >
+                        <Printer className="size-3.5" />
+                        Print
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-dashed border-border p-8 text-center dark:border-white/10">
+                <Search className="mx-auto mb-2 size-7 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Type at least 2 characters above to search all Ventra shops.
+                </p>
+              </div>
             </div>
           ) : catalogLoading ? (
             <div className="flex h-48 items-center justify-center">
