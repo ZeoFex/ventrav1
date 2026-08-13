@@ -34,8 +34,8 @@ type PosBarcodeScanPanelProps = {
   mobileCart?: {
     lines: CartLine[];
     productById: Map<string, ProductRow>;
-    onIncrement: (productId: string) => void;
-    onDecrement: (productId: string) => void;
+    onIncrement: (productId: string, variationId?: string) => void;
+    onDecrement: (productId: string, variationId?: string) => void;
     totalGhs: number;
     /** Closes scan + starts payment flow */
     onContinueToPayment?: () => void;
@@ -376,7 +376,7 @@ export function PosBarcodeScanPanel({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  mobileCart.onDecrement(line.productId)
+                                  mobileCart.onDecrement(line.productId, line.variationId)
                                 }
                                 className="tap-target flex size-9 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#006c49] transition-colors active:bg-[#f4f4f5] dark:border-white/[0.12] dark:text-[#6ffbbe] dark:active:bg-[#262626]"
                                 aria-label="Decrease quantity"
@@ -389,7 +389,7 @@ export function PosBarcodeScanPanel({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  mobileCart.onIncrement(line.productId)
+                                  mobileCart.onIncrement(line.productId, line.variationId)
                                 }
                                 className="tap-target flex size-9 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#006c49] transition-colors active:bg-[#f4f4f5] dark:border-white/[0.12] dark:text-[#6ffbbe] dark:active:bg-[#262626]"
                                 aria-label="Increase quantity"

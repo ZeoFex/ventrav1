@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { DashboardHeader } from "./header/dashboard-header";
 import {
   DashboardSidebar,
@@ -13,6 +14,7 @@ import {
 } from "./dashboard-nav-context";
 import { BranchProvider } from "./branch-context";
 import { GlobalCartProvider } from "./pos/global-cart-context";
+import { PosProductSearchProvider } from "./pos/pos-product-search-context";
 import { OfflineBanner } from "./offline-banner";
 import { initOfflineSync } from "@/app/lib/offline/offline-sync";
 import { GlobalCartIndicator } from "./pos/global-cart-indicator";
@@ -29,6 +31,10 @@ function DashboardShellFrame({
   userDisplayName?: string;
 }) {
   const { mobileNavOpen, closeMobileNav } = useDashboardNav();
+  const pathname = usePathname() ?? "";
+  const lockMainScroll =
+    pathname.startsWith("/dashboard/pos/sale") ||
+    pathname.startsWith("/dashboard/pos/receipts");
 
   useEffect(() => {
     if (!mobileNavOpen) return;
@@ -48,7 +54,6 @@ function DashboardShellFrame({
     return () => mq.removeEventListener("change", onChange);
   }, [mobileNavOpen, closeMobileNav]);
 
-  // Initialize offline sync engine
   useEffect(() => {
     const cleanup = initOfflineSync();
     return cleanup;
@@ -81,7 +86,13 @@ function DashboardShellFrame({
         <TrialBanner />
         <OfflineBanner />
         <DashboardHeader userDisplayName={userDisplayName} />
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <div
+          className={
+            lockMainScroll
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+              : "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0"
+          }
+        >
           {children}
         </div>
       </div>
@@ -106,11 +117,13 @@ export function DashboardShell({
     <DashboardNavProvider>
       <BranchProvider>
         <GlobalCartProvider>
-          <CopilotProvider>
-            <DashboardShellFrame userDisplayName={userDisplayName}>
-              {children}
-            </DashboardShellFrame>
-          </CopilotProvider>
+          <PosProductSearchProvider>
+            <CopilotProvider>
+              <DashboardShellFrame userDisplayName={userDisplayName}>
+                {children}
+              </DashboardShellFrame>
+            </CopilotProvider>
+          </PosProductSearchProvider>
         </GlobalCartProvider>
       </BranchProvider>
     </DashboardNavProvider>

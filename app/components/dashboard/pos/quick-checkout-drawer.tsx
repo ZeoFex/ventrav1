@@ -40,6 +40,21 @@ export function QuickCheckoutDrawer({
   const { branchId } = useBranchContext();
   const { branches = [] } = useBranches();
 
+  const setQuantity = (productId: string, qty: number, variationId?: string) => {
+    const nextQty = Math.floor(qty);
+    if (!Number.isFinite(nextQty) || nextQty <= 0) {
+      remove(productId, variationId);
+      return;
+    }
+    setLines((prev) =>
+      prev.map((l) =>
+        l.productId === productId && l.variationId === variationId
+          ? { ...l, qty: nextQty }
+          : l,
+      ),
+    );
+  };
+
   const branchMeta = useMemo(
     () => resolveBranchReceiptMeta(branches, branchId),
     [branches, branchId],
@@ -202,6 +217,7 @@ export function QuickCheckoutDrawer({
                 productById={productById}
                 onIncrement={increment}
                 onDecrement={decrement}
+                onSetQuantity={setQuantity}
                 onRemove={remove}
                 onReset={resetCart}
                 onContinue={() => setFlow("payment")}

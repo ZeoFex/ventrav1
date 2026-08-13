@@ -17,6 +17,14 @@ const patchBody = z
         subscriptionStatus: z.enum(["active", "past_due", "canceled"]).optional(),
         currentPeriodEnd: z.string().datetime().optional().nullable(),
         extendSubscriptionDays: z.number().int().min(1).max(3650).optional(),
+        contactEmail: z
+            .union([z.string().email().max(320), z.literal("")])
+            .optional()
+            .nullable(),
+        phone: z
+            .union([z.string().min(3).max(30), z.literal("")])
+            .optional()
+            .nullable(),
     })
     .refine(
         (o) =>
@@ -126,6 +134,12 @@ export async function PATCH(
             ? { subscriptionStatus: "active" as const }
             : {}),
         ...(nextPeriodEnd !== undefined ? { currentPeriodEnd: nextPeriodEnd } : {}),
+        ...(p.contactEmail !== undefined
+            ? { contactEmail: p.contactEmail === "" || p.contactEmail === null ? null : p.contactEmail }
+            : {}),
+        ...(p.phone !== undefined
+            ? { phone: p.phone === "" || p.phone === null ? null : p.phone }
+            : {}),
     });
 
     return NextResponse.json({ success: true });

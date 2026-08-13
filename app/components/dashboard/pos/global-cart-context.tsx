@@ -61,11 +61,15 @@ export function GlobalCartProvider({ children }: { children: ReactNode }) {
       const j = prev.findIndex((l) => l.productId === productId && l.variationId === variationId);
       if (j >= 0) {
         if (prev[j].qty >= stockLimit) return prev;
-        const next = [...prev];
-        next[j] = { ...next[j], qty: next[j].qty + 1 };
-        return next;
+        const updated = { ...prev[j], qty: prev[j].qty + 1 };
+        if (j === 0) {
+          const next = [...prev];
+          next[0] = updated;
+          return next;
+        }
+        return [updated, ...prev.slice(0, j), ...prev.slice(j + 1)];
       }
-      return [...prev, { productId, qty: 1, variationId }];
+      return [{ productId, qty: 1, variationId }, ...prev];
     });
   }, []);
 

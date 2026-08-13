@@ -136,7 +136,12 @@ export type HierarchyNode = {
     }[];
 };
 
-export type ShopDetailTab = "products" | "subscription" | "insights";
+export type ShopDetailTab =
+    | "products"
+    | "transactions"
+    | "subscription"
+    | "insights"
+    | "account";
 
 export const TABS: { id: TabId; label: string; icon: LucideIcon; group?: string }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard, group: "Platform" },

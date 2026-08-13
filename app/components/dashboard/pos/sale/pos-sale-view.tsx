@@ -34,7 +34,7 @@ import {
   useIsDesktopLayout,
   usePosKeyboardWedge,
 } from "./use-pos-keyboard-wedge";
-import { PosProductCard } from "./pos-product-card";
+import { PosProductCard, PosProductTableHeader } from "./pos-product-card";
 import { PosQuickAddProductModal } from "./pos-quick-add-product-modal";
 import { playPosAddProductBeep } from "./pos-add-beep";
 import {
@@ -43,6 +43,7 @@ import {
   removeHeldSale,
 } from "./pos-held-sales-storage";
 import { useGlobalCart } from "../global-cart-context";
+import { usePosProductSearch } from "../pos-product-search-context";
 
 import { useProducts, useCategories } from "../../products/products-data-hooks";
 import { useDiscounts, type Discount } from "../../marketing/discounts-data-hooks";
@@ -182,7 +183,7 @@ export function buildReceiptData(
 
 function PosSaleSkeleton() {
   return (
-    <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a] flex items-center justify-center">
+    <div className="flex h-full min-h-0 items-center justify-center bg-[#F8F9FA] dark:bg-[#0a0a0a]">
       <Loader2 className="size-8 animate-spin text-muted-foreground opacity-20" />
     </div>
   );
@@ -216,7 +217,7 @@ function PosSaleViewInner() {
   const { branchId } = useBranchContext();
   const [flow, setFlow] = useState<Flow>("browse");
   const [categoryId, setCategoryId] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const { searchQuery, setSearchQuery, registerOpenScan } = usePosProductSearch();
   const { lines, setLines } = useGlobalCart();
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   /** Server sale UUID for `/receipt/verify/{id}` — unset for offline-queued checkouts. */
@@ -231,6 +232,11 @@ function PosSaleViewInner() {
   const [paymentPurpose, setPaymentPurpose] = useState<"sale" | "customer_order">("sale");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [selectedVariationProduct, setSelectedVariationProduct] = useState<ProductRow | null>(null);
+
+  useEffect(() => {
+    registerOpenScan(() => setScanOpen(true));
+    return () => registerOpenScan(null);
+  }, [registerOpenScan]);
 
   const { products = [], isLoading: isProductsLoading, mutate: mutateProducts } = useProducts();
   const { categories = [] } = useCategories();
@@ -353,11 +359,15 @@ function PosSaleViewInner() {
     setLines((prev) => {
       const i = prev.findIndex((l) => l.productId === productId && l.variationId === variationId);
       if (i >= 0) {
-        const next = [...prev];
-        next[i] = { ...next[i]!, qty: next[i]!.qty + 1 };
-        return next;
+        const updated = { ...prev[i]!, qty: prev[i]!.qty + 1 };
+        if (i === 0) {
+          const next = [...prev];
+          next[0] = updated;
+          return next;
+        }
+        return [updated, ...prev.slice(0, i), ...prev.slice(i + 1)];
       }
-      return [...prev, { productId, qty: 1, variationId }];
+      return [{ productId, qty: 1, variationId }, ...prev];
     });
     setSelectedVariationProduct(null);
   }, [lines, productById, setLines]);
@@ -387,13 +397,13 @@ function PosSaleViewInner() {
     onBarcode: handleKeyboardWedgeBarcode,
   });
 
-  const increment = useCallback((productId: string) => {
+  const increment = useCallback((productId: string, variationId?: string) => {
     const p = productById.get(productId);
     if (!p) return;
 
     setLines((prev) =>
       prev.map((l) => {
-        if (l.productId === productId) {
+        if (l.productId === productId && l.variationId === variationId) {
           const sell = sellableForLine(p, l.variationId);
           if (l.qty >= sell) {
             alert(`Cannot add more of ${p.name}. Stock limit reached.`);
@@ -406,19 +416,54 @@ function PosSaleViewInner() {
     );
   }, [productById, setLines]);
 
-  const decrement = useCallback((productId: string) => {
+  const decrement = useCallback((productId: string, variationId?: string) => {
     setLines((prev) =>
       prev
         .map((l) =>
-          l.productId === productId ? { ...l, qty: l.qty - 1 } : l,
+          l.productId === productId && l.variationId === variationId
+            ? { ...l, qty: l.qty - 1 }
+            : l,
         )
         .filter((l) => l.qty > 0),
     );
-  }, []);
+  }, [setLines]);
 
-  const remove = useCallback((productId: string) => {
-    setLines((prev) => prev.filter((l) => l.productId !== productId));
-  }, []);
+  const setQuantity = useCallback(
+    (productId: string, qty: number, variationId?: string) => {
+      const p = productById.get(productId);
+      if (!p) return;
+      const nextQty = Math.floor(qty);
+      if (!Number.isFinite(nextQty) || nextQty <= 0) {
+        setLines((prev) =>
+          prev.filter(
+            (l) => !(l.productId === productId && l.variationId === variationId),
+          ),
+        );
+        return;
+      }
+
+      setLines((prev) =>
+        prev.map((l) => {
+          if (l.productId !== productId || l.variationId !== variationId) return l;
+          const sell = sellableForLine(p, l.variationId);
+          if (nextQty > sell) {
+            alert(`Cannot set quantity above stock (${sell}) for ${p.name}.`);
+            return { ...l, qty: sell };
+          }
+          return { ...l, qty: nextQty };
+        }),
+      );
+    },
+    [productById, setLines],
+  );
+
+  const remove = useCallback((productId: string, variationId?: string) => {
+    setLines((prev) =>
+      prev.filter(
+        (l) => !(l.productId === productId && l.variationId === variationId),
+      ),
+    );
+  }, [setLines]);
 
   const resetCart = useCallback(() => setLines([]), []);
 
@@ -700,25 +745,35 @@ function PosSaleViewInner() {
     setReceiptSaleId(null);
     setCustomerOrderReceipt(null);
     setPaymentPurpose("sale");
+    setSearchQuery("");
     setFlow("browse");
-  }, [setLines]);
+  }, [setLines, setSearchQuery]);
 
   const filteredProducts = useMemo(() => {
     let list = categories.length > 0 && categoryId !== "all"
-      ? products.filter((p: any) => p.categoryId === categoryId)
+      ? products.filter((p: ProductRow) => p.categoryId === categoryId)
       : products;
 
     const q = searchQuery.trim().toLowerCase();
+    const relevance = (p: ProductRow) => {
+      const name = (p.name ?? "").toLowerCase();
+      const sku = (p.sku ?? "").toLowerCase();
+      if (name === q || sku === q) return 0;
+      if (name.startsWith(q) || sku.startsWith(q)) return 1;
+      if (name.includes(q) || sku.includes(q)) return 2;
+      return 3;
+    };
+
     if (q) {
       const tokens = q.split(/\s+/).filter(Boolean);
-      list = list.filter((p: any) => {
+      list = list.filter((p: ProductRow) => {
         const variationText = Array.isArray(p.variations)
           ? p.variations
-              .map((v: any) => `${v?.name ?? ""} ${v?.type ?? ""} ${v?.sku ?? ""}`)
+              .map((v) => `${v?.name ?? ""} ${v?.type ?? ""} ${v?.sku ?? ""}`)
               .join(" ")
           : "";
 
-        const haystack = `${p.name ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""} ${p.categoryName ?? ""} ${p.subcategoryName ?? ""} ${p.description ?? ""} ${variationText}`
+        const haystack = `${p.name ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""} ${(p as any).categoryName ?? ""} ${(p as any).subcategoryName ?? ""} ${p.description ?? ""} ${variationText}`
           .toLowerCase()
           .replace(/\s+/g, " ")
           .trim();
@@ -726,25 +781,21 @@ function PosSaleViewInner() {
         if (haystack.includes(q)) return true;
         return tokens.every((t) => haystack.includes(t));
       });
-
-      list = [...list].sort((a: any, b: any) => {
-        const score = (p: any) => {
-          const name = (p.name ?? "").toLowerCase();
-          const sku = (p.sku ?? "").toLowerCase();
-          if (name === q || sku === q) return 0;
-          if (name.startsWith(q) || sku.startsWith(q)) return 1;
-          if (name.includes(q) || sku.includes(q)) return 2;
-          return 3;
-        };
-        return score(a) - score(b);
-      });
     }
-    return list;
+
+    // Single pass: in-stock first, then search relevance (stable otherwise).
+    return [...list].sort((a, b) => {
+      const aOut = sellableForLine(a) <= 0 ? 1 : 0;
+      const bOut = sellableForLine(b) <= 0 ? 1 : 0;
+      if (aOut !== bOut) return aOut - bOut;
+      if (!q) return 0;
+      return relevance(a) - relevance(b);
+    });
   }, [products, categories, categoryId, searchQuery]);
 
   if (branchId === "all") {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center bg-[#F8F9FA] px-4 py-20 text-center dark:bg-[#0a0a0a]">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center bg-[#F8F9FA] px-4 py-20 text-center dark:bg-[#0a0a0a]">
         <div className="mb-6 flex size-20 items-center justify-center rounded-full bg-amber-500/10 dark:bg-amber-500/20">
           <Store className="size-10 text-amber-600 dark:text-amber-500" strokeWidth={2} />
         </div>
@@ -759,10 +810,10 @@ function PosSaleViewInner() {
   }
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <PosSaleResumeBridge onLines={hydrateFromHeldSale} />
       {flow === "payment" ? (
-        <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
+        <div className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[#F8F9FA] dark:bg-[#0a0a0a]">
           <PosPaymentStep
             key={paymentPurpose}
             totalGhs={totals.total}
@@ -781,11 +832,11 @@ function PosSaleViewInner() {
           />
         </div>
       ) : flow === "receipt" && activeReceipt ? (
-        <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
+        <div className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[#F8F9FA] dark:bg-[#0a0a0a]">
           <PosReceiptStep receiptData={activeReceipt} onNewSale={handleNewSale} />
         </div>
       ) : (
-        <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F8F9FA] dark:bg-[#0a0a0a]">
           <PosBarcodeScanPanel
             open={scanOpen}
             onClose={() => setScanOpen(false)}
@@ -803,44 +854,58 @@ function PosSaleViewInner() {
               },
             }}
           />
-          <div className="mx-auto flex max-w-[1600px] flex-col gap-5 px-3 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:gap-6 sm:px-4 sm:py-6 lg:flex-row lg:gap-8 lg:px-8 lg:py-8 lg:pb-8">
-            <div className="min-w-0 flex-1 space-y-5 sm:space-y-6">
-              <PosCategoryBar
-                categories={categories}
-                activeId={categoryId}
-                onSelect={setCategoryId}
-                searchQuery={searchQuery}
-                onSearchQueryChange={setSearchQuery}
-                onOpenScan={() => setScanOpen(true)}
-                showQuickAddProduct={Boolean(canQuickAddProduct)}
-                onQuickAddProduct={() => setQuickAddOpen(true)}
-              />
+          <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col gap-3 px-3 py-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-4 lg:flex-row lg:gap-5 lg:px-6 lg:pb-4">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+              <div className="shrink-0">
+                <PosCategoryBar
+                  categories={categories}
+                  products={products}
+                  activeId={categoryId}
+                  onSelect={setCategoryId}
+                  showQuickAddProduct={Boolean(canQuickAddProduct)}
+                  onQuickAddProduct={() => setQuickAddOpen(true)}
+                />
+              </div>
               {isProductsLoading ? (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-4 xl:gap-5">
-                  {[...Array(8)].map((_, i) => (
-                    <div key={i} className="h-48 rounded-[1.25rem] bg-muted animate-pulse" />
-                  ))}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e5e7eb] bg-white dark:border-white/[0.08] dark:bg-[#111]">
+                  <div className="h-10 shrink-0 border-b border-[#e5e7eb] bg-[#f7f8f9] dark:border-white/[0.08] dark:bg-[#141414]" />
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    {[...Array(8)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-[58px] border-b border-[#eef0f2] last:border-b-0 dark:border-white/[0.06]"
+                      >
+                        <div className="flex h-full items-center gap-3 px-3 sm:px-4">
+                          <div className="size-10 animate-pulse rounded-lg bg-muted" />
+                          <div className="h-4 flex-1 animate-pulse rounded bg-muted" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div className="py-20 text-center text-muted-foreground opacity-50">
+                <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-[#e5e7eb] bg-white text-muted-foreground opacity-50 dark:border-white/[0.08] dark:bg-[#111]">
                   No products found.
                 </div>
               ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-4 xl:gap-5">
-                  {filteredProducts.map((p: ProductRow) => {
-                    const inCart = lines
-                      .filter((l) => l.productId === p.id && !l.variationId)
-                      .reduce((s, l) => s + l.qty, 0);
-                    const available = sellableForLine(p) - inCart;
-                    return (
-                      <PosProductCard
-                        key={p.id}
-                        product={p}
-                        availableStock={available}
-                        onAdd={() => addToCart(p.id)}
-                      />
-                    );
-                  })}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e5e7eb] bg-white dark:border-white/[0.08] dark:bg-[#111]">
+                  <PosProductTableHeader />
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                    {filteredProducts.map((p: ProductRow) => {
+                      const inCart = lines
+                        .filter((l) => l.productId === p.id && !l.variationId)
+                        .reduce((s, l) => s + l.qty, 0);
+                      const available = sellableForLine(p) - inCart;
+                      return (
+                        <PosProductCard
+                          key={p.id}
+                          product={p}
+                          availableStock={available}
+                          onAdd={() => addToCart(p.id)}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -851,6 +916,7 @@ function PosSaleViewInner() {
               onCustomerSelect={setSelectedCustomer}
               onIncrement={increment}
               onDecrement={decrement}
+              onSetQuantity={setQuantity}
               onRemove={remove}
               onReset={resetCart}
               onContinue={goToPayment}
@@ -867,6 +933,7 @@ function PosSaleViewInner() {
               onCustomerSelect={setSelectedCustomer}
               onIncrement={increment}
               onDecrement={decrement}
+              onSetQuantity={setQuantity}
               onRemove={remove}
               onReset={resetCart}
               onContinue={goToPayment}
@@ -889,7 +956,7 @@ function PosSaleViewInner() {
         onClose={() => setQuickAddOpen(false)}
         categories={categories}
       />
-    </>
+    </div>
   );
 }
 
@@ -956,8 +1023,10 @@ function PosVariationModal({
 
 export function PosSaleView() {
   return (
-    <Suspense fallback={<PosSaleSkeleton />}>
-      <PosSaleViewInner />
-    </Suspense>
+    <div className="h-full min-h-0">
+      <Suspense fallback={<PosSaleSkeleton />}>
+        <PosSaleViewInner />
+      </Suspense>
+    </div>
   );
 }
