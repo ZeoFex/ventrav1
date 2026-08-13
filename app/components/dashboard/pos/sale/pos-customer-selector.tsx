@@ -41,7 +41,7 @@ export function PosCustomerSelector({ selectedId, onSelect }: PosCustomerSelecto
     }, [customers, search]);
 
     return (
-        <div className="relative mb-4">
+        <div className="relative">
             <div className="flex items-center justify-between mb-2 px-1">
                 <label className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">
                     Customer

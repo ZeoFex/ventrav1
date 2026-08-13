@@ -212,6 +212,99 @@ export function buildCustomerOrderAdvancePaymentReceiptData(opts: {
   };
 }
 
+/** Map a persisted sale (transactions detail API) into thermal receipt data for reprint. */
+export function buildReceiptDataFromCompletedSale(input: {
+  sale: {
+    id: string;
+    invoiceId: string;
+    subtotalGhs: string | number;
+    taxGhs: string | number;
+    discountGhs: string | number;
+    totalGhs: string | number;
+    amountPaidGhs?: string | number | null;
+    balanceDueGhs?: string | number | null;
+    paymentMethod: string;
+    createdAt: string;
+    staffName?: string | null;
+    customerName?: string | null;
+    storeName?: string | null;
+    branchName?: string | null;
+    branchAddress?: string | null;
+    branchRegion?: string | null;
+    branchPhone?: string | null;
+    receiptHeader?: string | null;
+    receiptFooter?: string | null;
+    currencySymbol?: string | null;
+  };
+  lines: {
+    productName: string;
+    quantity: number;
+    unitPriceGhs: string | number;
+    lineTotalGhs: string | number;
+  }[];
+  payments?: {
+    paymentMethod: string;
+    amountGhs: string | number;
+  }[];
+}): PosReceiptData {
+  const s = input.sale;
+  const total = Number(s.totalGhs);
+  const amountPaid = Number(s.amountPaidGhs ?? total);
+  const balanceDue = Number(s.balanceDueGhs ?? 0);
+  const paymentRows = input.payments ?? [];
+
+  const paymentLines =
+    paymentRows.length > 1
+      ? paymentRows.map((p) => ({
+          label: paymentMethodShortLabel(p.paymentMethod),
+          amountGhs: Number(p.amountGhs),
+        }))
+      : undefined;
+
+  let paymentMethodLabel = s.paymentMethod;
+  if (paymentRows.length === 1) {
+    paymentMethodLabel =
+      getPaymentMethod(paymentRows[0]!.paymentMethod as GhanaPaymentMethodId)?.label ??
+      s.paymentMethod;
+  } else if (paymentRows.length > 1) {
+    paymentMethodLabel =
+      balanceDue > 0.02 ? "Split + balance due" : "Split payment";
+  }
+
+  return {
+    storeName: s.storeName?.trim() || "Store",
+    branchName: s.branchName?.trim() || "Branch",
+    branchLocation: formatBranchLocation({
+      address: s.branchAddress,
+      region: s.branchRegion,
+      phone: s.branchPhone,
+    }),
+    invoiceId: s.invoiceId,
+    date: new Date(s.createdAt),
+    lines: input.lines.map((l) => ({
+      name: l.productName,
+      qty: l.quantity,
+      unitPriceGhs: Number(l.unitPriceGhs),
+      lineTotalGhs: Number(l.lineTotalGhs),
+    })),
+    subtotal: Number(s.subtotalGhs),
+    tax: Number(s.taxGhs),
+    discount: Number(s.discountGhs),
+    total,
+    paymentMethodLabel,
+    amountTenderedGhs: amountPaid,
+    changeGhs: Math.max(0, Math.round((amountPaid - total) * 100) / 100),
+    paymentLines,
+    balanceDueGhs: balanceDue > 0.02 ? balanceDue : undefined,
+    customerName: s.customerName ?? undefined,
+    receiptHeader: s.receiptHeader || undefined,
+    receiptFooter: s.receiptFooter || undefined,
+    operatorName: s.staffName?.trim() || undefined,
+    currencySymbol: s.currencySymbol || "GHS",
+    saleId: s.id,
+  };
+}
+
 export function buildReceiptPlainText(d: PosReceiptData): string {
   const symbol = d.currencySymbol || "GHS";
 
@@ -229,7 +322,6 @@ export function buildReceiptPlainText(d: PosReceiptData): string {
       minute: "2-digit",
     }),
     `Invoice: ${d.invoiceId}`,
-    `Operator: ${d.operatorName || "SYSTEM"}`,
     `Customer: ${d.customerName || "Walk-in Customer"}`,
     "--------------------------------",
     ...d.lines.flatMap((l) => [
@@ -238,8 +330,10 @@ export function buildReceiptPlainText(d: PosReceiptData): string {
     ]),
     "--------------------------------",
     `Subtotal     ${formatCurrency(d.subtotal, symbol)}`,
-    `Tax          ${formatCurrency(d.tax, symbol)}`,
-    `Discount     -${formatCurrency(d.discount, symbol)}`,
+    ...(d.tax > 0.001 ? [`Tax          ${formatCurrency(d.tax, symbol)}`] : []),
+    ...(d.discount > 0.001
+      ? [`Discount     -${formatCurrency(d.discount, symbol)}`]
+      : []),
     `TOTAL        ${formatCurrency(d.total, symbol)}`,
     "--------------------------------",
     ...(d.paymentLines && d.paymentLines.length > 0
@@ -257,19 +351,13 @@ export function buildReceiptPlainText(d: PosReceiptData): string {
         ]
       : [
           `Payment: ${d.paymentMethodLabel}`,
-          `Amount paid  ${formatCurrency(d.amountTenderedGhs, symbol)}`,
-          `Change       ${formatCurrency(d.changeGhs, symbol)}`,
+          `Paid         ${formatCurrency(d.amountTenderedGhs, symbol)}`,
+          ...(d.changeGhs > 0.01
+            ? [`Change       ${formatCurrency(d.changeGhs, symbol)}`]
+            : []),
         ]),
     "--------------------------------",
-    ...(d.saleId
-      ? [
-          "",
-          `Receipt verify ID: ${d.saleId}`,
-          "(Scan QR or ask merchant for the verification page.)",
-        ]
-      : []),
-    "--------------------------------",
-    d.receiptFooter || "Thank you — VentraPOS",
+    d.receiptFooter || "Thank you",
   ];
   return lines.join("\n");
 }

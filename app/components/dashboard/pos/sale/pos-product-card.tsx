@@ -6,6 +6,9 @@ import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
 import { formatQuantity, unitShort } from "@/app/lib/product-units";
 
+const rowGrid =
+  "grid w-full grid-cols-[2.5rem_minmax(0,1fr)_4.25rem_5.25rem_2.25rem] items-center gap-2 sm:grid-cols-[2.75rem_minmax(0,1fr)_5.5rem_6.5rem_2.75rem] sm:gap-4";
+
 export function PosProductCard({
   product,
   onAdd,
@@ -17,65 +20,83 @@ export function PosProductCard({
 }) {
   const stockToDisplay = availableStock ?? product.stock;
   const isOutOfStock = stockToDisplay <= 0;
+  const unitLabel = unitShort(product.unit);
 
   return (
-    <article className={`group flex flex-col overflow-hidden rounded-[1.25rem] border border-[#eef0f2] bg-white transition-all hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-[#111] dark:hover:border-white/[0.15] ${isOutOfStock ? "opacity-60 grayscale-[0.5]" : ""}`}>
-      <div className="relative aspect-[4/3] bg-[#f8f9fa] dark:bg-[#1a1a1a] overflow-hidden flex items-center justify-center">
-        <span className={`absolute left-3 top-3 z-[1] rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white backdrop-blur-md ${isOutOfStock ? "bg-red-500/80" : "bg-black/70"}`}>
-          {isOutOfStock ? "Out of Stock" : `${formatQuantity(stockToDisplay, product.unit)} in stock`}
-        </span>
+    <button
+      type="button"
+      onClick={onAdd}
+      disabled={isOutOfStock}
+      className={`${rowGrid} border-b border-[#eef0f2] px-3 py-2.5 text-left transition-colors last:border-b-0 sm:px-4 sm:py-3 dark:border-white/[0.06] ${
+        isOutOfStock
+          ? "cursor-not-allowed opacity-50"
+          : "hover:bg-[#f7f8f9] active:bg-[#eef1f2] dark:hover:bg-white/[0.04] dark:active:bg-white/[0.06]"
+      }`}
+      aria-label={isOutOfStock ? `${product.name} sold out` : `Add ${product.name}`}
+    >
+      <div className="size-10 shrink-0 overflow-hidden rounded-md border border-[#eef0f2] bg-[#f4f5f6] dark:border-white/[0.08] dark:bg-[#1a1a1a] sm:size-11">
         {product.imageSrc ? (
           <CatalogProductImage
             src={product.imageSrc}
-            alt={product.name}
-            className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            alt=""
+            className="size-full object-cover"
           />
         ) : (
-          <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground/40 text-center p-4">
-            <span className="text-4xl font-bold uppercase opacity-20">
+          <div className="flex size-full items-center justify-center">
+            <span className="text-sm font-semibold uppercase text-muted-foreground/50">
               {product.name.charAt(0)}
             </span>
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col p-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-[14px] font-semibold text-foreground sm:text-[15px]">
-              {product.name}
-            </h3>
-            <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground sm:text-[12px]">
-              {product.sku}
-            </p>
-            {product.description && (
-              <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/80 sm:text-[12px]">
-                {product.description}
-              </p>
-            )}
-          </div>
-          <p className="shrink-0 text-[14px] font-bold tabular-nums text-foreground sm:text-[15px]">
-            {formatGhs(Number(product.priceGhs))}
-            {unitShort(product.unit) && (
-              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground">/{unitShort(product.unit)}</span>
-            )}
-          </p>
-        </div>
 
-        <div className="mt-auto pt-3">
-          <button
-            type="button"
-            onClick={onAdd}
-            disabled={isOutOfStock}
-            className={`tap-target flex min-h-[40px] w-full items-center justify-center gap-2 rounded-xl text-[13px] font-semibold transition-colors ${isOutOfStock
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-[#f4f4f5] text-foreground hover:bg-[#e4e4e7] active:bg-[#d4d4d8] dark:bg-[#1a1a1a] dark:text-white/90 dark:hover:bg-[#262626]"
-              }`}
-          >
-            <Plus className="size-[15px]" strokeWidth={2.5} aria-hidden />
-            {isOutOfStock ? "Sold Out" : "Add to Cart"}
-          </button>
-        </div>
-      </div>
-    </article>
+      <span className="min-w-0 truncate text-[14px] font-semibold text-foreground sm:text-[15px]">
+        {product.name}
+      </span>
+
+      <span
+        className={`truncate text-right text-[13px] tabular-nums sm:text-[14px] ${
+          isOutOfStock
+            ? "font-medium text-red-600 dark:text-red-400"
+            : "font-medium text-[#006c49] dark:text-[#6ffbbe]"
+        }`}
+      >
+        {isOutOfStock ? "0" : formatQuantity(stockToDisplay, product.unit)}
+      </span>
+
+      <span className="truncate text-right text-[14px] font-bold tabular-nums text-foreground sm:text-[15px]">
+        {formatGhs(Number(product.priceGhs))}
+        {unitLabel ? (
+          <span className="ml-0.5 hidden text-[11px] font-medium text-muted-foreground sm:inline">
+            /{unitLabel}
+          </span>
+        ) : null}
+      </span>
+
+      <span
+        className={`inline-flex size-8 items-center justify-center justify-self-end rounded-md border sm:size-9 ${
+          isOutOfStock
+            ? "border-[#eef0f2] bg-[#f3f4f6] text-muted-foreground dark:border-white/[0.08] dark:bg-[#1a1a1a]"
+            : "border-[#006c49]/15 bg-[#006c49]/10 text-[#006c49] dark:border-[#6ffbbe]/25 dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]"
+        }`}
+        aria-hidden
+      >
+        <Plus className="size-4" strokeWidth={2.5} />
+      </span>
+    </button>
+  );
+}
+
+export function PosProductTableHeader() {
+  return (
+    <div
+      className={`${rowGrid} shrink-0 border-b border-[#e5e7eb] bg-[#f7f8f9] px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-4 sm:text-[12px] dark:border-white/[0.08] dark:bg-[#141414]`}
+    >
+      <span aria-hidden />
+      <span>Item</span>
+      <span className="text-right">In stock</span>
+      <span className="text-right">Price</span>
+      <span className="sr-only">Add</span>
+    </div>
   );
 }

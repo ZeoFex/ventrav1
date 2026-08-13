@@ -36,18 +36,18 @@ export function ReceiptVerificationBlock({ data }: { data: PosReceiptData }) {
     if (!saleId) return null;
 
     return (
-        <div className="mt-6 flex w-full justify-center">
+        <div className="mt-5 flex w-full flex-col items-center justify-center">
             {src ? (
                 <img
                     src={src}
-                    alt=""
+                    alt="Receipt verification QR"
                     width={112}
                     height={112}
-                    className="block bg-white"
+                    className="block border border-black bg-white p-1"
                 />
             ) : (
                 <div
-                    className="size-28 animate-pulse bg-black/[0.06]"
+                    className="size-28 animate-pulse border border-black/20 bg-black/[0.06]"
                     aria-hidden
                 />
             )}
