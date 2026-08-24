@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePlatformAccess } from "@/server/auth/api-request-auth";
@@ -12,6 +12,8 @@ import {
     platformDeleteBusinessSales,
     platformWipeBusinessSales,
 } from "@/server/platform/platform-sale-delete-service";
+import { logPlatformActivity } from "@/server/platform/platform-activity-log";
+import { PLATFORM_ACTIONS } from "@/server/platform/platform-activity-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +55,7 @@ export async function DELETE(
     }
 
     const [row] = await db
-        .select({ id: businesses.id, slug: businesses.slug })
+        .select({ id: businesses.id, slug: businesses.slug, name: businesses.name })
         .from(businesses)
         .where(eq(businesses.id, id))
         .limit(1);
@@ -67,6 +69,18 @@ export async function DELETE(
             businessId: id,
             saleIds: selective.data.ids,
             restock: selective.data.restock,
+        });
+        await logPlatformActivity(req, {
+            action: PLATFORM_ACTIONS.SHOP_SALES_DELETED,
+            resource: "sales",
+            resourceId: id,
+            metadata: {
+                shopName: row.name,
+                shopSlug: row.slug,
+                deletedSales: result.deletedSales,
+                restock: selective.data.restock,
+                saleIds: result.deletedIds,
+            },
         });
         return NextResponse.json({ success: true, ...result });
     }
@@ -95,14 +109,27 @@ export async function DELETE(
         restock: wipe.data.restock,
     });
 
+    await logPlatformActivity(req, {
+        action: PLATFORM_ACTIONS.SHOP_SALES_CLEARED,
+        resource: "sales",
+        resourceId: id,
+        metadata: {
+            shopName: row.name,
+            shopSlug: row.slug,
+            deletedSales: result.deletedSales,
+            restock: wipe.data.restock,
+        },
+    });
+
     return NextResponse.json({ success: true, ...result });
 }
 
 /**
  * GET /api/platform/businesses/[id]/sales
  * - Default: { salesCount }
- * - ?detail=1&saleId=uuid → full sale + lines + payments for history view
- * - ?list=1&limit=&offset=&q= → paginated sale history for this shop
+ * - ?saleId=uuid → full sale + lines + payments for history view
+ * - ?list=1&limit=&offset=&q=&customerId= → paginated sale history for this shop
+ *   (optional customerId scopes to a saved customer; q matches invoice or customer name)
  */
 export async function GET(
     req: NextRequest,
@@ -198,17 +225,34 @@ export async function GET(
         );
         const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
         const q = searchParams.get("q")?.trim() ?? "";
+        const customerId = searchParams.get("customerId")?.trim() ?? "";
 
         const conditions = [eq(sales.businessId, id)];
+        if (customerId) {
+            if (!uuidParam.safeParse(customerId).success) {
+                return NextResponse.json({ error: "Invalid customer id" }, { status: 400 });
+            }
+            conditions.push(eq(sales.customerId, customerId));
+        }
         if (q) {
             const safe = q.replace(/[%_]/g, "");
             if (safe) {
-                conditions.push(sql`${sales.invoiceId} ILIKE ${`%${safe}%`}`);
+                const pattern = `%${safe}%`;
+                conditions.push(
+                    or(
+                        sql`${sales.invoiceId} ILIKE ${pattern}`,
+                        sql`coalesce(${customers.name}, '') ILIKE ${pattern}`,
+                    )!,
+                );
             }
         }
 
         const where = and(...conditions);
-        const [countRow] = await db.select({ n: count() }).from(sales).where(where);
+        const [countRow] = await db
+            .select({ n: count() })
+            .from(sales)
+            .leftJoin(customers, eq(sales.customerId, customers.id))
+            .where(where);
         const items = await db
             .select({
                 id: sales.id,

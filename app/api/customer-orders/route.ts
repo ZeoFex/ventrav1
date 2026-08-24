@@ -10,6 +10,7 @@ import {
     listCustomerOrdersForBranch,
     type CreateCustomerOrderInput,
 } from "@/server/customer-orders/customer-order-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 /**
  * GET /api/customer-orders?customerId=
@@ -96,6 +97,16 @@ export async function POST(req: Request) {
                 })),
             },
         );
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.customer_order.created",
+            resource: "customer_order",
+            resourceId: result.orderId,
+            detail: `${result.invoiceId} · GHS ${Number(result.totalGhs).toFixed(2)}`,
+        });
 
         return NextResponse.json({
             success: true,

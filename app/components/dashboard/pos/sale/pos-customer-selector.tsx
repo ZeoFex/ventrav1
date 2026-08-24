@@ -59,16 +59,16 @@ export function PosCustomerSelector({ selectedId, onSelect }: PosCustomerSelecto
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fafafa] p-3 text-left transition-all hover:bg-white focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/10 dark:border-white/[0.08] dark:bg-[#1a1a1a] dark:hover:bg-[#222]"
+                className="flex w-full items-center gap-2 rounded-xl border border-[#e5e7eb] bg-[#fafafa] p-2 text-left transition-all hover:bg-white focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/10 dark:border-white/[0.08] dark:bg-[#1a1a1a] dark:hover:bg-[#222] sm:gap-3 sm:rounded-2xl sm:p-3"
             >
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#111] shadow-sm">
-                    <User className="size-5 text-muted-foreground" />
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm dark:bg-[#111] sm:size-10 sm:rounded-xl">
+                    <User className="size-4 text-muted-foreground sm:size-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-semibold text-foreground">
+                    <p className="truncate text-[13px] font-semibold text-foreground sm:text-[14px]">
                         {selectedCustomer ? selectedCustomer.name : "Walk-in Customer"}
                     </p>
-                    <p className="truncate text-[12px] text-muted-foreground">
+                    <p className="truncate text-[11px] text-muted-foreground sm:text-[12px]">
                         {selectedCustomer ? selectedCustomer.phone : "No account associated"}
                     </p>
                 </div>
@@ -90,6 +90,7 @@ export function PosCustomerSelector({ selectedId, onSelect }: PosCustomerSelecto
 
                     <div className="max-h-[240px] overflow-y-auto custom-scrollbar">
                         <button
+                            type="button"
                             onClick={() => {
                                 onSelect(null);
                                 setIsOpen(false);
@@ -110,6 +111,7 @@ export function PosCustomerSelector({ selectedId, onSelect }: PosCustomerSelecto
                         ) : (
                             filtered.map((c) => (
                                 <button
+                                    type="button"
                                     key={c.id}
                                     onClick={() => {
                                         onSelect(c);

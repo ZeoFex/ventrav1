@@ -3,15 +3,10 @@
 import { useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { type CategoryRow, type ProductRow } from "../../products/types";
+import { onHandForLine } from "@/app/lib/apply-sold-stock";
 
 function productSellableStock(p: ProductRow): number {
-  if (p.variations?.length) {
-    return p.variations.reduce((sum, v) => {
-      const avail = v.stockAvailable ?? v.stock;
-      return sum + Math.max(0, Number(avail) || 0);
-    }, 0);
-  }
-  return Math.max(0, Number(p.stockAvailable ?? p.stock) || 0);
+  return Math.max(0, onHandForLine(p));
 }
 
 export function PosCategoryBar({
@@ -52,7 +47,7 @@ export function PosCategoryBar({
           productCount: live?.productCount ?? c.productCount ?? 0,
         };
       })
-      .filter((c) => c.stockQty > 0)
+      .filter((c) => c.productCount > 0)
       .sort((a, b) => {
         if (a.stockQty !== b.stockQty) return b.stockQty - a.stockQty;
         return a.name.localeCompare(b.name);
@@ -89,18 +84,20 @@ export function PosCategoryBar({
               key={c.id}
               type="button"
               onClick={() => onSelect(c.id)}
-              className={`tap-target inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium transition-[background-color,box-shadow,border-color] sm:px-4 sm:py-2 sm:text-[14px] ${active
-                ? "border-[#e5e7eb] bg-white text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-white/[0.08] dark:bg-[#141414] dark:shadow-none"
-                : "border-[#e5e7eb] bg-white/80 text-muted-foreground hover:border-[#d1d5db] hover:text-foreground dark:border-white/[0.1] dark:bg-transparent dark:hover:border-white/[0.15]"
-                }`}
+              className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-semibold sm:h-auto sm:gap-1.5 sm:px-4 sm:py-2 sm:text-[14px] sm:font-medium ${
+                active
+                  ? "border-[#006c49] bg-[#006c49] text-white dark:border-[#6ffbbe] dark:bg-[#6ffbbe] dark:text-[#003527] sm:border-[#e5e7eb] sm:bg-white sm:text-foreground sm:shadow-[0_1px_2px_rgba(15,23,42,0.05)] sm:dark:border-white/[0.08] sm:dark:bg-[#141414] sm:dark:text-foreground"
+                  : "border-[#d7ddd9] bg-white text-foreground dark:border-white/15 dark:bg-[#141414] sm:border-[#e5e7eb] sm:bg-white/80 sm:text-muted-foreground"
+              }`}
             >
               <span>{c.name}</span>
               {c.productCount !== undefined && (
                 <span
-                  className={`min-w-[1.5rem] rounded-full px-2 py-0.5 text-center text-[11px] font-semibold tabular-nums sm:text-[12px] ${active
-                    ? "bg-[#006c49]/12 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]"
-                    : "bg-[#e5e7eb] text-foreground dark:bg-[#262626]"
-                    }`}
+                  className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-semibold tabular-nums sm:min-w-[1.5rem] sm:px-2 sm:text-[12px] ${
+                    active
+                      ? "bg-white/20 text-white sm:bg-[#006c49]/12 sm:text-[#006c49] dark:sm:bg-[#6ffbbe]/15 dark:sm:text-[#6ffbbe]"
+                      : "bg-[#e5e7eb] text-foreground dark:bg-[#262626]"
+                  }`}
                 >
                   {c.productCount}
                 </span>
@@ -113,7 +110,7 @@ export function PosCategoryBar({
         <button
           type="button"
           onClick={onQuickAddProduct}
-          className="tap-target inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-[#e5e7eb] bg-white px-4 text-[13px] font-medium text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-[#006c49]/35 hover:bg-[#006c49]/06 dark:border-white/[0.1] dark:bg-[#141414] dark:shadow-none dark:hover:border-[#6ffbbe]/35 dark:hover:bg-[#6ffbbe]/08 sm:text-[14px]"
+          className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-2 rounded-full border border-[#e5e7eb] bg-white px-2 text-[13px] font-medium text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-[#006c49]/35 hover:bg-[#006c49]/06 dark:border-white/[0.1] dark:bg-[#141414] dark:shadow-none dark:hover:border-[#6ffbbe]/35 dark:hover:bg-[#6ffbbe]/08 sm:h-10 sm:min-w-11 sm:px-4 sm:text-[14px]"
           title="Add product"
         >
           <Plus className="size-[18px] text-[#006c49] dark:text-[#6ffbbe]" strokeWidth={2} aria-hidden />

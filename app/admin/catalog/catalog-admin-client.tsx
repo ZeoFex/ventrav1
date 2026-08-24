@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     ChevronDown,
     ChevronRight,
@@ -22,6 +23,7 @@ import { CatalogShopsPanel } from "./catalog-shops-panel";
 import { CatalogOverviewPanel } from "./catalog-overview-panel";
 import { CatalogSubscriptionsPanel } from "./catalog-subscriptions-panel";
 import { CatalogReviewsPanel } from "./catalog-reviews-panel";
+import { CatalogActivityPanel } from "./catalog-activity-panel";
 import { CatalogAdminAuth } from "./catalog-admin-auth";
 import { CatalogAdminTeamModal } from "./catalog-admin-team-modal";
 import { CatalogAdminAccountModal } from "./catalog-admin-account-modal";
@@ -29,7 +31,8 @@ import { CatalogAdminNotifications } from "./catalog-admin-notifications";
 import {
     CatalogAdminShell,
 } from "./catalog-admin-shell";
-import { formatWhen } from "./catalog-admin-utils";
+import { formatWhen, readAdminToken, writeAdminToken } from "./catalog-admin-utils";
+import { catalogSyncActionLabel } from "@/server/platform/platform-activity-labels";
 import {
     CatalogPagination,
     MASTER_PRODUCT_PAGE_SIZE,
@@ -50,7 +53,9 @@ function authHeaders(token: string) {
 }
 
 export function CatalogAdminClient() {
+    const router = useRouter();
     const [token, setToken] = useState<string | null>(null);
+    const [authReady, setAuthReady] = useState(false);
     const [tab, setTab] = useState<TabId>("overview");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -75,6 +80,21 @@ export function CatalogAdminClient() {
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
     const authenticated = !!token;
+
+    useEffect(() => {
+        setToken(readAdminToken());
+        setAuthReady(true);
+    }, []);
+
+    const handleAuthenticated = (next: string) => {
+        writeAdminToken(next);
+        setToken(next);
+    };
+
+    const handleSignOut = () => {
+        writeAdminToken(null);
+        setToken(null);
+    };
 
     const totalProducts = useMemo(
         () => shopTypes.reduce((n, s) => n + s.productCount, 0),
@@ -222,14 +242,26 @@ export function CatalogAdminClient() {
         [shopTypes]
     );
 
+    if (!authReady) {
+        return (
+            <div className="flex min-h-dvh items-center justify-center bg-[#f7f9fb] text-sm text-muted-foreground dark:bg-[#0a0a0a]">
+                Loading admin…
+            </div>
+        );
+    }
+
     if (!authenticated) {
-        return <CatalogAdminAuth onAuthenticated={setToken} />;
+        return <CatalogAdminAuth onAuthenticated={handleAuthenticated} />;
     }
 
     return (
         <CatalogAdminShell
             tab={tab}
             onTabChange={(nextTab) => {
+                if (nextTab === "ecommerce") {
+                    router.push("/admin/storefront");
+                    return;
+                }
                 setTab(nextTab);
                 if (nextTab !== "shops") setFocusBusinessId(null);
             }}
@@ -298,7 +330,7 @@ export function CatalogAdminClient() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setToken(null)}
+                        onClick={handleSignOut}
                     >
                         <LogOut className="mr-1.5 h-4 w-4" />
                         <span className="hidden sm:inline">Sign out</span>
@@ -310,7 +342,9 @@ export function CatalogAdminClient() {
                     {tab !== "shops" &&
                     tab !== "overview" &&
                     tab !== "subscriptions" &&
-                    tab !== "reviews" ? (
+                    tab !== "reviews" &&
+                    tab !== "activity" &&
+                    tab !== "ecommerce" ? (
                     <div className="rounded-2xl border border-[#bfc9c3]/20 bg-surface-card p-4 shadow-sm dark:border-white/[0.08] dark:bg-[#141414]">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                             <label className="grid flex-1 gap-1.5 text-sm">
@@ -369,7 +403,9 @@ export function CatalogAdminClient() {
                     tab !== "shops" &&
                     tab !== "overview" &&
                     tab !== "subscriptions" &&
-                    tab !== "reviews" ? (
+                    tab !== "reviews" &&
+                    tab !== "activity" &&
+                    tab !== "ecommerce" ? (
                         <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
                             {error}
                         </p>
@@ -379,7 +415,9 @@ export function CatalogAdminClient() {
                     tab !== "shops" &&
                     tab !== "overview" &&
                     tab !== "subscriptions" &&
-                    tab !== "reviews" ? (
+                    tab !== "reviews" &&
+                    tab !== "activity" &&
+                    tab !== "ecommerce" ? (
                         <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#bfc9c3]/20 bg-surface-card py-16 text-sm text-muted-foreground dark:border-white/[0.08] dark:bg-[#141414]">
                             <Loader2 className="h-5 w-5 animate-spin" />
                             Loading catalog…
@@ -396,6 +434,10 @@ export function CatalogAdminClient() {
 
                     {tab === "reviews" && token ? (
                         <CatalogReviewsPanel token={token} />
+                    ) : null}
+
+                    {tab === "activity" && token ? (
+                        <CatalogActivityPanel token={token} />
                     ) : null}
 
                     {tab === "shops" && token ? (
@@ -600,7 +642,7 @@ export function CatalogAdminClient() {
                                 headers={["Time", "Action", "Product", "Shop type", "Status"]}
                                 rows={syncLogs.map((log) => [
                                     formatWhen(log.createdAt),
-                                    log.action,
+                                    catalogSyncActionLabel(log.action),
                                     log.productName ?? "—",
                                     log.shopType ?? "—",
                                     log.status,

@@ -4,6 +4,29 @@ export function authHeaders(token: string) {
     return { Authorization: `Bearer ${token}` };
 }
 
+/** Parse JSON from a fetch response; empty/invalid bodies become a clear error. */
+export async function readResponseJson<T = Record<string, unknown>>(
+    res: Response,
+): Promise<T> {
+    const text = await res.text();
+    if (!text.trim()) {
+        throw new Error(
+            res.ok
+                ? "Empty response from server"
+                : `HTTP ${res.status}`,
+        );
+    }
+    try {
+        return JSON.parse(text) as T;
+    } catch {
+        throw new Error(
+            res.ok
+                ? "Invalid response from server"
+                : `HTTP ${res.status}`,
+        );
+    }
+}
+
 export function formatWhen(iso: string | null | undefined) {
     if (!iso) return "—";
     try {
@@ -106,4 +129,35 @@ export async function platformDeleteShops(
         }
     }
     return { deleted, failed };
+}
+
+const ADMIN_TOKEN_KEY = "ventra.platformAdmin.token";
+
+export function readAdminToken(): string | null {
+    if (typeof window === "undefined") return null;
+    try {
+        return sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    } catch {
+        return null;
+    }
+}
+
+export function writeAdminToken(token: string | null) {
+    if (typeof window === "undefined") return;
+    try {
+        if (token) sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+        else sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    } catch {
+        /* ignore quota / private mode */
+    }
+}
+
+export function formatGhs(n: string | number | null | undefined): string {
+    const value = Number(n ?? NaN);
+    if (!Number.isFinite(value)) return "GHS —";
+    return new Intl.NumberFormat("en-GH", {
+        style: "currency",
+        currency: "GHS",
+        minimumFractionDigits: 2,
+    }).format(value);
 }

@@ -25,6 +25,8 @@ import {
   getUnit,
   isDecimalUnit,
 } from "@/app/lib/product-units";
+import { parseAmountInput, formatAmountGrouping } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
 
 export type ProductFormInitialValues = {
   name: string;
@@ -72,11 +74,13 @@ export function ProductForm({
   const [sku, setSku] = useState(initial.sku);
   const [barcode, setBarcode] = useState(initial.barcode ?? "");
   const [description, setDescription] = useState(initial.description);
-  const [price, setPrice] = useState<number | "">(initial.price);
-  const [costPrice, setCostPrice] = useState<number | "">(
+  const [price, setPrice] = useState(
+    initial.price === "" ? "" : formatAmountGrouping(String(initial.price)),
+  );
+  const [costPrice, setCostPrice] = useState(
     initial.costPrice === undefined || initial.costPrice === null || initial.costPrice === ""
       ? ""
-      : Number(initial.costPrice),
+      : formatAmountGrouping(String(initial.costPrice)),
   );
   const [stock, setStock] = useState<number | "">(
     initial.stock === 0 ? "" : initial.stock,
@@ -298,23 +302,30 @@ export function ProductForm({
     if (isSaving || isUploading) return;
     setIsSaving(true);
 
+    const priceNum = parseAmountInput(price);
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      alert("Enter a valid price.");
+      setIsSaving(false);
+      return;
+    }
     const stockNum = stock === "" ? 0 : Math.max(0, Math.round(Number(stock)));
     const cleanUnit = unit && unit.length > 0 ? unit : DEFAULT_PRODUCT_UNIT;
-    if (costPrice !== "" && Number(costPrice) < 0) {
+    if (costPrice !== "" && parseAmountInput(costPrice) < 0) {
       alert("Cost price cannot be negative.");
       setIsSaving(false);
       return;
     }
+    const costParsed = costPrice === "" ? NaN : parseAmountInput(costPrice);
     const costStr =
-      costPrice === "" || costPrice === undefined
+      costPrice === "" || !Number.isFinite(costParsed)
         ? null
-        : String(Math.max(0, Number(costPrice)));
+        : String(Math.max(0, costParsed));
     const productData = {
       name,
       sku,
       barcode: barcode.trim() || null,
       description,
-      priceGhs: price.toString(),
+      priceGhs: String(priceNum),
       costPriceGhs: costStr,
       stock: stockNum,
       reorderAt: Number(reorderAt) || 0,
@@ -327,6 +338,10 @@ export function ProductForm({
       variations: variations.map((v) => ({
         ...v,
         stock: v.stock === "" || v.stock === undefined ? 0 : Number(v.stock),
+        priceGhs:
+          v.priceGhs == null || v.priceGhs === ""
+            ? v.priceGhs
+            : String(parseAmountInput(v.priceGhs)),
       })),
     };
 
@@ -420,34 +435,6 @@ export function ProductForm({
         className="space-y-8 rounded-3xl border border-border bg-white p-6 dark:bg-[#111]"
       >
         <section className="space-y-4">
-          <h2 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Photo</h2>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="relative size-32 mx-auto sm:mx-0 rounded-2xl bg-muted border overflow-hidden flex items-center justify-center dark:border-white/10 shadow-inner">
-              {imagePreview ? (
-                <>
-                  <img src={imagePreview} alt="" className="size-full object-cover" />
-                  <button type="button" onClick={clearImage} className="absolute top-2 right-2 bg-black/50 text-white rounded-lg p-1 hover:bg-black transition-colors">
-                    <X className="size-4" />
-                  </button>
-                </>
-              ) : (
-                <ImageIcon className="size-8 opacity-20" />
-              )}
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <label className="block w-full sm:w-auto px-4 py-2 rounded-xl border border-dashed border-border hover:border-[#006c49] hover:bg-muted/50 transition-all cursor-pointer text-[14px] font-medium text-muted-foreground">
-                <span className="flex items-center justify-center gap-2">
-                  <ImageIcon className="size-4" />
-                  Select Image
-                </span>
-                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-              </label>
-              <p className="text-[12px] text-muted-foreground mt-3">Upload a high-quality photo. Max 4MB.</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4 border-t pt-8 dark:border-white/5">
           <div className="grid sm:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Product Name *</label>
@@ -498,39 +485,21 @@ export function ProductForm({
               </div>
             </div>
           </div>
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">Retail barcode</label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value.replace(/\s+/g, ""))}
-                  className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
-                  placeholder="EAN / UPC / Code 128"
-                />
-                <button type="button" onClick={() => setIsScanningMode(true)} className="flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20 h-[50px]" title="Scan Barcode">
-                  {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-                  <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
-                </button>
-              </div>
-              <p className="ml-1 text-[12px] text-muted-foreground">
-                Scanned retail barcode — stored separately from your internal SKU.
-              </p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold ml-1">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent h-32 text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Describe your product..." />
-          </div>
         </section>
 
         <section className="space-y-4 border-t pt-8 dark:border-white/5">
+          <h2 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Pricing & stock</h2>
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Price (GHS) *</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₵</span>
-                <input type="number" required step="0.01" value={price} onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))} className="w-full p-3 pl-8 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" />
+                <AmountInput
+                  required
+                  value={price}
+                  onChange={setPrice}
+                  className="w-full p-3 pl-8 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                />
                 {unitMeta && unitSelect !== DEFAULT_PRODUCT_UNIT && (
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
                     per {unitMeta.short}
@@ -542,14 +511,9 @@ export function ProductForm({
               <label className="text-sm font-semibold ml-1">Cost price (GHS)</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₵</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
+                <AmountInput
                   value={costPrice}
-                  onChange={(e) =>
-                    setCostPrice(e.target.value === "" ? "" : Number(e.target.value))
-                  }
+                  onChange={setCostPrice}
                   className="w-full p-3 pl-8 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
                   placeholder="Optional — for COGS"
                 />
@@ -600,7 +564,7 @@ export function ProductForm({
                     setUnitSelect(e.target.value);
                     if (e.target.value !== "other") setUnitCustom("");
                   }}
-                  className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 appearance-none"
+                  className="w-full p-3 rounded-2xl border border-border bg-background text-[15px] text-foreground outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 dark:bg-[#141414] appearance-none"
                 >
                   <optgroup label="Count">
                     {PRODUCT_UNITS.filter((u) => u.group === "count").map((u) => (
@@ -643,6 +607,61 @@ export function ProductForm({
                 Ideal for cold stores, bakeries and markets — sell by weight, volume or pack.
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t pt-8 dark:border-white/5">
+          <h2 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Photo</h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="relative size-32 mx-auto sm:mx-0 rounded-2xl bg-muted border overflow-hidden flex items-center justify-center dark:border-white/10 shadow-inner">
+              {imagePreview ? (
+                <>
+                  <img src={imagePreview} alt="" className="size-full object-cover" />
+                  <button type="button" onClick={clearImage} className="absolute top-2 right-2 bg-black/50 text-white rounded-lg p-1 hover:bg-black transition-colors">
+                    <X className="size-4" />
+                  </button>
+                </>
+              ) : (
+                <ImageIcon className="size-8 opacity-20" />
+              )}
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <label className="block w-full sm:w-auto px-4 py-2 rounded-xl border border-dashed border-border hover:border-[#006c49] hover:bg-muted/50 transition-all cursor-pointer text-[14px] font-medium text-muted-foreground">
+                <span className="flex items-center justify-center gap-2">
+                  <ImageIcon className="size-4" />
+                  Select Image
+                </span>
+                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              </label>
+              <p className="text-[12px] text-muted-foreground mt-3">Upload a high-quality photo. Max 4MB.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t pt-8 dark:border-white/5">
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Retail barcode</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value.replace(/\s+/g, ""))}
+                  className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                  placeholder="EAN / UPC / Code 128"
+                />
+                <button type="button" onClick={() => setIsScanningMode(true)} className="flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20 h-[50px]" title="Scan Barcode">
+                  {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+                  <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
+                </button>
+              </div>
+              <p className="ml-1 text-[12px] text-muted-foreground">
+                Scanned retail barcode — stored separately from your internal SKU.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold ml-1">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent h-32 text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Describe your product..." />
           </div>
         </section>
 
@@ -725,11 +744,9 @@ export function ProductForm({
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Price Override</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground">₵</span>
-                      <input 
-                        type="number"
-                        step="0.01"
-                        value={v.priceGhs} 
-                        onChange={(e) => updateVariation(v.id, { priceGhs: e.target.value })}
+                      <AmountInput 
+                        value={v.priceGhs ?? ""}
+                        onChange={(next) => updateVariation(v.id, { priceGhs: next })}
                         className="w-full pl-6 pr-3 py-2 rounded-xl border border-border bg-transparent text-[13px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
                       />
                     </div>
@@ -794,7 +811,7 @@ export function ProductForm({
             />
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 appearance-none">
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-background text-[15px] text-foreground outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 dark:bg-[#141414] appearance-none">
                 <option value="active">Active</option>
                 <option value="archived">Archived</option>
               </select>

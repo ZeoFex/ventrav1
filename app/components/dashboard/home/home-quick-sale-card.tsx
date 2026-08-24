@@ -22,11 +22,9 @@ export function HomeQuickSaleCard({
 
   return (
     <article
-      className={`group relative flex w-[168px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-[#bfc9c3]/20 bg-surface-card shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-[transform,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-[#006c49]/35 hover:shadow-[0_12px_28px_-12px_rgba(0,108,73,0.22)] active:scale-[0.98] dark:border-white/[0.08] dark:bg-[#111] dark:hover:border-[#6ffbbe]/35 sm:w-[184px] ${
-        isOutOfStock ? "opacity-70 grayscale-[0.35]" : ""
-      }`}
+      className="group relative flex w-[168px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-[#bfc9c3]/20 bg-surface-card shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-[transform,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-[#006c49]/35 hover:shadow-[0_12px_28px_-12px_rgba(0,108,73,0.22)] active:scale-[0.98] dark:border-white/[0.08] dark:bg-[#111] dark:hover:border-[#6ffbbe]/35 sm:w-[184px]"
     >
-      {rank != null && rank <= 3 && !isOutOfStock && (
+      {rank != null && rank <= 3 && (
         <span className="absolute left-2.5 top-2.5 z-[2] inline-flex items-center gap-1 rounded-full bg-[#006c49]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm dark:bg-[#6ffbbe]/90 dark:text-[#003527]">
           <TrendingUp className="size-2.5" strokeWidth={2.5} aria-hidden />
           #{rank}
@@ -56,7 +54,7 @@ export function HomeQuickSaleCard({
           }`}
         >
           {isOutOfStock
-            ? "Out of stock"
+            ? `${formatQuantity(availableStock, product.unit)} in stock`
             : `${formatQuantity(availableStock, product.unit)} left`}
         </span>
       </div>
@@ -83,13 +81,8 @@ export function HomeQuickSaleCard({
           <button
             type="button"
             onClick={onAdd}
-            disabled={isOutOfStock}
-            aria-label={isOutOfStock ? `${product.name} out of stock` : `Add ${product.name} to cart`}
-            className={`tap-target flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
-              isOutOfStock
-                ? "cursor-not-allowed bg-muted text-muted-foreground"
-                : "bg-[#006c49] text-white shadow-sm hover:brightness-110 active:scale-95 dark:bg-[#6ffbbe] dark:text-[#003527]"
-            }`}
+            aria-label={`Add ${product.name}`}
+            className="tap-target flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#006c49] text-white shadow-sm transition-colors hover:brightness-110 active:scale-95 dark:bg-[#6ffbbe] dark:text-[#003527]"
           >
             <Plus className="size-4" strokeWidth={2.5} aria-hidden />
           </button>

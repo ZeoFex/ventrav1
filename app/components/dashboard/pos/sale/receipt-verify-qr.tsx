@@ -17,10 +17,10 @@ export function ReceiptVerificationBlock({ data }: { data: PosReceiptData }) {
         const url = buildReceiptVerificationUrl(saleId);
         let cancelled = false;
         QRCode.toDataURL(url, {
-            width: 112,
-            margin: 1,
-            errorCorrectionLevel: "M",
-            color: { dark: "#0a0a0a", light: "#ffffff" },
+            width: 168,
+            margin: 2,
+            errorCorrectionLevel: "H",
+            color: { dark: "#000000", light: "#ffffff" },
         })
             .then((dataUrl) => {
                 if (!cancelled) setSrc(dataUrl);
@@ -41,13 +41,13 @@ export function ReceiptVerificationBlock({ data }: { data: PosReceiptData }) {
                 <img
                     src={src}
                     alt="Receipt verification QR"
-                    width={112}
-                    height={112}
-                    className="block border border-black bg-white p-1"
+                    width={168}
+                    height={168}
+                    className="block border-2 border-black bg-white p-1.5"
                 />
             ) : (
                 <div
-                    className="size-28 animate-pulse border border-black/20 bg-black/[0.06]"
+                    className="size-[10.5rem] animate-pulse border-2 border-black/20 bg-black/[0.06]"
                     aria-hidden
                 />
             )}

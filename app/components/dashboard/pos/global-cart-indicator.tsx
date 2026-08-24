@@ -34,35 +34,37 @@ export function GlobalCartIndicator() {
   if (!mounted) return null;
 
   // Don't show indicator if we are on the main POS page, as it has its own cart panel
-  if (pathname === "/dashboard/pos/sale") {
+  if (pathname === "/dashboard/pos/sale" || pathname === "/dashboard" || pathname === "/dashboard/") {
     return null;
   }
 
   const itemCount = lines.reduce((acc, line) => acc + line.qty, 0);
 
-  if (itemCount === 0) {
+  if (itemCount === 0 && !isDrawerOpen) {
     return null;
   }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setIsDrawerOpen(true)}
-        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-50 flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in zoom-in-95 rounded-full bg-[#006c49] px-5 py-3.5 text-white shadow-lg lg:bottom-10 lg:right-10 hover:bg-[#003527] hover:scale-105 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] dark:bg-[#6ffbbe] dark:text-[#0a0a0a] dark:hover:bg-white"
-        aria-label="Open quick checkout"
-      >
-        <div className="relative">
-          <ShoppingBag className="size-5" />
-          <span className="absolute -top-2.5 -right-2.5 flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-[#006c49] dark:ring-[#6ffbbe]">
-            {itemCount}
-          </span>
-        </div>
-        <div className="flex flex-col text-left mr-1">
-           <span className="text-[10px] uppercase font-bold tracking-wider opacity-80 leading-none mb-0.5">Quick Cart</span>
-           <span className="text-[14px] font-bold leading-none tabular-nums">{formatGhs(total)}</span>
-        </div>
-      </button>
+      {itemCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-50 flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in zoom-in-95 rounded-full bg-[#006c49] px-5 py-3.5 text-white shadow-lg lg:bottom-10 lg:right-10 hover:bg-[#003527] hover:scale-105 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] dark:bg-[#6ffbbe] dark:text-[#0a0a0a] dark:hover:bg-white"
+          aria-label="Open quick checkout"
+        >
+          <div className="relative">
+            <ShoppingBag className="size-5" />
+            <span className="absolute -top-2.5 -right-2.5 flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-[#006c49] dark:ring-[#6ffbbe]">
+              {itemCount}
+            </span>
+          </div>
+          <div className="flex flex-col text-left mr-1">
+             <span className="text-[10px] uppercase font-bold tracking-wider opacity-80 leading-none mb-0.5">Quick Cart</span>
+             <span className="text-[14px] font-bold leading-none tabular-nums">{formatGhs(total)}</span>
+          </div>
+        </button>
+      ) : null}
       
       <QuickCheckoutDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
     </>

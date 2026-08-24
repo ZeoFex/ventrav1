@@ -19,14 +19,10 @@ export function PosSaleReceiptThermal({ data }: { data: PosReceiptData }) {
     hour12: true,
   });
 
-  const orderIdPart = data.invoiceId.includes("-")
-    ? data.invoiceId.slice(data.invoiceId.indexOf("-") + 1)
-    : data.invoiceId;
-
   return (
     <section
       id="pos-sale-receipt-thermal"
-      className="mx-auto w-full max-w-[20rem] bg-white p-6 shadow-xl"
+      className="mx-auto w-[min(100%,58mm)] bg-white px-2.5 py-3 shadow-xl sm:w-full sm:max-w-[20rem] sm:p-6"
       style={{
         fontFamily: "'Courier New', Courier, monospace",
         color: "#000",
@@ -34,7 +30,7 @@ export function PosSaleReceiptThermal({ data }: { data: PosReceiptData }) {
       }}
     >
       <div className="flex flex-col items-center text-center text-black">
-        <div className="mb-1 text-xl font-black uppercase tracking-widest text-black">
+        <div className="mb-1 text-[15px] font-black uppercase tracking-widest text-black sm:text-xl">
           {data.storeName}
         </div>
         {data.receiptHeader ? (
@@ -63,11 +59,6 @@ export function PosSaleReceiptThermal({ data }: { data: PosReceiptData }) {
           <div className="flex justify-between gap-4">
             <span className="font-semibold">Customer Name</span>
             <span className="font-bold">{data.customerName || "Walk-in"}</span>
-          </div>
-          <DashedDivider />
-          <div className="flex justify-between gap-4">
-            <span className="font-semibold">Order ID</span>
-            <span className="break-all text-right font-bold">{orderIdPart}</span>
           </div>
           <DashedDivider />
 

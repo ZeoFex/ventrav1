@@ -10,6 +10,8 @@ import {
 import { db } from "@/server/db";
 import { branches } from "@/server/db/schema/branches";
 import { BRANCH_ADDON_PRICE_MONTHLY_GHS } from "@/config/plans";
+import { logPlatformActivity } from "@/server/platform/platform-activity-log";
+import { PLATFORM_ACTIONS } from "@/server/platform/platform-activity-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +91,16 @@ export async function POST(req: NextRequest) {
 
     try {
         const result = await adminAddBranchForBusiness(parsed.data);
+        await logPlatformActivity(req, {
+            action: PLATFORM_ACTIONS.SHOP_BRANCH_ADDED,
+            resource: "branch",
+            resourceId: result.branch.id,
+            metadata: {
+                shopId: parsed.data.businessId,
+                branchName: result.branch.name,
+                chargedAddon: result.chargedAddon,
+            },
+        });
         return NextResponse.json(
             {
                 branch: result.branch,

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans, Geist } from "next/font/google";
 import { ThemeProvider } from "./components/theme-provider";
 import NextTopLoader from "nextjs-toploader";
@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { PwaInstallBanner } from "./components/pwa-install-banner";
+import { Toaster } from "sonner";
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -24,6 +25,17 @@ const inter = Inter({
 const SITE_URL = "https://ventrapos.com";
 const ADMIN_URL = "https://admin.ventrapos.com";
 const OG_IMAGE = "/landing/ventra.jpg";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#003527" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -121,8 +133,6 @@ export const metadata: Metadata = {
     "platform-admin-url": ADMIN_URL,
   },
 };
-
-import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,

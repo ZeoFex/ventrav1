@@ -16,6 +16,9 @@ import {
 import { PosReceiptStep } from "./pos-receipt-step";
 import { useBranches } from "../../branches/branches-data-hooks";
 import { usePosConfig } from "./pos-config-hooks";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
+import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 import { useSession } from "../../../auth/use-session";
 import type { CustomerRow } from "../../customers/customers-mock-data";
 
@@ -88,6 +91,7 @@ export function PosCustomerOrdersView() {
     const [payBusy, setPayBusy] = useState(false);
     const [finalBusy, setFinalBusy] = useState(false);
     const [cancelBusy, setCancelBusy] = useState(false);
+    const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
     const [advanceReceipt, setAdvanceReceipt] = useState<PosReceiptData | null>(null);
 
     const [filterCustomerId, setFilterCustomerId] = useState<string | null>(null);
@@ -131,7 +135,7 @@ export function PosCustomerOrdersView() {
         async (e: React.FormEvent) => {
             e.preventDefault();
             if (!selectedId) return;
-            const n = Number(payAmount);
+            const n = parseAmountInput(payAmount);
             if (!Number.isFinite(n) || n <= 0) {
                 toast.error("Enter a valid amount.");
                 return;
@@ -223,13 +227,13 @@ export function PosCustomerOrdersView() {
 
     const cancel = useCallback(async () => {
         if (!selectedId) return;
-        if (!window.confirm("Cancel this order and release reserved stock?")) return;
         setCancelBusy(true);
         try {
             const res = await fetch(`/api/customer-orders/${selectedId}/cancel`, { method: "POST" });
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Cancel failed");
             toast.success("Order cancelled");
+            setCancelConfirmOpen(false);
             setSelectedId(null);
             await mutateList();
         } catch (err: unknown) {
@@ -531,12 +535,9 @@ export function PosCustomerOrdersView() {
                                     <p className="text-[14px] font-semibold">Add payment</p>
                                     <div>
                                         <label className="text-[12px] text-muted-foreground">Amount</label>
-                                        <input
-                                            type="number"
-                                            min={0.01}
-                                            step="0.01"
+                                        <AmountInput
                                             value={payAmount}
-                                            onChange={(e) => setPayAmount(e.target.value)}
+                                            onChange={setPayAmount}
                                             className="mt-1 w-full rounded-xl border border-[#e5e7eb] bg-transparent px-3 py-2.5 dark:border-white/12"
                                         />
                                     </div>
@@ -580,10 +581,10 @@ export function PosCustomerOrdersView() {
                                 <button
                                     type="button"
                                     disabled={cancelBusy}
-                                    onClick={() => void cancel()}
+                                    onClick={() => setCancelConfirmOpen(true)}
                                     className="mt-3 w-full rounded-xl border border-red-200 py-2.5 text-[13px] font-semibold text-red-700 dark:border-red-900/50 dark:text-red-400"
                                 >
-                                    {cancelBusy ? "Cancelling…" : "Cancel order"}
+                                    Cancel order
                                 </button>
                             ) : null}
 
@@ -597,6 +598,33 @@ export function PosCustomerOrdersView() {
                     )}
                 </div>
             </div>
+            {cancelConfirmOpen ? (
+                <DeleteConfirmModal
+                    icon="ban"
+                    title="Cancel this order?"
+                    description={
+                        <>
+                            {detailData?.order?.invoiceId ? (
+                                <>
+                                    <span className="font-semibold text-foreground">
+                                        {detailData.order.invoiceId}
+                                    </span>{" "}
+                                    will be cancelled and reserved stock released. This cannot be undone.
+                                </>
+                            ) : (
+                                "Reserved stock will be released. This cannot be undone."
+                            )}
+                        </>
+                    }
+                    dismissLabel="Keep order"
+                    confirmLabel="Cancel order"
+                    isDeleting={cancelBusy}
+                    onCancel={() => {
+                        if (!cancelBusy) setCancelConfirmOpen(false);
+                    }}
+                    onConfirm={() => void cancel()}
+                />
+            ) : null}
         </ProductsPageShell>
     );
 }

@@ -5,6 +5,8 @@
  * Stores: products, categories, customers, expenses, syncQueue
  */
 
+import { toStockQty } from "@/server/stock/sellable-stock";
+
 const DB_NAME = "ventrapos-offline";
 const DB_VERSION = 2; // Incremented for new stores
 
@@ -26,6 +28,8 @@ export interface Product {
   name: string;
   slug: string;
   sku: string;
+  /** Retail / label barcode (EAN-13, UPC-A, Code 128, etc.) */
+  barcode?: string | null;
   description?: string | null;
   priceGhs: string;
   stock: number;
@@ -157,7 +161,7 @@ export async function updateCachedProductStock(
     req.onsuccess = () => {
       const product = req.result as Product;
       if (product) {
-        product.stock = Math.max(0, product.stock - soldQty);
+        product.stock = toStockQty(product.stock) - toStockQty(soldQty);
         store.put(product);
       }
       tx.oncomplete = () => resolve();

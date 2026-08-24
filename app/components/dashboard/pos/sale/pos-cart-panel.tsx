@@ -10,11 +10,13 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useGlobalCart } from "../global-cart-context";
 import type { CartLine } from "./pos-cart-totals";
 import { computePosTotals, computeDiscountGhs, lineUnitPrice } from "./pos-cart-totals";
 import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
+import { SaleTotalDock } from "./sale-total-dock";
 import { PosCustomerSelector } from "./pos-customer-selector";
 import type { Discount } from "../../marketing/discounts-data-hooks";
 import type { CustomerRow } from "../../customers/customers-mock-data";
@@ -45,14 +47,6 @@ type CartPanelContentProps = {
   onSelectDiscount?: (id: string | null) => void;
 };
 
-function sellableQty(p: ProductRow, variationId?: string): number {
-  if (variationId && p.variations?.length) {
-    const v = p.variations.find((x) => x.id === variationId);
-    if (v) return Math.max(0, Number(v.stockAvailable ?? v.stock) || 0);
-  }
-  return Math.max(0, Number(p.stockAvailable ?? p.stock) || 0);
-}
-
 function parseQtyInput(raw: string): number | null {
   const parsed = Number.parseInt(raw.replace(/[^\d]/g, ""), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
@@ -66,6 +60,7 @@ function CartQtyControl({
   onDecrement,
   onSetQuantity,
   disabled,
+  compact,
 }: {
   qty: number;
   maxQty?: number;
@@ -73,6 +68,7 @@ function CartQtyControl({
   onDecrement: () => void;
   onSetQuantity: (qty: number) => void;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const [draft, setDraft] = useState(String(qty));
   const [syncedQty, setSyncedQty] = useState(qty);
@@ -99,13 +95,20 @@ function CartQtyControl({
     if (next !== qty) onSetQuantity(next);
   };
 
+  const sizeClass = compact
+    ? "h-8 lg:h-7"
+    : "h-10 lg:h-7";
+  const btnClass = compact
+    ? "flex size-8 items-center justify-center lg:size-7"
+    : "tap-target flex size-10 items-center justify-center lg:size-7";
+
   return (
-    <div className="inline-flex h-7 items-center rounded-md border border-[#e5e7eb] bg-[#fafafa] dark:border-white/[0.1] dark:bg-[#1a1a1a]">
+    <div className={`inline-flex items-center rounded-lg border border-[#e5e7eb] bg-[#fafafa] dark:border-white/[0.1] dark:bg-[#1a1a1a] lg:rounded-md ${sizeClass}`}>
       <button
         type="button"
         onClick={onDecrement}
         disabled={disabled}
-        className="tap-target flex size-7 items-center justify-center rounded-l-md text-muted-foreground transition-colors hover:bg-white hover:text-foreground disabled:opacity-40 dark:hover:bg-[#262626]"
+        className={`${btnClass} rounded-l-lg text-muted-foreground transition-colors hover:bg-white hover:text-foreground disabled:opacity-40 dark:hover:bg-[#262626] lg:rounded-l-md`}
         aria-label="Decrease quantity"
       >
         <Minus className="size-3.5" strokeWidth={2.25} />
@@ -131,14 +134,16 @@ function CartQtyControl({
             e.currentTarget.blur();
           }
         }}
-        className="h-7 w-12 border-x border-[#e5e7eb] bg-transparent text-center text-[13px] font-semibold tabular-nums text-foreground outline-none dark:border-white/[0.1]"
+        className={`w-10 border-x border-[#e5e7eb] bg-transparent text-center font-semibold tabular-nums text-foreground outline-none dark:border-white/[0.1] lg:h-7 lg:text-[13px] ${
+          compact ? "h-8 text-[13px]" : "h-10 text-[15px]"
+        }`}
         aria-label="Quantity"
       />
       <button
         type="button"
         onClick={onIncrement}
         disabled={disabled}
-        className="tap-target flex size-7 items-center justify-center rounded-r-md bg-[#003527] text-white transition-[filter] hover:brightness-110 disabled:opacity-40"
+        className={`${btnClass} rounded-r-lg bg-[#003527] text-white transition-[filter] hover:brightness-110 disabled:opacity-40 lg:rounded-r-md`}
         aria-label="Increase quantity"
       >
         <Plus className="size-3.5" strokeWidth={2.5} />
@@ -192,45 +197,46 @@ export function PosCartPanelContent({
   };
 
   const isPinnedLayout = variant === "desktop";
+  const compactChrome = variant === "sheet" || variant === "drawer";
 
   return (
     <div
       className={
-        isPinnedLayout
-          ? "flex h-full min-h-0 flex-col"
+        isPinnedLayout || variant === "sheet"
+          ? "flex h-full min-h-0 flex-col overflow-hidden"
           : "flex flex-col"
       }
     >
       {variant === "sheet" ? (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#f0f2f4] px-4 py-3 dark:border-white/[0.06]">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#f0f2f4] px-3 py-2 dark:border-white/[0.06]">
+          <div className="flex min-w-0 items-center gap-1.5">
             <ShoppingBag
-              className="size-5 shrink-0 text-[#006c49] dark:text-[#6ffbbe]"
+              className="size-4 shrink-0 text-[#006c49] dark:text-[#6ffbbe]"
               strokeWidth={1.75}
               aria-hidden
             />
-            <span className="font-[family-name:var(--font-display)] text-base font-semibold text-foreground">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-semibold tracking-tight text-[#14261e] dark:text-white">
               Cart
             </span>
-            <span className="text-[13px] text-muted-foreground">
-              ({itemCount} items)
+            <span className="text-[12px] font-medium text-[#7a8c84] dark:text-muted-foreground">
+              ({itemCount})
             </span>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-0.5">
             <button
               type="button"
               onClick={onReset}
-              className="rounded-lg px-2 py-2 text-[12px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+              className="rounded-lg px-2 py-1.5 text-[12px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
             >
               Reset
             </button>
             <button
               type="button"
               onClick={onCloseSheet}
-              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-surface-elevated dark:hover:bg-[#1a1a1a]"
+              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-elevated dark:hover:bg-[#1a1a1a]"
               aria-label="Close cart"
             >
-              <X className="size-5" strokeWidth={2} aria-hidden />
+              <X className="size-4" strokeWidth={2} aria-hidden />
             </button>
           </div>
         </div>
@@ -255,14 +261,26 @@ export function PosCartPanelContent({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onReset}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-red-200/80 bg-red-50/80 px-3 py-2 text-[12px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-500/25 dark:bg-red-950/30 dark:hover:bg-red-950/50"
-          >
-            <Trash2 className="size-3.5" strokeWidth={2} aria-hidden />
-            Reset Order
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onReset}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-red-200/80 bg-red-50/80 px-3 py-2 text-[12px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-500/25 dark:bg-red-950/30 dark:hover:bg-red-950/50"
+            >
+              <Trash2 className="size-3.5" strokeWidth={2} aria-hidden />
+              Reset Order
+            </button>
+            {onCloseSheet ? (
+              <button
+                type="button"
+                onClick={onCloseSheet}
+                className="flex size-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-[#1a1a1a]"
+                aria-label="Close cart"
+              >
+                <X className="size-5" strokeWidth={2} aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </div>
       )}
 
@@ -273,7 +291,7 @@ export function PosCartPanelContent({
             : "mt-3 flex shrink-0 flex-col gap-3 px-0"
         }
       >
-        <div className={variant === "sheet" ? "px-4" : undefined}>
+        <div className={variant === "sheet" ? "px-3" : undefined}>
           <PosCustomerSelector
             selectedId={customerId ?? null}
             onSelect={(c) => onCustomerSelect?.(c)}
@@ -311,7 +329,7 @@ export function PosCartPanelContent({
           isPinnedLayout
             ? "flex-1 overflow-y-auto overscroll-contain pr-0.5"
             : variant === "sheet"
-              ? "max-h-[min(40dvh,320px)] overflow-y-auto overscroll-contain px-4"
+              ? "min-h-0 flex-1 overflow-y-auto overscroll-contain px-3"
               : ""
         }`}
       >
@@ -350,7 +368,7 @@ export function PosCartPanelContent({
                   className="px-2.5 py-2"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="relative size-9 shrink-0 overflow-hidden rounded-md border border-[#eef0f2] bg-[#f4f5f6] dark:border-white/[0.08] dark:bg-[#1a1a1a]">
+                    <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-[#f3f6f4] ring-1 ring-[#e4ebe6] dark:bg-[#1a1a1a] dark:ring-white/[0.08]">
                       {p.imageSrc ? (
                         <CatalogProductImage
                           src={p.imageSrc}
@@ -359,7 +377,7 @@ export function PosCartPanelContent({
                         />
                       ) : (
                         <div className="flex size-full items-center justify-center">
-                          <span className="text-xs font-semibold uppercase text-muted-foreground/40">
+                          <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold uppercase text-[#006c49]/35 dark:text-[#6ffbbe]/35">
                             {p.name.charAt(0)}
                           </span>
                         </div>
@@ -369,15 +387,15 @@ export function PosCartPanelContent({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-semibold leading-tight text-foreground">
+                          <p className="truncate font-[family-name:var(--font-display)] text-[14px] font-semibold leading-tight tracking-tight text-[#14261e] dark:text-white">
                             {p.name}
                           </p>
-                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          <p className="mt-0.5 truncate text-[11px] font-medium text-[#7a8c84] dark:text-muted-foreground">
                             {variation?.name ? `${variation.name} · ` : ""}
                             {formatGhs(unitPrice)} × {line.qty}
                           </p>
                         </div>
-                        <p className="shrink-0 text-[13px] font-semibold tabular-nums leading-tight text-foreground">
+                        <p className="shrink-0 font-[family-name:var(--font-display)] text-[15px] font-bold tabular-nums leading-tight tracking-tight text-[#006c49] dark:text-[#6ffbbe]">
                           {formatGhs(lineTotal)}
                         </p>
                       </div>
@@ -385,7 +403,7 @@ export function PosCartPanelContent({
                       <div className="mt-1.5 flex items-center justify-between gap-2">
                         <CartQtyControl
                           qty={line.qty}
-                          maxQty={sellableQty(p, line.variationId)}
+                          compact={compactChrome}
                           onIncrement={() =>
                             onIncrement(line.productId, line.variationId)
                           }
@@ -417,7 +435,7 @@ export function PosCartPanelContent({
         )}
       </div>
 
-      <div className="mt-3 shrink-0 space-y-3 rounded-xl border border-[#e5e7eb] bg-[#f7f8f9] p-3 dark:border-white/[0.1] dark:bg-[#0c0c0c]">
+      <div className={`mt-3 shrink-0 space-y-2 rounded-xl border border-[#e5e7eb] bg-[#f7f8f9] dark:border-white/[0.1] dark:bg-[#0c0c0c] ${compactChrome ? "mx-3 p-2.5" : "space-y-3 p-3"}`}>
         {discount > 0 ? (
           <div className="flex items-center justify-between gap-4 text-[13px] text-muted-foreground">
             <span>
@@ -433,17 +451,21 @@ export function PosCartPanelContent({
           <span className="text-[14px] font-semibold text-foreground">
             Total
           </span>
-          <span className="font-[family-name:var(--font-display)] text-xl font-bold tabular-nums text-[#006c49] dark:text-[#6ffbbe]">
+          <span className={`font-[family-name:var(--font-display)] font-bold tabular-nums text-[#006c49] dark:text-[#6ffbbe] ${compactChrome ? "text-lg" : "text-xl"}`}>
             {formatGhs(total)}
           </span>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <button
             type="button"
             disabled={lines.length === 0 || !onContinue}
             onClick={handleContinue}
-            className="tap-target flex w-full min-h-[48px] items-center justify-center rounded-2xl bg-gradient-to-br from-[#003527] to-[#064e3b] py-3.5 text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,53,39,0.45)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.5)]"
+            className={`tap-target flex w-full items-center justify-center bg-gradient-to-br from-[#003527] to-[#064e3b] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,53,39,0.45)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.5)] ${
+              compactChrome
+                ? "h-10 rounded-xl text-[13px]"
+                : "min-h-[48px] rounded-2xl py-3.5 text-[15px]"
+            }`}
           >
             Continue to payment
           </button>
@@ -457,7 +479,11 @@ export function PosCartPanelContent({
                   : undefined
               }
               onClick={onCustomerOrder}
-              className="tap-target flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-[#006c49]/30 bg-white py-3 text-[14px] font-semibold text-[#006c49] transition-colors hover:bg-[#006c49]/10 disabled:cursor-not-allowed disabled:opacity-45 dark:border-[#6ffbbe]/30 dark:bg-transparent dark:text-[#6ffbbe] dark:hover:bg-[#6ffbbe]/12"
+              className={`tap-target flex w-full items-center justify-center gap-2 border border-[#006c49]/30 bg-white font-semibold text-[#006c49] transition-colors hover:bg-[#006c49]/10 disabled:cursor-not-allowed disabled:opacity-45 dark:border-[#6ffbbe]/30 dark:bg-transparent dark:text-[#6ffbbe] dark:hover:bg-[#6ffbbe]/12 ${
+                compactChrome
+                  ? "h-9 rounded-xl text-[12px]"
+                  : "min-h-[48px] rounded-2xl py-3 text-[14px]"
+              }`}
             >
               Customer order (pay &amp; hold)
             </button>
@@ -467,7 +493,11 @@ export function PosCartPanelContent({
               type="button"
               disabled={lines.length === 0}
               onClick={onHoldSale}
-              className="tap-target flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-[#d1d5db] bg-white py-3 text-[14px] font-semibold text-foreground transition-colors hover:bg-[#fafafa] disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04]"
+              className={`tap-target flex w-full items-center justify-center gap-2 border border-[#d1d5db] bg-white font-semibold text-foreground transition-colors hover:bg-[#fafafa] disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/[0.12] dark:bg-transparent dark:hover:bg-white/[0.04] ${
+                compactChrome
+                  ? "h-9 rounded-xl text-[12px]"
+                  : "min-h-[48px] rounded-2xl py-3 text-[14px]"
+              }`}
             >
               <PauseCircle className="size-4" strokeWidth={2} aria-hidden />
               Hold sale
@@ -479,30 +509,75 @@ export function PosCartPanelContent({
   );
 }
 
-export function PosCartPanel(
-  props: Omit<
-    CartPanelContentProps,
-    "variant" | "onCloseSheet" | "onContinueClick"
-  >,
-) {
+export function PosCartPanel({
+  open,
+  onOpenChange,
+  ...props
+}: Omit<CartPanelContentProps, "variant" | "onCloseSheet" | "onContinueClick"> & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const itemCount = props.lines.reduce((s, l) => s + l.qty, 0);
+  const discountGhs = props.appliedDiscount
+    ? computeDiscountGhs(props.appliedDiscount, props.lines, props.productById)
+    : 0;
+  const { total } = computePosTotals(props.lines, props.productById, {
+    discountGhs,
+  });
+
   return (
-    <aside className="relative hidden h-full min-h-0 w-[320px] shrink-0 flex-col overflow-hidden rounded-[1.35rem] border border-[#006c49]/25 bg-white p-4 shadow-[0_8px_30px_-12px_rgba(0,53,39,0.28),0_1px_3px_rgba(15,23,42,0.06)] dark:border-[#6ffbbe]/28 dark:bg-[#121212] dark:shadow-[0_12px_36px_-14px_rgba(0,0,0,0.65)] lg:flex xl:w-[360px] 2xl:w-[400px]">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#003527] via-[#006c49] to-[#6ffbbe]/80"
-        aria-hidden
-      />
-      <PosCartPanelContent variant="desktop" {...props} />
-    </aside>
+    <>
+      {itemCount > 0 && !open ? (
+        <button
+          type="button"
+          onClick={() => onOpenChange(true)}
+          className="absolute bottom-4 right-4 z-20 hidden min-h-[52px] items-center gap-3 rounded-2xl border border-[#006c49]/25 bg-white px-4 py-2.5 text-left shadow-[0_12px_32px_-12px_rgba(0,53,39,0.45)] transition-transform hover:scale-[1.02] dark:border-[#6ffbbe]/30 dark:bg-[#121212] lg:inline-flex"
+        >
+          <span className="flex size-9 items-center justify-center rounded-xl bg-[#006c49]/12 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]">
+            <ShoppingBag className="size-4" strokeWidth={2} aria-hidden />
+          </span>
+          <span>
+            <span className="block text-[12px] font-medium text-muted-foreground">
+              {itemCount} item{itemCount === 1 ? "" : "s"}
+            </span>
+            <span className="block font-[family-name:var(--font-display)] text-[15px] font-semibold tabular-nums text-foreground">
+              {formatGhs(total)}
+            </span>
+          </span>
+        </button>
+      ) : null}
+
+      {open ? (
+        <aside
+          className="absolute inset-y-0 right-0 z-20 hidden w-[min(400px,42vw)] flex-col overflow-hidden rounded-[1.35rem] border border-[#006c49]/25 bg-white p-4 shadow-[0_16px_48px_-12px_rgba(0,53,39,0.35),0_1px_3px_rgba(15,23,42,0.08)] dark:border-[#6ffbbe]/28 dark:bg-[#121212] dark:shadow-[0_20px_48px_-14px_rgba(0,0,0,0.7)] lg:flex"
+          role="dialog"
+          aria-modal="false"
+          aria-label="Transaction details"
+        >
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#003527] via-[#006c49] to-[#6ffbbe]/80"
+            aria-hidden
+          />
+          <PosCartPanelContent
+            variant="desktop"
+            {...props}
+            onCloseSheet={() => onOpenChange(false)}
+          />
+        </aside>
+      ) : null}
+    </>
   );
 }
 
-export function PosMobileCartDock(
-  props: Omit<
-    CartPanelContentProps,
-    "variant" | "onCloseSheet" | "onContinueClick"
-  >,
-) {
-  const [open, setOpen] = useState(false);
+export function PosMobileCartDock({
+  open,
+  onOpenChange,
+  ...props
+}: Omit<CartPanelContentProps, "variant" | "onCloseSheet" | "onContinueClick"> & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { lastAdded } = useGlobalCart();
   const discountGhs = props.appliedDiscount
     ? props.appliedDiscount.type === "percentage"
       ? props.lines.reduce(
@@ -519,48 +594,22 @@ export function PosMobileCartDock(
     discountGhs,
   });
   const lineCount = props.lines.reduce((s, l) => s + l.qty, 0);
+  const latestLine = props.lines[0];
+  const latestProduct = latestLine ? props.productById.get(latestLine.productId) : undefined;
+  const name = lastAdded?.name ?? latestProduct?.name ?? null;
 
-  const closeSheet = useCallback(() => setOpen(false), []);
+  const closeSheet = useCallback(() => onOpenChange(false), [onOpenChange]);
+  const goPay = () => props.onContinue?.();
 
   return (
     <>
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[#eef0f2] bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.08)] backdrop-blur-md dark:border-white/[0.08] dark:bg-[#111]/95 dark:shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.4)] lg:hidden"
-        role="region"
-        aria-label="Cart summary"
-      >
-        <div className="mx-auto flex max-w-[1600px] items-stretch gap-2 px-3 sm:px-4">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="tap-target flex min-h-[52px] min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-3 text-left dark:border-white/[0.12] dark:bg-[#141414]"
-          >
-            <span className="text-[13px] font-medium text-muted-foreground">
-              {lineCount === 0 ? (
-                "Tap to open cart"
-              ) : (
-                <>
-                  <span className="text-foreground">{lineCount} items</span>
-                  <span className="mx-1">·</span>
-                  <span>Review</span>
-                </>
-              )}
-            </span>
-            <span className="shrink-0 font-[family-name:var(--font-display)] text-[17px] font-semibold tabular-nums text-foreground">
-              {formatGhs(total)}
-            </span>
-          </button>
-          {lineCount > 0 && props.onContinue ? (
-            <button
-              type="button"
-              onClick={() => props.onContinue?.()}
-              className="tap-target flex min-h-[52px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 text-[14px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,53,39,0.45)] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.5)]"
-            >
-              Pay
-            </button>
-          ) : null}
-        </div>
-      </div>
+      <SaleTotalDock
+        total={total}
+        itemCount={lineCount}
+        itemName={name}
+        onReview={() => onOpenChange(true)}
+        onPay={goPay}
+      />
 
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden" role="presentation">
@@ -571,7 +620,7 @@ export function PosMobileCartDock(
             onClick={closeSheet}
           />
           <div
-            className="absolute bottom-0 left-0 right-0 flex max-h-[min(92dvh,720px)] flex-col overflow-y-auto rounded-t-3xl border border-b-0 border-[#eef0f2] bg-white shadow-2xl motion-safe:transition-transform motion-safe:duration-300 dark:border-white/[0.1] dark:bg-[#111]"
+            className="absolute bottom-0 left-0 right-0 flex h-[min(92dvh,100%)] max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-[#eef0f2] bg-white shadow-2xl dark:border-white/[0.1] dark:bg-[#111]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="pos-mobile-cart-title"
@@ -580,10 +629,10 @@ export function PosMobileCartDock(
               Shopping cart
             </span>
             <div
-              className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25"
+              className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25"
               aria-hidden
             />
-            <div className="flex flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1">
               <PosCartPanelContent
                 variant="sheet"
                 {...props}

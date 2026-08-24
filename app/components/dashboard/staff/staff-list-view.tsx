@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Plus, Search, Users, Loader2, Trash2 } from "lucide-react";
 import useSWR from "swr";
 import { ProductsPageShell } from "../products/products-page-shell";
+import { DeleteConfirmModal } from "../ui/delete-confirm-modal";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -12,6 +13,8 @@ export function StaffListView() {
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [branchFilter, setBranchFilter] = useState("all");
+  const [pendingStaff, setPendingStaff] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: staff, mutate, isLoading } = useSWR<any[]>("/api/staff", fetcher);
   const { data: branches } = useSWR<any[]>("/api/branches", fetcher);
@@ -40,16 +43,19 @@ export function StaffListView() {
     });
   }, [staff, query, roleFilter, branchFilter]);
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to remove this staff member?")) return;
-
+  async function handleDelete() {
+    if (!pendingStaff || deleting) return;
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/staff/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/staff/${pendingStaff.id}`, { method: "DELETE" });
       if (res.ok) {
         mutate();
+        setPendingStaff(null);
       }
-    } catch (err) {
+    } catch {
       alert("Failed to delete staff");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -198,7 +204,7 @@ export function StaffListView() {
                     </Link>
 
                     <button
-                      onClick={() => handleDelete(staff.id)}
+                      onClick={() => setPendingStaff({ id: staff.id, name: staff.name })}
                       className="flex size-9 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:border-red-500/20"
                     >
                       <Trash2 className="size-4" />
@@ -210,6 +216,23 @@ export function StaffListView() {
           )}
         </>
       )}
+      {pendingStaff ? (
+        <DeleteConfirmModal
+          title="Remove this team member?"
+          description={
+            <>
+              <span className="font-semibold text-foreground">{pendingStaff.name}</span> will lose access
+              to this shop. This cannot be undone.
+            </>
+          }
+          confirmLabel="Remove"
+          isDeleting={deleting}
+          onCancel={() => {
+            if (!deleting) setPendingStaff(null);
+          }}
+          onConfirm={() => void handleDelete()}
+        />
+      ) : null}
     </ProductsPageShell>
   );
 }

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { requirePlatformAccess } from "@/server/auth/api-request-auth";
 import { computePeriodEndAfterAddingDays } from "@/server/billing/subscription-period";
 import { invalidateBusinessConfig, updateBusinessConfig } from "@/server/businesses/business-service";
+import { logPlatformActivity } from "@/server/platform/platform-activity-log";
+import { PLATFORM_ACTIONS } from "@/server/platform/platform-activity-labels";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 
@@ -105,7 +107,11 @@ export async function PATCH(
         );
     }
     const p = parsed.data;
-    const [exists] = await db.select({ id: businesses.id }).from(businesses).where(eq(businesses.id, id)).limit(1);
+    const [exists] = await db
+        .select({ id: businesses.id, name: businesses.name, slug: businesses.slug })
+        .from(businesses)
+        .where(eq(businesses.id, id))
+        .limit(1);
     if (!exists) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -142,6 +148,17 @@ export async function PATCH(
             : {}),
     });
 
+    await logPlatformActivity(req, {
+        action: PLATFORM_ACTIONS.SHOP_UPDATED,
+        resource: "business",
+        resourceId: id,
+        metadata: {
+            shopName: p.name ?? exists.name,
+            shopSlug: exists.slug,
+            fields: Object.keys(p).filter((k) => p[k as keyof typeof p] !== undefined),
+        },
+    });
+
     return NextResponse.json({ success: true });
 }
 
@@ -176,7 +193,7 @@ export async function DELETE(
     const confirmSlug = parsed.data.confirmSlug.trim();
 
     const [row] = await db
-        .select({ id: businesses.id, slug: businesses.slug })
+        .select({ id: businesses.id, slug: businesses.slug, name: businesses.name })
         .from(businesses)
         .where(eq(businesses.id, id))
         .limit(1);
@@ -189,6 +206,13 @@ export async function DELETE(
 
     await db.delete(businesses).where(eq(businesses.id, id));
     await invalidateBusinessConfig(id);
+
+    await logPlatformActivity(req, {
+        action: PLATFORM_ACTIONS.SHOP_DELETED,
+        resource: "business",
+        resourceId: id,
+        metadata: { shopName: row.name, shopSlug: row.slug },
+    });
 
     return new NextResponse(null, { status: 204 });
 }
