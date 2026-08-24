@@ -77,7 +77,7 @@ export async function superadminLogin(
 
         await tx.insert(superadminAuditLogs).values({
             superadminId: row.id,
-            action: "login",
+            action: "admin.signed_in",
             resource: "superadmin_auth",
             resourceId: row.id,
             userAgent: input.userAgent ?? "Unknown",
@@ -208,7 +208,7 @@ export async function createSuperadmin(input: CreateSuperadminInput): Promise<{
 
         await tx.insert(superadminAuditLogs).values({
             superadminId: inserted.id,
-            action: "account_created",
+            action: "admin.account.created",
             resource: "superadmin",
             resourceId: inserted.id,
             metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
@@ -359,7 +359,7 @@ export async function updateSuperadminSelf(
 
     await db.insert(superadminAuditLogs).values({
         superadminId: row.id,
-        action: "account_updated",
+        action: "admin.account.updated",
         resource: "superadmin",
         resourceId: row.id,
         metadata: {
@@ -475,7 +475,7 @@ export async function updateSuperadminByAdmin(input: UpdateSuperadminByAdminInpu
 
     await db.insert(superadminAuditLogs).values({
         superadminId: input.actorSuperadminId ?? null,
-        action: "admin_updated_account",
+        action: "admin.team.updated",
         resource: "superadmin",
         resourceId: row.id,
         metadata: {
@@ -533,7 +533,7 @@ export async function deleteSuperadmin(input: DeleteSuperadminInput): Promise<vo
 
     await db.insert(superadminAuditLogs).values({
         superadminId: input.actorSuperadminId ?? null,
-        action: "admin_deleted_account",
+        action: "admin.team.removed",
         resource: "superadmin",
         resourceId: row.id,
         metadata: {

@@ -5,6 +5,7 @@ import {
     requireUserAuth,
 } from "@/server/auth/api-request-auth";
 import { createStaff, getStaffByBusiness } from "@/server/staff/staff-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 import { createPasswordSchema } from "@/lib/password-requirements";
 import { z } from "zod";
 
@@ -50,6 +51,16 @@ export async function POST(req: NextRequest) {
             passwordRaw: parsed.password,
             roleName: parsed.roleName,
             permissionKeys: parsed.permissionKeys,
+        });
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.staff.added",
+            resource: "staff",
+            resourceId: result.userId,
+            detail: [parsed.firstName, parsed.lastName, parsed.roleName].filter(Boolean).join(" · "),
         });
 
         return NextResponse.json(result);

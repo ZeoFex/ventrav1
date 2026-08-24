@@ -5,6 +5,7 @@ import { getBusinessConfig, updateBusinessConfig } from "@/server/businesses/bus
 import { seedDefaultCategoriesForBusiness } from "@/server/catalog/category-seed-service";
 import { db } from "@/server/db";
 import { branches } from "@/server/db/schema/branches";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 /**
  * GET /api/business
@@ -52,6 +53,16 @@ export async function PATCH(req: Request) {
         };
 
         await updateBusinessConfig(payload.bid, profile);
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.settings.updated",
+            resource: "settings",
+            resourceId: payload.bid,
+            detail: "Shop profile updated",
+        });
 
         if (reseedCategories && typeof profile.businessType === "string" && profile.businessType) {
             const branchRows = await db

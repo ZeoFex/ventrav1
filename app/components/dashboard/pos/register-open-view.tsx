@@ -9,8 +9,10 @@ import {
     History,
     Monitor,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
 } from "lucide-react";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
 
 const REGISTERS = [
     { id: "reg-1", name: "Main Counter (Register 1)", status: "closed" },
@@ -33,7 +35,7 @@ export function RegisterOpenView() {
 
     const handleOpenRegister = (e: React.FormEvent) => {
         e.preventDefault();
-        const amount = parseFloat(openingFloat);
+        const amount = parseAmountInput(openingFloat);
 
         if (isNaN(amount) || amount < 0) {
             setError("Please enter a valid opening float amount.");
@@ -110,13 +112,10 @@ export function RegisterOpenView() {
                                     <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                                         GHS
                                     </div>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
+                                    <AmountInput
                                         required
                                         value={openingFloat}
-                                        onChange={(e) => setOpeningFloat(e.target.value)}
+                                        onChange={setOpeningFloat}
                                         className="w-full rounded-2xl border border-[#e5e7eb] bg-white py-4 pl-14 pr-4 text-xl font-bold tracking-tight outline-none ring-[#006c49]/20 transition-all focus:border-[#006c49]/40 focus:ring-4 dark:border-white/[0.12] dark:bg-[#141414] dark:ring-[#6ffbbe]/10"
                                         placeholder="0.00"
                                     />

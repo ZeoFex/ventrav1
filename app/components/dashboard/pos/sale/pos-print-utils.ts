@@ -31,10 +31,11 @@ export function printReceiptPlainText(plainText: string): void {
   w.document.write(
     `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Receipt</title>
     <style>
-      @page { size: 58mm auto; margin: 4mm; }
+      @page { size: 58mm auto; margin: 2mm; }
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; line-height: 1.4; color: #000; margin: 0; padding: 12px; max-width: 58mm; background: #fff; }
-      pre { white-space: pre-wrap; word-break: break-word; margin: 0; color: #000; font-weight: 600; }
+      html, body { width: 58mm; max-width: 58mm; }
+      body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.35; color: #000; margin: 0; padding: 2mm; background: #fff; }
+      pre { white-space: pre-wrap; word-break: break-word; margin: 0; color: #000; font-weight: 700; }
     </style></head><body><pre>${safe}</pre></body></html>`,
   );
   w.document.close();
@@ -42,14 +43,44 @@ export function printReceiptPlainText(plainText: string): void {
   w.print();
 }
 
+function printHtmlDocument(html: string): void {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "Print receipt");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:58mm;height:1px;border:0;opacity:0;pointer-events:none;";
+  document.body.appendChild(iframe);
+  const win = iframe.contentWindow;
+  const doc = win?.document;
+  if (!doc || !win) {
+    iframe.remove();
+    const fallback = window.open("", "_blank", "noopener,noreferrer,width=320,height=640");
+    if (!fallback) return;
+    fallback.document.write(html);
+    fallback.document.close();
+    fallback.focus();
+    setTimeout(() => fallback.print(), 250);
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  const runPrint = () => {
+    try {
+      win.focus();
+      win.print();
+    } finally {
+      window.setTimeout(() => iframe.remove(), 1500);
+    }
+  };
+  window.setTimeout(runPrint, 300);
+}
+
 /**
  * Prints the classic thermal receipt layout (invoice box, order details, QR).
  * TOKEN label removed; all text forced black for printer visibility.
  */
 export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
-  const w = window.open("", "_blank", "width=400,height=600");
-  if (!w) return;
-
   let verifyQrHtml = "";
   const sid = data.saleId?.trim();
   if (sid) {
@@ -57,12 +88,12 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
       const QRCode = (await import("qrcode")).default;
       const verifyUrl = buildReceiptVerificationUrl(sid);
       const dataUrl = await QRCode.toDataURL(verifyUrl, {
-        width: 100,
-        margin: 1,
-        errorCorrectionLevel: "M",
+        width: 220,
+        margin: 2,
+        errorCorrectionLevel: "H",
         color: { dark: "#000000", light: "#ffffff" },
       });
-      verifyQrHtml = `<div style="margin-top: 14px; text-align: center;"><img src="${dataUrl}" width="100" height="100" alt="" /></div>`;
+      verifyQrHtml = `<div style="margin-top: 10px; text-align: center;"><img class="qr" src="${dataUrl}" width="220" height="220" alt="Verify receipt" /></div>`;
     } catch {
       verifyQrHtml = "";
     }
@@ -107,9 +138,6 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
     : "";
 
   const op = e(data.operatorName || "SYSTEM");
-  const orderIdPart = data.invoiceId.includes("-")
-    ? data.invoiceId.slice(data.invoiceId.indexOf("-") + 1)
-    : data.invoiceId;
 
   const paymentHtml =
     data.paymentLines && data.paymentLines.length > 0
@@ -152,11 +180,12 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
           </div>
           `;
 
-  w.document.write(`
+  printHtmlDocument(`
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8"/>
+      <meta name="viewport" content="width=58mm"/>
       <title>Receipt ${e(data.invoiceId)}</title>
       <style>
         @page { size: 58mm auto; margin: 0; }
@@ -166,32 +195,43 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
           print-color-adjust: exact !important;
           color: #000 !important;
         }
+        html, body {
+          width: 58mm;
+          max-width: 58mm;
+          margin: 0;
+        }
         body {
           font-family: 'Courier New', Courier, monospace;
-          font-size: 12px;
-          line-height: 1.25;
+          font-size: 11px;
+          line-height: 1.28;
           color: #000;
-          margin: 0;
-          padding: 8mm 4mm;
-          width: 58mm;
+          padding: 3mm 2.5mm 8mm;
           text-align: center;
           background: #fff;
-          font-weight: 600;
+          font-weight: 700;
+        }
+        img.qr {
+          width: 28mm;
+          height: 28mm;
+          image-rendering: pixelated;
+          border: 1.5px solid #000;
+          padding: 1mm;
+          background: #fff;
         }
         .bold { font-weight: 800; }
-        .divider { border-top: 1.5px dashed #000; margin: 8px 0; }
+        .divider { border-top: 1.5px dashed #000; margin: 6px 0; }
         .invoice-box {
           border: 2px dashed #000;
-          padding: 10px 5px;
-          margin: 12px 0 16px;
+          padding: 6px 4px;
+          margin: 8px 0 10px;
         }
-        .flex-between { display: flex; justify-content: space-between; gap: 6px; text-align: left; }
+        .flex-between { display: flex; justify-content: space-between; gap: 4px; text-align: left; }
         .total-row {
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 900;
           border-top: 1.5px solid #000;
-          padding-top: 5px;
-          margin-top: 5px;
+          padding-top: 4px;
+          margin-top: 4px;
         }
       </style>
     </head>
@@ -209,11 +249,6 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
       <div class="flex-between" style="font-size: 12px;">
         <span>Customer Name</span>
         <span class="bold">${e(data.customerName || "Walk-in")}</span>
-      </div>
-      <div class="divider"></div>
-      <div class="flex-between" style="font-size: 12px;">
-        <span>Order ID</span>
-        <span class="bold">${e(orderIdPart)}</span>
       </div>
       <div class="divider"></div>
 
@@ -250,11 +285,4 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
     </body>
     </html>
   `);
-
-  w.document.close();
-  w.focus();
-
-  setTimeout(() => {
-    w.print();
-  }, 250);
 }

@@ -59,6 +59,10 @@ type SaleDetail = {
 type Props = {
     token: string;
     shop: CatalogShop;
+    /** When set, only sales tied to this saved customer are listed. */
+    customerId?: string;
+    customerName?: string;
+    embedded?: boolean;
 };
 
 type DeleteMode = "free" | "restock";
@@ -71,7 +75,13 @@ function formatGhs(n: string | number): string {
     }).format(Number(n));
 }
 
-export function CatalogShopSalesPanel({ token, shop }: Props) {
+export function CatalogShopSalesPanel({
+    token,
+    shop,
+    customerId,
+    customerName,
+    embedded,
+}: Props) {
     const [items, setItems] = useState<SaleRow[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(0);
@@ -109,6 +119,7 @@ export function CatalogShopSalesPanel({ token, shop }: Props) {
                 offset: String(pageOffset(page, PRODUCT_PAGE_SIZE)),
             });
             if (searchQuery) params.set("q", searchQuery);
+            if (customerId) params.set("customerId", customerId);
             const res = await fetch(`/api/platform/businesses/${shop.id}/sales?${params}`, {
                 headers: authHeaders(token),
             });
@@ -122,7 +133,7 @@ export function CatalogShopSalesPanel({ token, shop }: Props) {
         } finally {
             setLoading(false);
         }
-    }, [shop.id, token, page, searchQuery]);
+    }, [shop.id, token, page, searchQuery, customerId]);
 
     useEffect(() => {
         void load();
@@ -242,21 +253,30 @@ export function CatalogShopSalesPanel({ token, shop }: Props) {
             <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Transaction history
+                        {customerId ? "Customer transactions" : "Transaction history"}
                     </p>
                     <h3 className="mt-0.5 text-lg font-semibold text-foreground">
-                        Browse &amp; manage sales
+                        {customerId
+                            ? customerName
+                                ? `Sales for ${customerName}`
+                                : "Sales for this customer"
+                            : embedded
+                              ? "Sales"
+                              : "Browse & manage sales"}
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        {total.toLocaleString()} sale{total === 1 ? "" : "s"} · click a row to view
-                        sold items
+                        {total.toLocaleString()} sale{total === 1 ? "" : "s"}
+                        {customerId ? " for this saved customer" : ""} · click a row to view sold
+                        items
                     </p>
                     <div className="relative mt-3 max-w-md">
                         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
-                            placeholder="Search invoice…"
+                            placeholder={
+                                customerId ? "Search invoice…" : "Search invoice or customer…"
+                            }
                             className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                     </div>
@@ -320,7 +340,9 @@ export function CatalogShopSalesPanel({ token, shop }: Props) {
             ) : items.length === 0 ? (
                 <div className="rounded-xl border border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
                     <Receipt className="mx-auto mb-2 h-8 w-8 opacity-40" />
-                    No transactions found for this shop.
+                    {customerId
+                        ? "No transactions found for this saved customer."
+                        : "No transactions found for this shop."}
                 </div>
             ) : (
                 <>

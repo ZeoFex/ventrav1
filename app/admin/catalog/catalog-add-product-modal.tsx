@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { PosBarcodeCamera } from "@/app/components/dashboard/pos/sale/pos-barcode-camera";
 import { CatalogProductThumb } from "./catalog-product-display";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
 import { decodeBarcodeFromImageFile } from "./decode-barcode-image";
 import type { CatalogShop, MasterProduct } from "./catalog-admin-types";
 import { Button } from "@/components/ui/button";
@@ -224,7 +226,7 @@ export function CatalogAddProductModal({
             setError("Product name is required — scan again or type manually");
             return;
         }
-        const priceNum = parseFloat(priceGhs.replace(",", "."));
+        const priceNum = parseAmountInput(priceGhs);
         if (!Number.isFinite(priceNum) || priceNum <= 0) {
             setError("Shop price (GHS) is required. Master catalog does not store price.");
             return;
@@ -248,7 +250,9 @@ export function CatalogAddProductModal({
                         imageSrc: imageSrc.trim() || null,
                         categoryName: categoryName.trim() || null,
                         priceGhs: String(priceNum),
-                        costPriceGhs: costPriceGhs.trim() || null,
+                        costPriceGhs: costPriceGhs.trim()
+                            ? String(parseAmountInput(costPriceGhs))
+                            : null,
                         stock: Number(stock) || 0,
                         unit: unit.trim() || "piece",
                     }),
@@ -450,12 +454,9 @@ export function CatalogAddProductModal({
                                 <span className="font-medium">
                                     Shop price (GHS) <span className="text-destructive">*</span>
                                 </span>
-                                <input
-                                    type="number"
-                                    min="0.01"
-                                    step="0.01"
+                                <AmountInput
                                     value={priceGhs}
-                                    onChange={(e) => setPriceGhs(e.target.value)}
+                                    onChange={setPriceGhs}
                                     required
                                     placeholder="Required for this shop"
                                     className="rounded-lg border border-input bg-background px-3 py-2"
@@ -466,12 +467,9 @@ export function CatalogAddProductModal({
                             </label>
                             <label className="grid gap-1 text-sm">
                                 <span className="font-medium">Cost (GHS)</span>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
+                                <AmountInput
                                     value={costPriceGhs}
-                                    onChange={(e) => setCostPriceGhs(e.target.value)}
+                                    onChange={setCostPriceGhs}
                                     className="rounded-lg border border-input bg-background px-3 py-2"
                                 />
                             </label>

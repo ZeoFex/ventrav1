@@ -2,11 +2,11 @@
  * Product Service — high speed CRUD with Redis caching.
  * Targets "Instant Load" by hitting Redis first for business-scoped product lists.
  */
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { products, productTags, tags, categories, subcategories, productVariations } from "../db/schema/products";
 import { redis } from "../lib/redis";
-import { sellableUnits } from "../stock/sellable-stock";
+import { sellableUnits, toStockQty } from "../stock/sellable-stock";
 import {
     notifyProductAdded,
     notifyProductsBulkAdded,
@@ -33,7 +33,7 @@ export function prepareVariations(productId: string, variations: any[]) {
         name: v.name,
         type: v.type,
         priceGhs: v.priceGhs?.toString(),
-        stock: v.stock || 0,
+        stock: toStockQty(v.stock),
         sku: v.sku || generateSku(),
         barcode: v.barcode || v.sku || generateSku(),
     }));
@@ -75,6 +75,30 @@ export interface ProductVariationInput {
  * Fetch products for a business optionally filtered by branch.
  * Attempts to hit Redis cache first for sub-millisecond response.
  */
+function normalizeCatalogProduct(row: Record<string, unknown>) {
+    const stock = toStockQty(row.stock);
+    const stockReserved = toStockQty(row.stockReserved);
+    const variations = Array.isArray(row.variations)
+        ? row.variations.map((v: Record<string, unknown>) => {
+              const vStock = toStockQty(v.stock);
+              const vReserved = toStockQty(v.stockReserved);
+              return {
+                  ...v,
+                  stock: vStock,
+                  stockReserved: vReserved,
+                  stockAvailable: sellableUnits(vStock, vReserved),
+              };
+          })
+        : [];
+    return {
+        ...row,
+        stock,
+        stockReserved,
+        stockAvailable: sellableUnits(stock, stockReserved),
+        variations,
+    };
+}
+
 export async function getProducts(businessId: string, branchId?: string | null) {
     const key = CACHE_KEYS.LIST(businessId, branchId);
     const cached = await redis.get(key);
@@ -82,7 +106,8 @@ export async function getProducts(businessId: string, branchId?: string | null) 
     if (cached) {
         try {
             console.log(`[Cache] HIT for products of business ${businessId}`);
-            return JSON.parse(cached);
+            const parsed = JSON.parse(cached);
+            return Array.isArray(parsed) ? parsed.map(normalizeCatalogProduct) : parsed;
         } catch {
             // ignore parse fail, let it fall back
         }
@@ -122,8 +147,8 @@ export async function getProducts(businessId: string, branchId?: string | null) 
 
     // Fetch variations for these products
     const productIds = rows.map(r => r.id);
-    const variations = productIds.length > 0 
-        ? await db.select().from(productVariations).where(sql`${productVariations.productId} IN ${productIds}`)
+    const variations = productIds.length > 0
+        ? await db.select().from(productVariations).where(inArray(productVariations.productId, productIds))
         : [];
 
     // Fill missing variation SKU/barcode in the API response only — never write on read.
@@ -137,27 +162,34 @@ export async function getProducts(businessId: string, branchId?: string | null) 
         return v;
     });
 
-    const rowsWithVariations = rows.map((row) => ({
-        ...row,
-        stockAvailable: sellableUnits(Number(row.stock), Number(row.stockReserved ?? 0)),
-        variations: finalVariations
-            .filter((v) => v.productId === row.id)
-            .map((v) => ({
-                id: v.id,
-                productId: v.productId,
-                name: v.name,
-                type: v.type,
-                priceGhs: v.priceGhs,
-                stock: v.stock,
-                stockReserved: v.stockReserved,
-                stockAvailable: sellableUnits(
-                    Number(v.stock),
-                    Number(v.stockReserved ?? 0),
-                ),
-                sku: v.sku,
-                barcode: v.barcode,
-            })),
-    }));
+    const rowsWithVariations = rows.map((row) => {
+        const stock = toStockQty(row.stock);
+        const stockReserved = toStockQty(row.stockReserved);
+        return {
+            ...row,
+            stock,
+            stockReserved,
+            stockAvailable: sellableUnits(stock, stockReserved),
+            variations: finalVariations
+                .filter((v) => v.productId === row.id)
+                .map((v) => {
+                    const vStock = toStockQty(v.stock);
+                    const vReserved = toStockQty(v.stockReserved);
+                    return {
+                        id: v.id,
+                        productId: v.productId,
+                        name: v.name,
+                        type: v.type,
+                        priceGhs: v.priceGhs,
+                        stock: vStock,
+                        stockReserved: vReserved,
+                        stockAvailable: sellableUnits(vStock, vReserved),
+                        sku: v.sku,
+                        barcode: v.barcode,
+                    };
+                }),
+        };
+    });
 
     await redis.setex(key, CACHE_TTL, JSON.stringify(rowsWithVariations));
 
@@ -202,7 +234,7 @@ export async function saveProduct(input: ProductInput) {
                 imageSrc: input.imageSrc || null,
                 priceGhs: input.priceGhs,
                 costPriceGhs: input.costPriceGhs || null,
-                stock: input.stock,
+                stock: toStockQty(input.stock),
                 reorderAt: input.reorderAt,
                 unit: input.unit || "piece",
                 status: input.status || "active",
@@ -299,19 +331,53 @@ export async function updateStock(businessId: string, productId: string, delta: 
  * This skips relation handling (tags/variations) for maximum speed.
  */
 export async function saveProductsBulk(businessId: string, branchId: string, items: any[]) {
-    const result = await db.insert(products).values(
-        items.map(item => ({
-            ...item,
+    const resolvedBranchId = branchId === "all" ? null : branchId;
+    const productValues = items.map((item) => {
+        const { variations: _variations, tagIds: _tagIds, ...rest } = item;
+        return {
+            name: rest.name,
+            slug: rest.slug,
+            sku: rest.sku,
+            barcode: rest.barcode ?? null,
+            description: rest.description ?? null,
+            imageSrc: rest.imageSrc ?? null,
+            priceGhs: rest.priceGhs,
+            costPriceGhs: rest.costPriceGhs ?? null,
+            stock: toStockQty(rest.stock),
+            reorderAt: rest.reorderAt ?? 0,
+            unit: rest.unit || "piece",
+            categoryId: rest.categoryId ?? null,
+            status: rest.status || "active",
             businessId,
-            branchId: branchId === "all" ? null : branchId,
-            status: item.status || "active",
-        }))
-    ).returning({ id: products.id });
+            branchId: resolvedBranchId,
+        };
+    });
 
-    // Invalidate cache once
+    const result = await db.insert(products).values(productValues).returning({ id: products.id });
+
+    const variationRows = items.flatMap((item, i) => {
+        const productId = result[i]?.id;
+        if (!productId || !Array.isArray(item.variations) || item.variations.length === 0) return [];
+        return prepareVariations(productId, item.variations);
+    });
+    if (variationRows.length > 0) {
+        await db.insert(productVariations).values(variationRows);
+    }
+
+    const tagRows = items.flatMap((item, i) => {
+        const productId = result[i]?.id;
+        if (!productId || !Array.isArray(item.tagIds)) return [];
+        return item.tagIds
+            .filter((tagId: unknown) => typeof tagId === "string" && tagId.length > 0)
+            .map((tagId: string) => ({ productId, tagId }));
+    });
+    if (tagRows.length > 0) {
+        await db.insert(productTags).values(tagRows);
+    }
+
     await Promise.all([
-        redis.del(CACHE_KEYS.LIST(businessId, branchId)),
-        redis.del(CACHE_KEYS.LIST(businessId, "all"))
+        redis.del(CACHE_KEYS.LIST(businessId, resolvedBranchId)),
+        redis.del(CACHE_KEYS.LIST(businessId, "all")),
     ]);
 
     if (result.length > 0) {

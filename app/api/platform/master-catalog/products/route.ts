@@ -8,6 +8,8 @@ import {
     gatePlatform,
     parsePagination,
 } from "@/server/catalog/platform-route-utils";
+import { logPlatformActivity } from "@/server/platform/platform-activity-log";
+import { PLATFORM_ACTIONS } from "@/server/platform/platform-activity-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,12 @@ export async function POST(req: NextRequest) {
             sku: body.sku ?? null,
             sourceProductId: body.sourceProductId ?? null,
             sourceBusinessId: body.sourceBusinessId ?? null,
+        });
+        await logPlatformActivity(req, {
+            action: PLATFORM_ACTIONS.CATALOG_PRODUCT_CREATED,
+            resource: "product",
+            resourceId: row.id,
+            metadata: { productName: row.name, shopType: row.shopType },
         });
         return NextResponse.json(row, { status: 201 });
     } catch (e) {

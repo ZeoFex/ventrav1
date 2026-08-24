@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { getCustomerById, updateCustomer } from "@/server/customers/customer-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 export async function GET(
     req: Request,
@@ -45,6 +46,16 @@ export async function PATCH(
         if (!updated) {
             return NextResponse.json({ error: "Customer not found" }, { status: 404 });
         }
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.customer.updated",
+            resource: "customer",
+            resourceId: updated.id,
+            detail: [updated.name, updated.phone].filter(Boolean).join(" · "),
+        });
 
         return NextResponse.json(updated);
     } catch (error) {

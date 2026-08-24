@@ -15,7 +15,7 @@ export function PosCategorySearchMorph({
   const inputId = useId();
 
   return (
-    <div className="relative flex h-10 w-full min-w-0 items-center gap-2.5 rounded-full border border-[#e5e7eb] bg-white px-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[border-color,box-shadow] focus-within:border-[#006c49]/40 focus-within:ring-2 focus-within:ring-[#006c49]/12 dark:border-white/[0.1] dark:bg-[#141414] dark:shadow-none dark:focus-within:border-[#6ffbbe]/35 dark:focus-within:ring-[#6ffbbe]/12">
+    <div className="relative flex h-9 w-full min-w-0 items-center gap-2 rounded-full border border-[#d7ddd9] bg-white px-2.5 transition-[border-color,box-shadow] focus-within:border-[#006c49]/40 dark:border-white/[0.1] dark:bg-[#141414] dark:focus-within:border-[#6ffbbe]/35 sm:h-10 sm:gap-2.5 sm:border-[#e5e7eb] sm:px-3 sm:shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:focus-within:ring-2 sm:focus-within:ring-[#006c49]/12 dark:sm:shadow-none dark:sm:focus-within:ring-[#6ffbbe]/12">
       <label htmlFor={inputId} className="sr-only">
         Search products
       </label>

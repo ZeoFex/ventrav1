@@ -8,8 +8,8 @@ import { EXPENSE_CATEGORY_OPTIONS } from "@/app/lib/expense-categories";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { useBranchContext } from "../branch-context";
 import { toast } from "sonner";
+import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 import { getCachedExpenses, cacheExpenses } from "@/app/lib/offline/offline-db";
-import { useOnlineStatus } from "@/app/lib/offline/use-online-status";
 
 function formatGhs(n: number): string {
     return new Intl.NumberFormat("en-GH", {
@@ -89,6 +89,7 @@ export function ExpensesView() {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [pendingExpense, setPendingExpense] = useState<{ id: string; description: string } | null>(null);
 
     const filteredExpenses = useMemo(() => {
         if (!expenses) return [];
@@ -127,20 +128,17 @@ export function ExpensesView() {
         }
     }
 
-    async function removeExpense(expense: { id: string; description: string }) {
-        if (deletingId) return;
-        const ok = window.confirm(
-            `Delete this expense?\n\n${expense.description}\n\nThis cannot be undone.`,
-        );
-        if (!ok) return;
+    async function removeExpense() {
+        if (!pendingExpense || deletingId) return;
 
-        setDeletingId(expense.id);
+        setDeletingId(pendingExpense.id);
         try {
-            const res = await fetch(`/api/finance/expenses/${expense.id}`, {
+            const res = await fetch(`/api/finance/expenses/${pendingExpense.id}`, {
                 method: "DELETE",
             });
             if (!res.ok) throw new Error("Failed to delete");
             await mutate();
+            setPendingExpense(null);
             toast.success("Expense deleted");
         } catch {
             toast.error("Could not delete expense");
@@ -150,6 +148,7 @@ export function ExpensesView() {
     }
 
     return (
+        <>
         <ProductsPageShell
             title="Expenses"
             description="Track and manage all operational costs, payroll, and inventory purchases."
@@ -362,7 +361,7 @@ export function ExpensesView() {
                                         </Link>
                                         <button
                                             type="button"
-                                            onClick={() => removeExpense(exp)}
+                                            onClick={() => setPendingExpense({ id: exp.id, description: exp.description })}
                                             disabled={deletingId === exp.id}
                                             className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
                                         >
@@ -448,7 +447,7 @@ export function ExpensesView() {
                                                     </Link>
                                                     <button
                                                     type="button"
-                                                    onClick={() => removeExpense(exp)}
+                                                    onClick={() => setPendingExpense({ id: exp.id, description: exp.description })}
                                                     disabled={deletingId === exp.id}
                                                     title="Delete expense"
                                                     className="inline-flex size-9 items-center justify-center rounded-xl border border-red-200 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/40"
@@ -471,5 +470,23 @@ export function ExpensesView() {
             </div>
         </div>
         </ProductsPageShell>
+        {pendingExpense ? (
+            <DeleteConfirmModal
+                title="Delete this expense?"
+                description={
+                    <>
+                        <span className="font-semibold text-foreground">{pendingExpense.description}</span>{" "}
+                        will be removed. This cannot be undone.
+                    </>
+                }
+                confirmLabel="Delete expense"
+                isDeleting={Boolean(deletingId)}
+                onCancel={() => {
+                    if (!deletingId) setPendingExpense(null);
+                }}
+                onConfirm={() => void removeExpense()}
+            />
+        ) : null}
+        </>
     );
 }

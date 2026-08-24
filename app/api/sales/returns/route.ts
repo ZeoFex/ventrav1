@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { processSaleReturn, SaleReturnError } from "@/server/pos/return-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 type BodyLine = { saleItemId?: string; quantity?: number };
 
@@ -51,6 +52,17 @@ export async function POST(req: NextRequest) {
             actorIsOwner: isOwner,
             lines,
             reason: typeof body.reason === "string" ? body.reason : undefined,
+        });
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.return.recorded",
+            resource: "return",
+            resourceId: saleId,
+            detail: `${lines.reduce((n, l) => n + l.quantity, 0)} unit(s) returned`,
+            metadata: { saleId, reason: body.reason ?? null },
         });
 
         return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });

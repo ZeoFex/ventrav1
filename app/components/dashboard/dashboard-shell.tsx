@@ -15,12 +15,12 @@ import {
 import { BranchProvider } from "./branch-context";
 import { GlobalCartProvider } from "./pos/global-cart-context";
 import { PosProductSearchProvider } from "./pos/pos-product-search-context";
+import { HomeCatalogFilterProvider } from "./home/home-catalog-filter-context";
 import { OfflineBanner } from "./offline-banner";
 import { initOfflineSync } from "@/app/lib/offline/offline-sync";
 import { GlobalCartIndicator } from "./pos/global-cart-indicator";
 import { TrialBanner } from "./trial-banner";
 import { CopilotMobileFab, CopilotPanel, CopilotProvider } from "./copilot";
-import { DashboardMobileBottomNav } from "./dashboard-mobile-bottom-nav";
 import { DashboardProductTour } from "./product-tour/dashboard-product-tour";
 
 function DashboardShellFrame({
@@ -33,8 +33,16 @@ function DashboardShellFrame({
   const { mobileNavOpen, closeMobileNav } = useDashboardNav();
   const pathname = usePathname() ?? "";
   const lockMainScroll =
+    pathname === "/dashboard" ||
+    pathname === "/dashboard/" ||
     pathname.startsWith("/dashboard/pos/sale") ||
-    pathname.startsWith("/dashboard/pos/receipts");
+    pathname.startsWith("/dashboard/pos/receipts") ||
+    pathname === "/dashboard/products" ||
+    pathname === "/dashboard/inventory" ||
+    pathname === "/dashboard/inventory/stock-take" ||
+    /^\/dashboard\/suppliers\/(?!new$)[^/]+$/.test(pathname) ||
+    /^\/dashboard\/customers\/(?!new$)[^/]+$/.test(pathname) ||
+    /^\/dashboard\/products\/(?!new$|tags$|categories$|barcodes$)[^/]+$/.test(pathname);
 
   useEffect(() => {
     if (!mobileNavOpen) return;
@@ -82,21 +90,20 @@ function DashboardShellFrame({
       <DashboardSidebar />
       <DashboardSidebarMobileDrawer />
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-elevated/50 dark:bg-background">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
         <TrialBanner />
         <OfflineBanner />
         <DashboardHeader userDisplayName={userDisplayName} />
         <div
           className={
             lockMainScroll
-              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
-              : "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0"
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden [&>*]:min-h-0 [&>*]:flex-1"
+              : "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))] lg:pb-0"
           }
         >
           {children}
         </div>
       </div>
-      <DashboardMobileBottomNav />
       <GlobalCartIndicator />
       <CopilotMobileFab />
       <CopilotPanel />
@@ -118,11 +125,13 @@ export function DashboardShell({
       <BranchProvider>
         <GlobalCartProvider>
           <PosProductSearchProvider>
-            <CopilotProvider>
-              <DashboardShellFrame userDisplayName={userDisplayName}>
-                {children}
-              </DashboardShellFrame>
-            </CopilotProvider>
+            <HomeCatalogFilterProvider>
+              <CopilotProvider>
+                <DashboardShellFrame userDisplayName={userDisplayName}>
+                  {children}
+                </DashboardShellFrame>
+              </CopilotProvider>
+            </HomeCatalogFilterProvider>
           </PosProductSearchProvider>
         </GlobalCartProvider>
       </BranchProvider>

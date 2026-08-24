@@ -228,6 +228,14 @@ export const TAB_META: Record<TabId, { title: string; description: string }> = {
         title: "Reviews",
         description: "View and remove customer reviews shown on the public site.",
     },
+    activity: {
+        title: "Activity logs",
+        description: "Named audit trail of every admin action on the platform.",
+    },
+    ecommerce: {
+        title: "Ecommerce",
+        description: "Open the private admin storefront preview.",
+    },
     catalog: {
         title: "Product Catalog",
         description: "Hierarchical view of master catalog by shop type.",
@@ -245,7 +253,7 @@ export const TAB_META: Record<TabId, { title: string; description: string }> = {
         description: "Master catalog categories per shop type.",
     },
     "sync-logs": {
-        title: "Sync Logs",
-        description: "Recent master catalog sync and backfill activity.",
+        title: "Catalog sync",
+        description: "Named history of catalog create, update, and shop sync events.",
     },
 };

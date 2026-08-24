@@ -17,6 +17,7 @@ import {
     Settings2,
     Store,
     Trash2,
+    Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,9 @@ import { CatalogShopSubscriptionPanel } from "./catalog-shop-subscription-panel"
 import { CatalogShopInsightsPanel } from "./catalog-shop-insights-panel";
 import { CatalogShopAccountPanel } from "./catalog-shop-account-panel";
 import { CatalogShopSalesPanel } from "./catalog-shop-sales-panel";
+import { CatalogShopCustomersPanel } from "./catalog-shop-customers-panel";
 import { CatalogBulkShopDelete } from "./catalog-bulk-shop-delete";
+import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 import {
     CatalogPagination,
     pageOffset,
@@ -64,6 +67,7 @@ function ShopEmails({ emails }: { emails: string[] }) {
 const DETAIL_TABS: { id: ShopDetailTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: "products", label: "Products", icon: Package },
     { id: "transactions", label: "Transactions", icon: Receipt },
+    { id: "customers", label: "Customers", icon: Users },
     { id: "subscription", label: "Subscription", icon: CreditCard },
     { id: "account", label: "Account", icon: Settings2 },
     { id: "insights", label: "Insights", icon: LayoutGrid },
@@ -95,6 +99,7 @@ export function CatalogShopsPanel({
     const [shopQuery, setShopQuery] = useState("");
     const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
     const [deletingProducts, setDeletingProducts] = useState(false);
+    const [pendingProductDelete, setPendingProductDelete] = useState(false);
 
     const apiGet = useCallback(
         async <T,>(path: string): Promise<T> => {
@@ -234,10 +239,6 @@ export function CatalogShopsPanel({
     const deleteSelectedProducts = async () => {
         if (!selectedShop || selectedProductIds.size === 0) return;
         const ids = Array.from(selectedProductIds);
-        const ok = window.confirm(
-            `Permanently delete ${ids.length} selected product(s) for ${selectedShop.name}? This cannot be undone.`,
-        );
-        if (!ok) return;
 
         setDeletingProducts(true);
         setError(null);
@@ -255,6 +256,7 @@ export function CatalogShopsPanel({
             const deleted = Number(data.deletedProducts ?? ids.length);
             setProductTotal((n) => Math.max(0, n - deleted));
             patchShop({ productCount: Math.max(0, (selectedShop.productCount ?? 0) - deleted) });
+            setPendingProductDelete(false);
             await fetchProducts(appliedProductSearch, productPage);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to delete products");
@@ -344,7 +346,7 @@ export function CatalogShopsPanel({
                                 size="sm"
                                 variant="destructive"
                                 disabled={deletingProducts || selectedProductIds.size === 0}
-                                onClick={() => void deleteSelectedProducts()}
+                                onClick={() => setPendingProductDelete(true)}
                             >
                                 {deletingProducts ? (
                                     <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
@@ -432,7 +434,7 @@ export function CatalogShopsPanel({
                     </div>
                 </div>
 
-                <nav className="flex gap-1 rounded-xl border border-border bg-card p-1">
+                <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1">
                     {DETAIL_TABS.map((t) => {
                         const Icon = t.icon;
                         const active = detailTab === t.id;
@@ -442,7 +444,7 @@ export function CatalogShopsPanel({
                                 type="button"
                                 onClick={() => setDetailTab(t.id)}
                                 className={cn(
-                                    "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                                    "flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition",
                                     active
                                         ? "bg-primary text-primary-foreground"
                                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -475,6 +477,10 @@ export function CatalogShopsPanel({
 
                 {detailTab === "transactions" ? (
                     <CatalogShopSalesPanel token={token} shop={selectedShop} />
+                ) : null}
+
+                {detailTab === "customers" ? (
+                    <CatalogShopCustomersPanel token={token} shop={selectedShop} />
                 ) : null}
 
                 {detailTab === "account" ? (
@@ -651,6 +657,25 @@ export function CatalogShopsPanel({
                             onSaved={() => void fetchProducts(appliedProductSearch, productPage)}
                         />
                     </>
+                ) : null}
+                {pendingProductDelete ? (
+                    <DeleteConfirmModal
+                        title={`Delete ${selectedProductIds.size} product${selectedProductIds.size === 1 ? "" : "s"}?`}
+                        description={
+                            <>
+                                Permanently remove the selected product
+                                {selectedProductIds.size === 1 ? "" : "s"} from{" "}
+                                <span className="font-semibold text-foreground">{selectedShop.name}</span>.
+                                This cannot be undone.
+                            </>
+                        }
+                        confirmLabel={selectedProductIds.size === 1 ? "Delete product" : "Delete products"}
+                        isDeleting={deletingProducts}
+                        onCancel={() => {
+                            if (!deletingProducts) setPendingProductDelete(false);
+                        }}
+                        onConfirm={() => void deleteSelectedProducts()}
+                    />
                 ) : null}
             </div>
         );

@@ -7,6 +7,8 @@ import { businesses } from "@/server/db/schema/businesses";
 import { products } from "@/server/db/schema/products";
 import { invalidatePosBusinessCaches } from "@/server/pos/pos-service";
 import { invalidateBusinessConfig } from "@/server/businesses/business-service";
+import { logPlatformActivity } from "@/server/platform/platform-activity-log";
+import { PLATFORM_ACTIONS } from "@/server/platform/platform-activity-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,7 @@ export async function DELETE(
     }
 
     const [row] = await db
-        .select({ id: businesses.id, slug: businesses.slug })
+        .select({ id: businesses.id, slug: businesses.slug, name: businesses.name })
         .from(businesses)
         .where(eq(businesses.id, id))
         .limit(1);
@@ -61,6 +63,16 @@ export async function DELETE(
             .returning({ id: products.id });
         await invalidatePosBusinessCaches(id);
         await invalidateBusinessConfig(id);
+        await logPlatformActivity(req, {
+            action: PLATFORM_ACTIONS.SHOP_PRODUCTS_DELETED,
+            resource: "products",
+            resourceId: id,
+            metadata: {
+                shopName: row.name,
+                shopSlug: row.slug,
+                deletedProducts: deleted.length,
+            },
+        });
         return NextResponse.json({
             success: true,
             deletedProducts: deleted.length,
@@ -95,6 +107,17 @@ export async function DELETE(
     await db.delete(products).where(eq(products.businessId, id));
     await invalidatePosBusinessCaches(id);
     await invalidateBusinessConfig(id);
+
+    await logPlatformActivity(req, {
+        action: PLATFORM_ACTIONS.SHOP_PRODUCTS_CLEARED,
+        resource: "products",
+        resourceId: id,
+        metadata: {
+            shopName: row.name,
+            shopSlug: row.slug,
+            deletedProducts: Number(before?.total ?? 0),
+        },
+    });
 
     return NextResponse.json({
         success: true,

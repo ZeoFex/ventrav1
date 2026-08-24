@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { COPILOT_FEATURE_ID } from "@/config/plan-feature-access";
 import { UpgradeTooltip } from "@/app/components/dashboard/sidebar/upgrade-tooltip";
 import { useCopilot } from "./copilot-context";
@@ -139,6 +140,9 @@ function CopilotFabMascot() {
  */
 export function CopilotMobileFab() {
   const { toggle, copilotEnabled } = useCopilot();
+  const pathname = usePathname() ?? "";
+  const hideOnPos = pathname.startsWith("/dashboard/pos");
+  const hideOnHome = pathname === "/dashboard" || pathname === "/dashboard/";
   const [position, setPosition] = useState<FabPosition | null>(null);
   const dragRef = useRef({
     active: false,
@@ -229,6 +233,10 @@ export function CopilotMobileFab() {
     drag.active = false;
     drag.moved = false;
   };
+
+  if (hideOnPos || hideOnHome) {
+    return null;
+  }
 
   if (!position) {
     return null;
