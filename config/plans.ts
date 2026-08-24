@@ -97,7 +97,8 @@ export const PLANS: Plan[] = [
   {
     id: "pro",
     name: "Pro",
-    description: "AI, audit trails, and multi-branch scale for serious operators.",
+    description:
+      "Multi-branch scale, register controls, and priority support for serious operators.",
     bestFor: "Serious supermarkets, pharmacies, and multi-branch businesses.",
     priceMonthly: 349,
     priceAnnually: 3490,
@@ -106,8 +107,6 @@ export const PLANS: Plan[] = [
     features: [
       "Everything in Growth",
       "Up to 5 branches",
-      "Zuri AI Assistant",
-      "Audit logs",
       "Cash reconciliation",
       "Approval workflows",
       "Restricted discounts",
