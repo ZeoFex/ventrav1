@@ -47,15 +47,13 @@ const comparisonFeatures = [
       { name: "Advanced Roles & Permissions", starter: false, growth: true, pro: true },
       { name: "Cashier Performance Tracking", starter: false, growth: true, pro: true },
       { name: "Refunds & Returns", starter: false, growth: true, pro: true },
-      { name: "Audit Logs & Login History", starter: false, growth: false, pro: true },
       { name: "Register Open/Close & Reconciliation", starter: false, growth: false, pro: true },
       { name: "Approval Workflows & Restricted Discounts", starter: false, growth: false, pro: true },
     ],
   },
   {
-    category: "Support & AI",
+    category: "Support & Scale",
     items: [
-      { name: "Zuri AI Assistant", starter: false, growth: false, pro: true },
       { name: "Multi-terminal POS", starter: false, growth: false, pro: true },
       { name: "Priority Support & Assisted Onboarding", starter: false, growth: false, pro: true },
     ],
@@ -81,29 +79,64 @@ const cardVariants = {
 
 const PLAN_COLUMN_KEYS = ["starter", "growth", "pro"] as const;
 
-function CompareValue({ value }: { value: boolean | string }) {
+function CompareValue({
+  value,
+  compact = false,
+}: {
+  value: boolean | string;
+  compact?: boolean;
+}) {
   if (typeof value === "boolean") {
     return value ? (
       <span
-        className="mx-auto flex size-8 items-center justify-center rounded-full bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]"
+        className={`mx-auto flex items-center justify-center rounded-full bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe] ${
+          compact ? "size-7" : "size-8"
+        }`}
         aria-label="Included"
       >
-        <Check className="size-4" strokeWidth={2.5} aria-hidden />
+        <Check className={compact ? "size-3.5" : "size-4"} strokeWidth={2.5} aria-hidden />
       </span>
     ) : (
       <span
-        className="mx-auto flex size-8 items-center justify-center rounded-full bg-muted/40 text-muted-foreground/35"
+        className={`mx-auto flex items-center justify-center rounded-full bg-muted/40 text-muted-foreground/35 ${
+          compact ? "size-7" : "size-8"
+        }`}
         aria-label="Not included"
       >
-        <Minus className="size-3.5" aria-hidden />
+        <Minus className={compact ? "size-3" : "size-3.5"} aria-hidden />
       </span>
     );
   }
 
   return (
-    <span className="inline-block rounded-lg border border-[#bfc9c3]/25 bg-muted/30 px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground dark:border-white/10 dark:bg-white/[0.04]">
+    <span
+      className={`inline-block text-center font-semibold tabular-nums text-foreground ${
+        compact
+          ? "max-w-full rounded-md bg-[#006c49]/8 px-1 py-0.5 text-[10px] leading-tight text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+          : "rounded-lg border border-[#bfc9c3]/25 bg-muted/30 px-2.5 py-1 text-xs dark:border-white/10 dark:bg-white/[0.04]"
+      }`}
+    >
       {value}
     </span>
+  );
+}
+
+function CompareLegend() {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-4 px-3 py-3.5 text-[11px] text-muted-foreground sm:gap-8 sm:px-4 sm:py-4 sm:text-xs">
+      <span className="inline-flex items-center gap-2">
+        <span className="flex size-6 items-center justify-center rounded-full bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]">
+          <Check className="size-3.5" strokeWidth={2.5} />
+        </span>
+        Included
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <span className="flex size-6 items-center justify-center rounded-full bg-muted/40 text-muted-foreground/40">
+          <Minus className="size-3" />
+        </span>
+        Not on this plan
+      </span>
+    </div>
   );
 }
 
@@ -117,14 +150,16 @@ function PricingCompareMatrix({
   onToggle: () => void;
 }) {
   const period = billingCycle === "monthly" ? "/mo" : "/yr";
+  const [openCategory, setOpenCategory] = useState(comparisonFeatures[0].category);
+  const [mobilePlan, setMobilePlan] = useState<PlanId>("growth");
 
   return (
-    <div id="pricing-compare" className="mt-24 scroll-mt-24">
-      <div className="mx-auto mb-8 max-w-2xl text-center">
+    <div id="pricing-compare" className="mt-16 scroll-mt-24 sm:mt-24">
+      <div className="mx-auto mb-6 max-w-2xl text-center sm:mb-8">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#006c49] dark:text-[#6ffbbe]">
           Full breakdown
         </p>
-        <h3 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight sm:text-4xl">
+        <h3 className="font-[family-name:var(--font-display)] text-[1.65rem] font-bold tracking-tight sm:text-3xl md:text-4xl">
           Compare plans side by side
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -133,9 +168,9 @@ function PricingCompareMatrix({
         <button
           type="button"
           onClick={onToggle}
-          className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#bfc9c3]/30 bg-surface-elevated px-6 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-[#006c49]/30 hover:bg-[#006c49]/5 dark:border-white/10 dark:hover:border-[#6ffbbe]/30 dark:hover:bg-[#6ffbbe]/5"
+          className="mt-5 inline-flex h-11 w-full max-w-xs items-center justify-center gap-2 rounded-full border border-[#bfc9c3]/30 bg-surface-elevated px-6 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-[#006c49]/30 hover:bg-[#006c49]/5 sm:mt-6 sm:w-auto dark:border-white/10 dark:hover:border-[#6ffbbe]/30 dark:hover:bg-[#6ffbbe]/5"
         >
-          {showCompare ? "Hide feature matrix" : "View feature matrix"}
+          {showCompare ? "Hide comparison" : "Compare features"}
           <ChevronDown
             className={`size-4 transition-transform duration-300 ${
               showCompare ? "rotate-180" : ""
@@ -152,32 +187,110 @@ function PricingCompareMatrix({
         }`}
       >
         <div className="overflow-hidden">
-          <div className="overflow-hidden rounded-2xl border border-[#bfc9c3]/25 bg-surface-elevated shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-[#111] dark:shadow-none">
-            <div className="relative overflow-x-auto">
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-surface-elevated to-transparent dark:from-[#111] lg:hidden" />
+          {/* Mobile comparison — stacked accordion, no sideways scroll */}
+          <div className="space-y-3 lg:hidden">
+            <div className="sticky top-16 z-20 rounded-2xl border border-[#bfc9c3]/25 bg-background/90 p-1.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-[#0c0c0c]/90">
+              <div className="grid grid-cols-3 gap-1">
+                {PLANS.map((plan) => {
+                  const price =
+                    billingCycle === "monthly" ? plan.priceMonthly : plan.priceAnnually;
+                  const selected = mobilePlan === plan.id;
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setMobilePlan(plan.id)}
+                      className={`rounded-[0.85rem] px-1 py-2.5 text-center transition-colors ${
+                        selected
+                          ? "bg-[#006c49] text-white shadow-md dark:bg-[#6ffbbe] dark:text-[#003527]"
+                          : "text-foreground hover:bg-muted/60"
+                      }`}
+                    >
+                      <p className="text-[11px] font-bold leading-none">{plan.name}</p>
+                      <p
+                        className={`mt-1 text-[10px] font-semibold tabular-nums ${
+                          selected ? "text-white/80 dark:text-[#003527]/70" : "text-muted-foreground"
+                        }`}
+                      >
+                        {price === 0 ? "Free" : `GHS ${price.toLocaleString()}${period}`}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-              <table className="w-full min-w-[720px] border-collapse text-left">
+            {comparisonFeatures.map((section) => {
+              const isOpen = openCategory === section.category;
+              return (
+                <div
+                  key={section.category}
+                  className="overflow-hidden rounded-2xl border border-[#bfc9c3]/25 bg-surface-elevated dark:border-white/[0.08] dark:bg-[#111]"
+                >
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenCategory(isOpen ? "" : section.category)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span className="h-4 w-1 shrink-0 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" />
+                      <span className="text-[13px] font-bold leading-snug text-foreground">
+                        {section.category}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {isOpen ? (
+                    <div className="divide-y divide-[#bfc9c3]/10 border-t border-[#bfc9c3]/15 dark:divide-white/[0.06] dark:border-white/[0.06]">
+                      {section.items.map((item) => (
+                        <div
+                          key={item.name}
+                          className="flex items-center justify-between gap-3 px-4 py-3.5"
+                        >
+                          <p className="min-w-0 text-[13px] font-medium leading-snug text-foreground">
+                            {item.name}
+                          </p>
+                          <div className="shrink-0">
+                            <CompareValue value={item[mobilePlan]} compact />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+
+            <div className="rounded-2xl border border-[#bfc9c3]/20 bg-surface-elevated dark:border-white/[0.08] dark:bg-[#111]">
+              <CompareLegend />
+            </div>
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-hidden rounded-2xl border border-[#bfc9c3]/25 bg-surface-elevated shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-[#111] dark:shadow-none lg:block">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-[#bfc9c3]/20 dark:border-white/[0.08]">
-                    <th className="sticky left-0 z-20 min-w-[11rem] bg-surface-elevated/95 px-4 py-5 backdrop-blur-sm dark:bg-[#111]/95 sm:min-w-[14rem] sm:px-6">
+                    <th className="min-w-[14rem] bg-surface-elevated px-6 py-5 dark:bg-[#111]">
                       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Features
                       </span>
                     </th>
                     {PLANS.map((plan) => {
                       const price =
-                        billingCycle === "monthly"
-                          ? plan.priceMonthly
-                          : plan.priceAnnually;
+                        billingCycle === "monthly" ? plan.priceMonthly : plan.priceAnnually;
                       const isGrowth = plan.id === "growth";
-
                       return (
                         <th
                           key={plan.id}
-                          className={`min-w-[7.5rem] px-3 py-5 text-center sm:min-w-[9rem] sm:px-4 ${
-                            isGrowth
-                              ? "bg-[#006c49]/[0.06] dark:bg-[#6ffbbe]/[0.06]"
-                              : ""
+                          className={`min-w-[9rem] px-4 py-5 text-center ${
+                            isGrowth ? "bg-[#006c49]/[0.06] dark:bg-[#6ffbbe]/[0.06]" : ""
                           }`}
                         >
                           <div className="flex flex-col items-center gap-1">
@@ -189,10 +302,8 @@ function PricingCompareMatrix({
                               <span className="h-[18px]" aria-hidden />
                             )}
                             <span
-                              className={`font-[family-name:var(--font-display)] text-base font-bold sm:text-lg ${
-                                isGrowth
-                                  ? "text-[#006c49] dark:text-[#6ffbbe]"
-                                  : "text-foreground"
+                              className={`font-[family-name:var(--font-display)] text-lg font-bold ${
+                                isGrowth ? "text-[#006c49] dark:text-[#6ffbbe]" : "text-foreground"
                               }`}
                             >
                               {plan.name}
@@ -214,12 +325,12 @@ function PricingCompareMatrix({
                   </tr>
                 </thead>
                 <tbody>
-                  {comparisonFeatures.map((section, secIdx) => (
-                    <React.Fragment key={secIdx}>
+                  {comparisonFeatures.map((section) => (
+                    <React.Fragment key={section.category}>
                       <tr>
                         <td
                           colSpan={4}
-                          className="border-y border-[#bfc9c3]/15 bg-muted/30 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03] sm:px-6"
+                          className="border-y border-[#bfc9c3]/15 bg-muted/30 px-6 py-3 dark:border-white/[0.06] dark:bg-white/[0.03]"
                         >
                           <div className="flex items-center gap-2">
                             <span className="h-4 w-1 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" />
@@ -229,30 +340,24 @@ function PricingCompareMatrix({
                           </div>
                         </td>
                       </tr>
-                      {section.items.map((item, itemIdx) => (
+                      {section.items.map((item) => (
                         <tr
-                          key={itemIdx}
-                          className="border-b border-[#bfc9c3]/10 last:border-0 transition-colors hover:bg-muted/20 dark:border-white/[0.04]"
+                          key={item.name}
+                          className="border-b border-[#bfc9c3]/10 last:border-0 hover:bg-muted/20 dark:border-white/[0.04]"
                         >
-                          <td className="sticky left-0 z-10 bg-surface-elevated px-4 py-3.5 text-[13px] font-medium leading-snug text-foreground dark:bg-[#111] sm:px-6 sm:py-4 sm:text-sm">
+                          <td className="bg-surface-elevated px-6 py-4 text-sm font-medium leading-snug text-foreground dark:bg-[#111]">
                             {item.name}
                           </td>
-                          {PLAN_COLUMN_KEYS.map((key, colIdx) => {
-                            const val = item[key];
-                            const isGrowth = colIdx === 1;
-                            return (
-                              <td
-                                key={key}
-                                className={`px-3 py-3.5 text-center sm:px-4 sm:py-4 ${
-                                  isGrowth
-                                    ? "bg-[#006c49]/[0.04] dark:bg-[#6ffbbe]/[0.04]"
-                                    : ""
-                                }`}
-                              >
-                                <CompareValue value={val} />
-                              </td>
-                            );
-                          })}
+                          {PLAN_COLUMN_KEYS.map((key, colIdx) => (
+                            <td
+                              key={key}
+                              className={`px-4 py-4 text-center ${
+                                colIdx === 1 ? "bg-[#006c49]/[0.04] dark:bg-[#6ffbbe]/[0.04]" : ""
+                              }`}
+                            >
+                              <CompareValue value={item[key]} />
+                            </td>
+                          ))}
                         </tr>
                       ))}
                     </React.Fragment>
@@ -260,26 +365,8 @@ function PricingCompareMatrix({
                 </tbody>
               </table>
             </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-6 border-t border-[#bfc9c3]/15 px-4 py-4 text-xs text-muted-foreground dark:border-white/[0.06] sm:gap-8">
-              <span className="inline-flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-full bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/15 dark:text-[#6ffbbe]">
-                  <Check className="size-3.5" strokeWidth={2.5} />
-                </span>
-                Included
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-full bg-muted/40 text-muted-foreground/40">
-                  <Minus className="size-3" />
-                </span>
-                Not on this plan
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="rounded-md border border-[#bfc9c3]/25 bg-muted/30 px-2 py-0.5 text-[10px] font-semibold text-foreground dark:border-white/10">
-                  1 branch
-                </span>
-                Plan limit or detail
-              </span>
+            <div className="border-t border-[#bfc9c3]/15 dark:border-white/[0.06]">
+              <CompareLegend />
             </div>
           </div>
         </div>
@@ -507,12 +594,8 @@ export function LandingPricing({
                   disabled={currentPlan === plan.id && !isPastDue}
                   className={`mt-auto flex h-11 w-full items-center justify-center rounded-xl text-sm font-semibold transition-all ${
                     currentPlan === plan.id && !isPastDue
-                      ? "bg-surface-elevated text-muted-foreground border border-border cursor-not-allowed opacity-60"
-                      : plan.highlighted
-                        ? "bg-[#6ffbbe] text-[#002118] hover:brightness-110 shadow-[0_0_20px_rgba(111,251,190,0.3)]"
-                        : onSelectPlan
-                          ? "bg-[#006c49] text-white hover:bg-[#005a3c]"
-                          : "bg-surface-container-lowest border border-border/40 hover:bg-surface-container-low"
+                      ? "cursor-not-allowed border border-border bg-surface-elevated text-muted-foreground opacity-60"
+                      : "bg-[#6ffbbe] text-[#002118] shadow-[0_0_20px_rgba(111,251,190,0.3)] hover:brightness-110"
                   }`}
                 >
                   {currentPlan === plan.id
