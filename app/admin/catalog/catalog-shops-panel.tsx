@@ -37,6 +37,7 @@ import { CatalogShopAccountPanel } from "./catalog-shop-account-panel";
 import { CatalogShopSalesPanel } from "./catalog-shop-sales-panel";
 import { CatalogShopCustomersPanel } from "./catalog-shop-customers-panel";
 import { CatalogBulkShopDelete } from "./catalog-bulk-shop-delete";
+import { CatalogCreateAccountModal } from "./catalog-create-account-modal";
 import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 import {
     CatalogPagination,
@@ -95,6 +96,7 @@ export function CatalogShopsPanel({
     const [productsLoading, setProductsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [addProductOpen, setAddProductOpen] = useState(false);
+    const [createAccountOpen, setCreateAccountOpen] = useState(false);
     const [selectedShops, setSelectedShops] = useState<Map<string, CatalogShop>>(new Map());
     const [shopQuery, setShopQuery] = useState("");
     const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
@@ -683,6 +685,19 @@ export function CatalogShopsPanel({
 
     return (
         <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-lg font-semibold text-foreground">Shop accounts</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Create a login for a new shop, or open an existing one.
+                    </p>
+                </div>
+                <Button type="button" onClick={() => setCreateAccountOpen(true)}>
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Create account
+                </Button>
+            </div>
+
             <div className="rounded-xl border border-border bg-card p-4">
                 <label className="grid gap-1.5 text-sm">
                     <span className="font-medium text-foreground">Search shop name</span>
@@ -705,6 +720,13 @@ export function CatalogShopsPanel({
                     </div>
                 </label>
             </div>
+
+            <CatalogCreateAccountModal
+                token={token}
+                open={createAccountOpen}
+                onClose={() => setCreateAccountOpen(false)}
+                onCreated={() => void loadShops()}
+            />
 
             <CatalogBulkShopDelete
                 token={token}

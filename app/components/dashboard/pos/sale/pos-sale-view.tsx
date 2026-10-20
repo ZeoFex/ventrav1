@@ -444,7 +444,7 @@ function PosSaleViewInner() {
         toast.error(result.message);
         return;
       }
-      addToCart(result.product.id);
+      addToCart(result.product.id, result.variationId);
     },
     [products, addToCart],
   );
@@ -908,7 +908,7 @@ function PosSaleViewInner() {
             open={scanOpen}
             onClose={() => setScanOpen(false)}
             products={products}
-            onProductAdded={(p) => addToCart(p.id)}
+            onProductAdded={(p, variationId) => addToCart(p.id, variationId)}
             mobileCart={{
               lines,
               productById,

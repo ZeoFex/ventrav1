@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ImageIcon, Loader2, X } from "lucide-react";
+import { Camera, ImageIcon, Loader2, X } from "lucide-react";
+import { ProductItemPhotoCapture } from "../../products/product-item-photo-capture";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import { generateProductSku } from "../../products/product-catalog-codes";
@@ -65,6 +66,7 @@ export function PosCreateProductFromScanModal({
   const [unitSelect, setUnitSelect] = useState(DEFAULT_PRODUCT_UNIT);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,12 +77,16 @@ export function PosCreateProductFromScanModal({
     setDescription(globalPrefill?.description ?? "");
     setImagePreview(globalPrefill?.imageSrc ?? null);
     setSelectedFile(null);
+    setPhotoOpen(false);
     setPrice("");
     setCostPrice("");
     setStock("");
     setCategoryId("");
     setUnitSelect(globalPrefill?.unit?.toLowerCase() || DEFAULT_PRODUCT_UNIT);
     setSaveState("idle");
+    if (globalPrefill?.imageSrc) return;
+    const timer = window.setTimeout(() => setPhotoOpen(true), 400);
+    return () => window.clearTimeout(timer);
   }, [open, barcode, globalPrefill]);
 
   if (!open) return null;
@@ -286,13 +292,23 @@ export function PosCreateProductFromScanModal({
                   <ImageIcon className="size-6 opacity-40" />
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-xl border px-3 py-2 text-[13px] font-medium hover:bg-muted dark:border-white/[0.12]"
-              >
-                Upload photo
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPhotoOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#006c49]/10 px-3 py-2 text-[13px] font-medium text-[#006c49] hover:bg-[#006c49]/20 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                >
+                  <Camera className="size-4" />
+                  Take photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-xl border px-3 py-2 text-[13px] font-medium hover:bg-muted dark:border-white/[0.12]"
+                >
+                  Upload photo
+                </button>
+              </div>
             </div>
           </div>
 
@@ -342,6 +358,18 @@ export function PosCreateProductFromScanModal({
           </button>
         </form>
       </div>
+      <ProductItemPhotoCapture
+        open={photoOpen}
+        onClose={() => setPhotoOpen(false)}
+        onCapture={(file) => {
+          setSelectedFile(file);
+          setImagePreview((current) => {
+            if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+            return URL.createObjectURL(file);
+          });
+          setPhotoOpen(false);
+        }}
+      />
     </div>
   );
 }

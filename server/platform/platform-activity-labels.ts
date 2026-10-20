@@ -5,6 +5,7 @@ export const PLATFORM_ACTIONS = {
     ADMIN_ACCOUNT_UPDATED: "admin.account.updated",
     ADMIN_TEAM_UPDATED: "admin.team.updated",
     ADMIN_TEAM_REMOVED: "admin.team.removed",
+    SHOP_ACCOUNT_CREATED: "shop.account.created",
     SHOP_UPDATED: "shop.updated",
     SHOP_DELETED: "shop.deleted",
     SHOP_SALES_DELETED: "shop.sales.deleted",
@@ -28,6 +29,7 @@ const PLATFORM_ACTION_LABELS: Record<string, string> = {
     [PLATFORM_ACTIONS.ADMIN_ACCOUNT_UPDATED]: "Updated own account",
     [PLATFORM_ACTIONS.ADMIN_TEAM_UPDATED]: "Updated team member",
     [PLATFORM_ACTIONS.ADMIN_TEAM_REMOVED]: "Removed team member",
+    [PLATFORM_ACTIONS.SHOP_ACCOUNT_CREATED]: "Created shop login",
     [PLATFORM_ACTIONS.SHOP_UPDATED]: "Updated shop",
     [PLATFORM_ACTIONS.SHOP_DELETED]: "Deleted shop",
     [PLATFORM_ACTIONS.SHOP_SALES_DELETED]: "Deleted shop transactions",
@@ -76,6 +78,7 @@ const RESOURCE_LABELS: Record<string, string> = {
 
 const TENANT_ACTION_LABELS: Record<string, string> = {
     signup: "Shop signed up",
+    admin_provisioned: "Account created by admin",
     login: "Staff signed in",
     staff_login: "Staff signed in",
     email_verified: "Email verified",

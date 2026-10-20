@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, ImageIcon, Loader2, RefreshCw, X, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { PosBarcodeCamera } from "../pos/sale/pos-barcode-camera";
+import { ProductItemPhotoCapture } from "./product-item-photo-capture";
 import { generateProductSku } from "./product-catalog-codes";
 import { ProductsPageShell } from "./products-page-shell";
 import { useCategories, useTags } from "./products-data-hooks";
@@ -57,7 +58,32 @@ type ProductFormProps = {
   initial: ProductFormInitialValues;
   title: string;
   shellDescription: string;
+  /** Open the item camera when a scanned barcode was not found in any catalog. */
+  promptItemPhoto?: boolean;
+  /** Category label from a barcode lookup, matched to an existing category when possible. */
+  suggestedCategoryName?: string | null;
 };
+
+type ScanFieldPatch = {
+  name?: string | null;
+  description?: string | null;
+  brand?: string | null;
+  category?: string | null;
+  imageUrl?: string | null;
+  unit?: string | null;
+};
+
+function matchKnownUnit(raw: string | null | undefined): string | null {
+  const value = raw?.trim().toLowerCase();
+  if (!value) return null;
+  const hit = PRODUCT_UNITS.find(
+    (unit) =>
+      unit.value === value ||
+      unit.short.toLowerCase() === value ||
+      unit.label.toLowerCase() === value,
+  );
+  return hit?.value ?? null;
+}
 
 export function ProductForm({
   mode,
@@ -65,6 +91,8 @@ export function ProductForm({
   initial,
   title,
   shellDescription,
+  promptItemPhoto = false,
+  suggestedCategoryName = null,
 }: ProductFormProps) {
   const router = useRouter();
   const { mutate: revalidateProductCaches } = useSWRConfig();
@@ -114,6 +142,8 @@ export function ProductForm({
   const needsSmallerUnitTip = isDecimalUnit(unit);
   const [isScanningMode, setIsScanningMode] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [pendingCategoryName, setPendingCategoryName] = useState<string | null>(null);
 
   const { user } = useSession();
 
@@ -150,6 +180,23 @@ export function ProductForm({
   const [imagePreview, setImagePreview] = useState<string | null>(initial.imageSrc);
 
   const { categories, mutate: mutateCategories } = useCategories(categorySearch);
+
+  useEffect(() => {
+    if (mode === "new" && promptItemPhoto) setPhotoOpen(true);
+  }, [mode, promptItemPhoto]);
+
+  useEffect(() => {
+    if (suggestedCategoryName) setPendingCategoryName(suggestedCategoryName);
+  }, [suggestedCategoryName]);
+
+  useEffect(() => {
+    if (!pendingCategoryName || categoryId) return;
+    const match = (Array.isArray(categories) ? categories : []).find(
+      (category: { id: string; name: string }) =>
+        category.name.trim().toLowerCase() === pendingCategoryName.trim().toLowerCase(),
+    );
+    if (match) setCategoryId(match.id);
+  }, [pendingCategoryName, categories, categoryId]);
   const { tags = [] } = useTags();
 
   const categoryOptions: ComboboxOption[] = useMemo(
@@ -202,13 +249,51 @@ export function ProductForm({
   }, [name, searchProductNames]);
   const { startUpload, isUploading } = useUploadThing("productImage");
 
+  const attachItemPhoto = (file: File) => {
+    setSelectedFile(file);
+    setImagePreview((current) => {
+      if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+    setPhotoOpen(false);
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
+    if (file) attachItemPhoto(file);
   };
+
+  const applyScanFields = useCallback((patch: ScanFieldPatch, replace = false): boolean => {
+    const nextName = patch.name?.trim();
+    if (nextName) {
+      setName((current) => (replace || !current.trim() ? nextName : current));
+    }
+
+    const brand = patch.brand?.trim() ?? "";
+    const notes = patch.description?.trim() ?? "";
+    const nextDescription =
+      notes && brand && !notes.toLowerCase().includes(brand.toLowerCase())
+        ? `${brand} · ${notes}`
+        : notes || (brand ? `Brand: ${brand}` : "");
+    if (nextDescription) {
+      setDescription((current) => (replace || !current.trim() ? nextDescription : current));
+    }
+
+    const knownUnit = matchKnownUnit(patch.unit);
+    if (knownUnit) {
+      setUnitSelect((current) => (current === DEFAULT_PRODUCT_UNIT ? knownUnit : current));
+    }
+
+    if (patch.category?.trim()) setPendingCategoryName(patch.category.trim());
+
+    const imageUrl = patch.imageUrl?.trim();
+    if (imageUrl) {
+      setImagePreview((current) => (replace || !current ? imageUrl : current));
+      if (replace) setSelectedFile(null);
+      return true;
+    }
+    return false;
+  }, []);
 
   const clearImage = () => {
     setSelectedFile(null);
@@ -244,13 +329,15 @@ export function ProductForm({
         const ventraResult = await ventraRes.json();
 
         if (ventraRes.ok && ventraResult.found) {
-          setName(ventraResult.data.name);
-          setDescription(ventraResult.data.description || "");
-          if (ventraResult.data.imageUrl) {
-            setImagePreview(ventraResult.data.imageUrl);
-            setSelectedFile(null);
-          }
-          toast.success("Details loaded from your barcode label.");
+          applyScanFields(
+            {
+              name: ventraResult.data.name,
+              description: ventraResult.data.description,
+              imageUrl: ventraResult.data.imageUrl,
+            },
+            true,
+          );
+          toast.success("Details loaded from your barcode label. Set your prices and save.");
           return;
         }
 
@@ -260,14 +347,16 @@ export function ProductForm({
         if (globalRes.ok) {
           const global = await globalRes.json();
           if (global.found && global.productName) {
-            setName(global.productName);
-            setDescription(global.description || "");
-            if (global.imageSrc) {
-              setImagePreview(global.imageSrc);
-              setSelectedFile(null);
-            }
-            if (global.unit) setUnitSelect(global.unit.toLowerCase());
-            toast.success("Loaded from Ventra shared catalog. Set your prices.");
+            applyScanFields(
+              {
+                name: global.productName,
+                description: global.description,
+                imageUrl: global.imageSrc,
+                unit: global.unit,
+              },
+              true,
+            );
+            toast.success("Loaded from Ventra shared catalog. Set your prices and save.");
             return;
           }
         }
@@ -276,25 +365,39 @@ export function ProductForm({
           `/api/products/lookup?barcode=${encodeURIComponent(code)}`,
         );
         const result = await res.json();
+        const data = result.data ?? {};
+        const hasImage = applyScanFields(
+          {
+            name: data.name,
+            description: data.description,
+            brand: data.brand,
+            category: data.category,
+            imageUrl: data.imageUrl,
+            unit: data.unit,
+          },
+          Boolean(result.found),
+        );
 
         if (res.ok && result.found) {
-          setName(result.data.name);
-          setDescription(result.data.description || "");
-          if (result.data.imageUrl) {
-            setImagePreview(result.data.imageUrl);
-            setSelectedFile(null);
-          }
-          toast.success("Product details found!");
-        } else {
-          toast.info("Barcode captured. Enter product details and save.");
+          toast.success(
+            hasImage
+              ? "Product details found. Review them and save."
+              : "Product details found. Add a photo, then save.",
+          );
+          if (!hasImage) setPhotoOpen(true);
+          return;
         }
+
+        toast.info("Not in any catalog. Take a photo of the item, then complete the details and save.");
+        setPhotoOpen(true);
       } catch {
-        toast.error("Lookup failed. Barcode captured — enter details manually.");
+        toast.error("Lookup failed. Take a photo, then enter the details and save.");
+        setPhotoOpen(true);
       } finally {
         setIsLookingUp(false);
       }
     },
-    [mode],
+    [mode, applyScanFields],
   );
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -626,14 +729,26 @@ export function ProductForm({
               )}
             </div>
             <div className="flex-1 text-center sm:text-left">
-              <label className="block w-full sm:w-auto px-4 py-2 rounded-xl border border-dashed border-border hover:border-[#006c49] hover:bg-muted/50 transition-all cursor-pointer text-[14px] font-medium text-muted-foreground">
-                <span className="flex items-center justify-center gap-2">
-                  <ImageIcon className="size-4" />
-                  Select Image
-                </span>
-                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-              </label>
-              <p className="text-[12px] text-muted-foreground mt-3">Upload a high-quality photo. Max 4MB.</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-start">
+                <button
+                  type="button"
+                  onClick={() => setPhotoOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#006c49]/10 px-4 py-2 text-[14px] font-medium text-[#006c49] hover:bg-[#006c49]/20 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                >
+                  <Camera className="size-4" />
+                  Take photo
+                </button>
+                <label className="block w-full sm:w-auto px-4 py-2 rounded-xl border border-dashed border-border hover:border-[#006c49] hover:bg-muted/50 transition-all cursor-pointer text-[14px] font-medium text-muted-foreground">
+                  <span className="flex items-center justify-center gap-2">
+                    <ImageIcon className="size-4" />
+                    Upload photo
+                  </span>
+                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                </label>
+              </div>
+              <p className="text-[12px] text-muted-foreground mt-3">
+                Photograph the item or upload a photo. Max 4MB. It is saved with the product.
+              </p>
             </div>
           </div>
         </section>
@@ -829,6 +944,12 @@ export function ProductForm({
           </button>
         </div>
       </form>
+
+      <ProductItemPhotoCapture
+        open={photoOpen}
+        onClose={() => setPhotoOpen(false)}
+        onCapture={attachItemPhoto}
+      />
 
       {isScanningMode && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">

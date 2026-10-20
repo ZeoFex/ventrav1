@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { groq } from "@ai-sdk/groq";
 import {
     convertToModelMessages,
     safeValidateUIMessages,
@@ -6,9 +6,9 @@ import {
     type UIMessage,
 } from "ai";
 import { NextResponse } from "next/server";
-import { assertGoogleApiKeyConfigured } from "@/app/lib/copilot/config";
+import { assertGroqApiKeyConfigured } from "@/app/lib/copilot/config";
 import { buildZuriSystemPrompt } from "@/app/lib/zuri/prompt";
-import { getZuriGeminiModelId } from "@/app/lib/zuri/config";
+import { getZuriGroqModelId } from "@/app/lib/zuri/config";
 import {
     getKbSearchBundleFromUIMessages,
     getLastUserTextFromUIMessages,
@@ -71,12 +71,12 @@ export async function POST(req: Request): Promise<Response> {
             helpBasePath: "",
         });
 
-        assertGoogleApiKeyConfigured();
+        assertGroqApiKeyConfigured();
 
         const modelMessages = await convertToModelMessages(uiMessages);
 
         const result = streamText({
-            model: google(getZuriGeminiModelId()),
+            model: groq(getZuriGroqModelId()),
             system,
             messages: modelMessages,
             temperature: 0.12,
@@ -87,7 +87,7 @@ export async function POST(req: Request): Promise<Response> {
     } catch (e) {
         console.error("POST /api/support/zuri/chat", e);
         const message =
-            e instanceof Error && e.message.includes("GOOGLE_GENERATIVE_AI_API_KEY")
+            e instanceof Error && e.message.includes("GROQ_API_KEY")
                 ? "Assistant is unavailable: AI key not configured."
                 : "Assistant error. Try again or use Help Centre.";
         return NextResponse.json({ error: message }, { status: 500 });
