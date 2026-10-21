@@ -72,7 +72,7 @@ export function HeaderNotifications() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="tap-target relative flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground sm:size-10 dark:hover:bg-[#1a1a1a]"
+        className="tap-target relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground sm:size-10 sm:rounded-xl dark:hover:bg-[#1a1a1a]"
         aria-label="Open notifications"
         aria-expanded={open}
         aria-controls={panelId}
@@ -86,16 +86,16 @@ export function HeaderNotifications() {
       </button>
 
       <div
-        className={`fixed inset-0 z-[100] transition-[opacity,visibility] duration-300 ease-out ${
-          open
-            ? "visible opacity-100"
-            : "invisible pointer-events-none opacity-0"
+        className={`fixed inset-0 z-[80] ${
+          open ? "visible" : "invisible pointer-events-none"
         }`}
         aria-hidden={!open}
       >
         <button
           type="button"
-          className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+          className={`absolute inset-0 bg-[#0b1a14]/35 transition-opacity duration-200 dark:bg-black/50 ${
+            open ? "opacity-100" : "opacity-0"
+          }`}
           aria-label="Close notifications"
           onClick={close}
         />
@@ -105,11 +105,11 @@ export function HeaderNotifications() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="notifications-drawer-title"
-          className={`absolute inset-y-0 right-0 flex h-full w-full max-w-sm flex-col border-l border-[#bfc9c3]/20 bg-surface-card shadow-[0_0_0_1px_rgba(0,0,0,0.03),-24px_0_48px_-12px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] dark:border-white/[0.08] dark:bg-[#0a0a0a] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),-24px_0_48px_-12px_rgba(0,0,0,0.5)] ${
-            open ? "translate-x-0" : "translate-x-full"
+          className={`absolute left-3 right-3 flex max-h-[min(70dvh,28rem)] flex-col overflow-hidden rounded-2xl border border-[#d7e0db] bg-surface-card shadow-[0_18px_50px_-20px_rgba(0,30,20,0.45)] transition duration-200 ease-out dark:border-white/[0.1] dark:bg-[#111] dark:shadow-[0_18px_50px_-16px_rgba(0,0,0,0.7)] top-[max(4.75rem,calc(env(safe-area-inset-top)+3.75rem))] sm:left-auto sm:right-4 sm:w-[22.5rem] ${
+            open ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
           }`}
         >
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#bfc9c3]/15 px-4 py-4 dark:border-white/[0.08]">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#bfc9c3]/15 px-4 py-3.5 dark:border-white/[0.08]">
             <div>
               <h2
                 id="notifications-drawer-title"
@@ -207,18 +207,6 @@ export function HeaderNotifications() {
                 ))}
               </ul>
             )}
-          </div>
-
-          <div className="shrink-0 border-t border-[#bfc9c3]/15 px-4 py-3 dark:border-white/[0.08]">
-            <button
-              type="button"
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#bfc9c3]/20 py-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-[#006c49]/30 hover:bg-[#006c49]/08 hover:text-[#006c49] dark:border-white/[0.1] dark:hover:border-[#6ffbbe]/25 dark:hover:bg-[#6ffbbe]/08 dark:hover:text-[#6ffbbe]"
-              disabled
-              title="Coming soon"
-            >
-              <Settings className="size-4" strokeWidth={2} aria-hidden />
-              Notification settings
-            </button>
           </div>
         </div>
       </div>

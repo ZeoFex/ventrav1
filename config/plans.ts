@@ -92,6 +92,7 @@ export const PLANS: Plan[] = [
       "Advanced staff roles and permissions",
       "Cashier performance tracking",
       "Business analytics",
+      "Zuri assistant",
     ],
   },
   {

@@ -258,19 +258,20 @@ export function buildDashboardTourSteps(opts: BuildTourStepsOpts): DriveStep[] {
       popover: {
         title: "Zuri assistant",
         description:
-          "Open Zuri for Pro workspaces—insights, summaries, and in-panel help grounded in your plan.",
+          "Open Zuri on Growth and Pro—insights, summaries, and in-panel help grounded in your shop.",
         side: "right",
         align: "center",
       },
     });
   } else if (isMobileViewport && dashboardTourShowsCopilotEntry(user)) {
     steps.push({
+      element: `[data-tour-target="copilot-mobile"][data-tour-mount="main"]`,
       popover: {
         title: "Zuri on mobile",
         description:
-          "Use the floating Zuri button lower on the screen to open the same assistant when your plan includes it.",
-        side: "over",
-        align: "center",
+          "Use the Zuri icon in the top bar to open the same assistant. It is included on Growth and Pro.",
+        side: "bottom",
+        align: "end",
       },
     });
   }

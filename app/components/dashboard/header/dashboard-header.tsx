@@ -10,6 +10,7 @@ import { HeaderSearch } from "./header-search";
 import { HeaderPosCategories, HeaderPosProductSearch } from "./header-pos-product-search";
 import { HeaderUserMenu } from "./header-user-menu";
 import { usePosProductSearch } from "../pos/pos-product-search-context";
+import { CopilotMobileHeaderButton } from "../copilot";
 
 export function DashboardHeader({
   userDisplayName,
@@ -121,6 +122,7 @@ export function DashboardHeader({
           isOtherPos ? "col-start-3 lg:col-start-2" : "col-start-3 lg:col-start-3"
         }`}
       >
+        <CopilotMobileHeaderButton />
         <div className="hidden lg:block">
           <HeaderSubscriptionProgress />
         </div>
