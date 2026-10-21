@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
 import { useCopilot } from "./copilot-context";
 import { cn } from "@/lib/utils";
 import { COPILOT_MASCOT_SRC } from "./copilot-mascot-avatar";
@@ -49,11 +48,12 @@ function clampFabPosition(x: number, y: number): FabPosition {
 }
 
 function defaultFabPosition(): FabPosition {
-  const bottomNavReserve = 76;
+  const bottomReserve = 96;
   const side = 16;
+  const x = window.innerWidth - FAB_SIZE_PX - side;
   const y =
-    window.innerHeight - FAB_SIZE_PX - bottomNavReserve - Math.max(16, readSafeAreaBottom());
-  return clampFabPosition(side, y);
+    window.innerHeight - FAB_SIZE_PX - bottomReserve - Math.max(12, readSafeAreaBottom());
+  return clampFabPosition(x, y);
 }
 
 function readStoredPosition(): FabPosition | null {
@@ -133,14 +133,10 @@ function CopilotFabMascot() {
 }
 
 /**
- * Floating Zuri entry for small screens. Draggable so it can be moved away from
- * the cart FAB and bottom navigation.
+ * Floating Zuri button on every screen size. Drag it anywhere; tap to open.
  */
 export function CopilotMobileFab() {
-  const { toggle, copilotEnabled } = useCopilot();
-  const pathname = usePathname() ?? "";
-  const hideOnPos = pathname.startsWith("/dashboard/pos");
-  const hideOnHome = pathname === "/dashboard" || pathname === "/dashboard/";
+  const { toggle, copilotEnabled, open } = useCopilot();
   const [position, setPosition] = useState<FabPosition | null>(null);
   const dragRef = useRef({
     active: false,
@@ -232,7 +228,7 @@ export function CopilotMobileFab() {
     drag.moved = false;
   };
 
-  if (!copilotEnabled || hideOnPos || hideOnHome) {
+  if (!copilotEnabled || open) {
     return null;
   }
 
@@ -260,10 +256,12 @@ export function CopilotMobileFab() {
       )}
       aria-label="Open Zuri — drag to move"
       title="Zuri — tap to open, drag to move"
+      data-tour-target="copilot-mobile"
+      data-tour-mount="main"
     >
       <CopilotFabMascot />
     </button>
   );
 
-  return <div className="lg:hidden">{button}</div>;
+  return button;
 }

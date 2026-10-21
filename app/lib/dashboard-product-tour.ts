@@ -269,8 +269,8 @@ export function buildDashboardTourSteps(opts: BuildTourStepsOpts): DriveStep[] {
       popover: {
         title: "Zuri on mobile",
         description:
-          "Use the Zuri icon in the top bar to open the same assistant. It is included on Growth and Pro.",
-        side: "bottom",
+          "Drag the Zuri icon anywhere on the screen, then tap it to open the chat. Growth and Pro only.",
+        side: "top",
         align: "end",
       },
     });
