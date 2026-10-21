@@ -6,7 +6,7 @@
 
 export type PlanId = "starter" | "growth" | "pro";
 
-/** Feature id for Zuri in-dashboard assistant (`copilot` key; Pro-only). */
+/** Feature id for Zuri in-dashboard assistant (`copilot` key; Growth and Pro). */
 export const COPILOT_FEATURE_ID = "copilot" as const;
 
 export const PLAN_LIMITS = {
@@ -23,6 +23,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "pos": true, "new-sale": true, "held-sales": true,
     "customer-orders": false,
     "open-register": false, "pos-scan": false,
+    "reprint-receipts": false,
     "sales": false, "sales-overview": false, "sales-transactions": false,
     "sales-revenue": false, "sales-profit": false,
     "sales-average-order-value": false, "sales-refunds": false,
@@ -61,6 +62,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "home": true,
     "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
     "open-register": false, "pos-scan": true,
+    "reprint-receipts": true,
     "sales": true, "sales-overview": true, "sales-transactions": true,
     "sales-revenue": true, "sales-profit": true,
     "sales-average-order-value": true, "sales-refunds": true,
@@ -91,7 +93,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "support": true,
     "audit-logs": false, "approval-workflows": false,
     "restricted-discounts": false, "cash-reconciliation": false,
-    "copilot": false,
+    "copilot": true,
   },
 
   // ── PRO — Everything unlocked
@@ -99,6 +101,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "home": true,
     "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
     "open-register": true, "pos-scan": true,
+    "reprint-receipts": true,
     "sales": true, "sales-overview": true, "sales-transactions": true,
     "sales-revenue": true, "sales-profit": true,
     "sales-average-order-value": true, "sales-refunds": true,

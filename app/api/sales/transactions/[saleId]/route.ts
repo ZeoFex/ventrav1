@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
+import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { db } from "@/server/db";
-import { sales, saleItems } from "@/server/db/schema/sales";
+import { sales, saleItems, salePaymentLines } from "@/server/db/schema/sales";
 import { users } from "@/server/db/schema/users";
 import { products, productVariations } from "@/server/db/schema/products";
 import { customers } from "@/server/db/schema/customers";
+import { branches } from "@/server/db/schema/branches";
+import { businesses } from "@/server/db/schema/businesses";
 import { eq, and, asc, sql } from "drizzle-orm";
 
 /**
  * GET /api/sales/transactions/[saleId]
- * Sale header + line items for the authenticated business (same access rules as list).
+ * Sale header + line items + payment lines + receipt meta for reprint.
  */
 export async function GET(
     req: NextRequest,
@@ -22,31 +25,46 @@ export async function GET(
         if (auth instanceof NextResponse) return auth;
         const { payload } = auth;
         const isAdmin = payload.role === "owner";
+        const branchId = await getActiveBranchIdFromContext();
 
         const access = and(
             eq(sales.id, saleId),
             eq(sales.businessId, payload.bid),
             !isAdmin ? eq(sales.userId, payload.sub) : undefined,
+            branchId ? eq(sales.branchId, branchId) : undefined,
         );
 
         const [saleRow] = await db
             .select({
                 id: sales.id,
                 invoiceId: sales.invoiceId,
+                branchId: sales.branchId,
                 subtotalGhs: sales.subtotalGhs,
                 taxGhs: sales.taxGhs,
                 discountGhs: sales.discountGhs,
                 totalGhs: sales.totalGhs,
+                amountPaidGhs: sales.amountPaidGhs,
+                balanceDueGhs: sales.balanceDueGhs,
                 paymentMethod: sales.paymentMethod,
                 itemCount: sales.itemCount,
                 status: sales.status,
                 createdAt: sales.createdAt,
                 staffName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
                 customerName: customers.name,
+                branchName: branches.name,
+                branchAddress: branches.address,
+                branchRegion: branches.region,
+                branchPhone: branches.phone,
+                storeName: businesses.name,
+                currencySymbol: businesses.currency,
+                receiptHeader: businesses.receiptHeader,
+                receiptFooter: businesses.receiptFooter,
             })
             .from(sales)
             .leftJoin(users, eq(sales.userId, users.id))
             .leftJoin(customers, eq(sales.customerId, customers.id))
+            .leftJoin(branches, eq(sales.branchId, branches.id))
+            .innerJoin(businesses, eq(sales.businessId, businesses.id))
             .where(access)
             .limit(1);
 
@@ -74,8 +92,18 @@ export async function GET(
             .where(eq(saleItems.saleId, saleId))
             .orderBy(asc(saleItems.id));
 
+        const payments = await db
+            .select({
+                paymentMethod: salePaymentLines.paymentMethod,
+                amountGhs: salePaymentLines.amountGhs,
+                sortOrder: salePaymentLines.sortOrder,
+            })
+            .from(salePaymentLines)
+            .where(eq(salePaymentLines.saleId, saleId))
+            .orderBy(asc(salePaymentLines.sortOrder), asc(salePaymentLines.id));
+
         return NextResponse.json(
-            { sale: saleRow, lines },
+            { sale: saleRow, lines, payments },
             { headers: { "Cache-Control": "no-store" } },
         );
     } catch (error) {

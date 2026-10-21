@@ -6,44 +6,45 @@
 
 :root {
   color-scheme: light;
-  --muted-foreground: oklch(0.556 0 0);
-  --surface-elevated: #f2f4f6;
-  --surface-card: #ffffff;
-  --secondary-cta: #e0e3e5;
-  --secondary-cta-hover: #d5d8db;
-  --border-subtle: rgba(191, 201, 195, 0.2);
-  --hero-fade: #f7f9fb;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  /* Soft sage canvas — avoids fluorescent white glare */
+  --background: oklch(0.962 0.01 148);
+  --foreground: oklch(0.26 0.025 150);
+  --muted-foreground: oklch(0.44 0.02 150);
+  --surface-elevated: oklch(0.945 0.012 148);
+  --surface-card: oklch(0.988 0.005 148);
+  --secondary-cta: oklch(0.92 0.012 148);
+  --secondary-cta-hover: oklch(0.89 0.014 148);
+  --border-subtle: oklch(0.78 0.02 148 / 0.45);
+  --hero-fade: oklch(0.968 0.01 148);
+  --card: oklch(0.988 0.005 148);
+  --card-foreground: oklch(0.26 0.025 150);
+  --popover: oklch(0.992 0.004 148);
+  --popover-foreground: oklch(0.26 0.025 150);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --secondary: oklch(0.94 0.012 148);
+  --secondary-foreground: oklch(0.26 0.025 150);
+  --muted: oklch(0.94 0.012 148);
+  --accent: oklch(0.94 0.014 148);
+  --accent-foreground: oklch(0.26 0.025 150);
+  --destructive: oklch(0.55 0.2 27);
+  --border: oklch(0.84 0.018 148);
+  --input: oklch(0.82 0.02 148);
+  --ring: oklch(0.48 0.09 155);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar: oklch(0.975 0.008 148);
+  --sidebar-foreground: oklch(0.26 0.025 150);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.94 0.012 148);
+  --sidebar-accent-foreground: oklch(0.26 0.025 150);
+  --sidebar-border: oklch(0.86 0.016 148);
+  --sidebar-ring: oklch(0.48 0.09 155);
 }
 
 /* Dark: black / neutral grays — green only on intentional accents (buttons, badge dot, etc.) */
@@ -207,6 +208,7 @@
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+  -webkit-overflow-scrolling: touch;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -230,9 +232,124 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
-/* Mobile-friendly tap targets (POS, dashboard) */
+/* Handheld POS chrome (Android terminals + phones). Bottom nav is lg:hidden. */
+:root {
+  --pos-bottom-nav-height: 0px;
+  --pos-cart-dock-height: 0px;
+  --home-cart-dock-height: 0px;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --pos-bottom-nav-height: 0px;
+    --pos-cart-dock-height: calc(5.35rem + env(safe-area-inset-bottom, 0px));
+    --home-cart-dock-height: calc(5.35rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Mobile-friendly tap targets (POS, dashboard, handheld terminals) */
 .tap-target {
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (pointer: coarse) {
+  .tap-target {
+    min-height: 40px;
+    min-width: 36px;
+  }
+}
+
+@media (min-width: 1024px) and (pointer: coarse) {
+  .tap-target {
+    min-height: 44px;
+    min-width: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* Hide scrollbars on horizontal action rows */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Dashboard chrome: no sideways bounce on phones / iPads */
+.dashboard-app {
+  overflow-x: clip;
+}
+
+button,
+a,
+label,
+select,
+summary,
+[role="button"],
+[role="tab"],
+[role="menuitem"],
+[role="option"],
+[role="link"],
+[role="switch"],
+[role="checkbox"],
+[role="radio"],
+[role="combobox"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+a[href],
+a:not([href]),
+label,
+select:not(:disabled),
+summary,
+[role="button"]:not([aria-disabled="true"]),
+[role="tab"]:not([aria-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]),
+[role="option"]:not([aria-disabled="true"]),
+[role="link"],
+[role="switch"]:not([aria-disabled="true"]),
+[role="checkbox"]:not([aria-disabled="true"]),
+[role="radio"]:not([aria-disabled="true"]),
+[role="combobox"]:not([aria-disabled="true"]),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+input[type="file"]:not(:disabled),
+input[type="image"]:not(:disabled),
+input[type="color"]:not(:disabled),
+input[type="range"]:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+summary[aria-disabled="true"],
+[role="button"][aria-disabled="true"],
+[aria-disabled="true"],
+input:disabled,
+:disabled {
+  cursor: not-allowed;
+}
+
+/* iOS zooms focused inputs under 16px — keep controls readable on phones */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Zuri chat: iMessage-style typing dots (staggered vertical wave) */
@@ -283,12 +400,107 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: clip;
   }
+  body {
+    @apply bg-background text-foreground;
+    overflow-x: clip;
+    max-width: 100%;
+  }
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /*
+   * Native <select> menus are painted by the OS. In dark mode many Windows/Linux
+   * browsers keep a white list while inheriting the page's light text — options
+   * become invisible. color-scheme plus explicit option colors keep the list
+   * readable on every machine.
+   */
+  select {
+    color-scheme: light;
+  }
+  .dark select {
+    color-scheme: dark;
+  }
+  option,
+  optgroup {
+    background-color: var(--surface-card);
+    color: var(--foreground);
+  }
+  .dark option,
+  .dark optgroup {
+    background-color: #1a1a1a;
+    color: #f4f4f5;
+  }
+}
+
+[cmdk-root] {
+  color: var(--foreground);
+  background: transparent;
+}
+[cmdk-input] {
+  color: var(--foreground);
+}
+[cmdk-item] {
+  color: var(--foreground);
+}
+[cmdk-item][data-selected="true"],
+[cmdk-item][aria-selected="true"] {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+/* iOS/Android: 16px inputs avoid auto-zoom; keep tap highlights off */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Light mode: readable contrast, softer paper surfaces, no harsh white glare */
+html:not(.dark) ::selection {
+  background: oklch(0.88 0.05 155);
+  color: oklch(0.24 0.03 155);
+}
+
+html:not(.dark) ::placeholder {
+  color: oklch(0.52 0.018 150);
+  opacity: 1;
+}
+
+html:not(.dark) .bg-white,
+html:not(.dark) .bg-\[\#F8F9FA\],
+html:not(.dark) .bg-\[\#f8f9fa\],
+html:not(.dark) .bg-\[\#fafafa\],
+html:not(.dark) .bg-\[\#fafbfc\],
+html:not(.dark) .bg-\[\#ffffff\] {
+  background-color: var(--surface-card);
+}
+
+html:not(.dark) .border-\[\#eef0f2\],
+html:not(.dark) .border-\[\#e5e7eb\] {
+  border-color: var(--border);
+}
+
+html:not(.dark) .border-\[\#bfc9c3\]\/15 {
+  border-color: color-mix(in oklab, oklch(0.62 0.03 148) 32%, transparent);
+}
+
+html:not(.dark) .border-\[\#bfc9c3\]\/20 {
+  border-color: color-mix(in oklab, oklch(0.62 0.03 148) 40%, transparent);
+}
+
+html:not(.dark) .border-\[\#bfc9c3\]\/25 {
+  border-color: color-mix(in oklab, oklch(0.62 0.03 148) 48%, transparent);
 }
 @media print { .dashboard-sidebar, nav, header, button, .no-print, [role='button'], .breadcrumb, aside { display: none !important; } body { background: white !important; color: black !important; margin: 0 !important; } main, .print-container { margin: 0 !important; width: 100% !important; border: none !important; } table { width: 100% !important; border-collapse: collapse !important; } th, td { border-bottom: 1px solid #ddd !important; } }
 

@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClipboardCheck, Loader2, Save } from "lucide-react";
+import { ClipboardCheck, Loader2, Save, Search } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { useBranchContext } from "../branch-context";
 import { useProducts } from "../products/products-data-hooks";
@@ -22,6 +22,7 @@ export function StockTakeView() {
     const [counts, setCounts] = useState<Record<string, number>>({});
     const [note, setNote] = useState("");
     const [busy, setBusy] = useState(false);
+    const [query, setQuery] = useState("");
 
     const { data: recentSessions, mutate: mutateRecent } = useSWR(
         branchId !== "all" ? `/api/stock-take/sessions?limit=10` : null,
@@ -37,6 +38,17 @@ export function StockTakeView() {
         () => (products as Product[]).filter((p) => p.status !== "archived"),
         [products],
     );
+
+    const visibleProducts = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return activeProducts;
+        return activeProducts.filter((p) => {
+            const name = String(p.name ?? "").toLowerCase();
+            const sku = String(p.sku ?? "").toLowerCase();
+            const barcode = String(p.barcode ?? "").toLowerCase();
+            return name.includes(q) || sku.includes(q) || barcode.includes(q);
+        });
+    }, [activeProducts, query]);
 
     useEffect(() => {
         if (!sessionId || !sessionDetail?.lines?.length) return;
@@ -150,56 +162,69 @@ export function StockTakeView() {
 
     return (
         <ProductsPageShell
+            fill
             title="Stock take"
-            description="Count on-hand quantities. Saving stores a snapshot; completing updates product stock for this branch."
+            description="Count on-hand quantities, then save or complete."
             actions={
                 sessionId ? (
                     <span className="text-[13px] font-medium text-muted-foreground">Draft session active</span>
                 ) : null
             }
         >
-            <div className="mb-6 flex flex-wrap items-center gap-3">
-                <input
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Session note (optional)"
-                    className="min-w-[12rem] flex-1 rounded-xl border px-3 py-2 text-[14px] dark:border-white/[0.12] dark:bg-[#111]"
-                />
-                {!sessionId ? (
-                    <button
-                        type="button"
-                        disabled={busy}
-                        onClick={startSession}
-                        className="rounded-xl bg-[#006c49] px-4 py-2.5 text-[14px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003523]"
-                    >
-                        {busy ? <Loader2 className="size-5 animate-spin" /> : "Start stock take"}
-                    </button>
-                ) : (
-                    <>
+            <div className="sticky top-0 z-20 shrink-0 -mx-4 border-b border-border/70 bg-background px-4 py-3 sm:-mx-6 sm:px-6">
+                <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search stock…"
+                        className="w-full rounded-xl border border-border bg-white py-2.5 pl-9 pr-3 text-[15px] outline-none focus:ring-2 focus:ring-[#003527]/5 dark:border-white/10 dark:bg-[#141414]"
+                    />
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                    <input
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder="Session note (optional)"
+                        className="min-w-[12rem] flex-1 rounded-xl border px-3 py-2 text-[14px] dark:border-white/[0.12] dark:bg-[#111]"
+                    />
+                    {!sessionId ? (
                         <button
                             type="button"
                             disabled={busy}
-                            onClick={saveLines}
-                            className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[14px] font-semibold"
-                        >
-                            <Save className="size-4" />
-                            Save draft
-                        </button>
-                        <button
-                            type="button"
-                            disabled={busy}
-                            onClick={completeSession}
+                            onClick={startSession}
                             className="rounded-xl bg-[#006c49] px-4 py-2.5 text-[14px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003523]"
                         >
-                            Complete &amp; apply
+                            {busy ? <Loader2 className="size-5 animate-spin" /> : "Start stock take"}
                         </button>
-                    </>
-                )}
+                    ) : (
+                        <>
+                            <button
+                                type="button"
+                                disabled={busy}
+                                onClick={saveLines}
+                                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[14px] font-semibold"
+                            >
+                                <Save className="size-4" />
+                                Save draft
+                            </button>
+                            <button
+                                type="button"
+                                disabled={busy}
+                                onClick={completeSession}
+                                className="rounded-xl bg-[#006c49] px-4 py-2.5 text-[14px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003523]"
+                            >
+                                Complete &amp; apply
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
 
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-4">
             <div className="overflow-hidden rounded-2xl border dark:border-white/[0.08]">
                 <table className="w-full text-left text-[13px]">
-                    <thead className="border-b bg-muted/40 text-[11px] font-bold uppercase text-muted-foreground">
+                    <thead className="sticky top-0 z-10 border-b bg-muted/40 text-[11px] font-bold uppercase text-muted-foreground">
                         <tr>
                             <th className="px-3 py-2">Product</th>
                             <th className="px-3 py-2 text-right">System</th>
@@ -207,7 +232,7 @@ export function StockTakeView() {
                         </tr>
                     </thead>
                     <tbody className="divide-y">
-                        {activeProducts.map((p) => (
+                        {visibleProducts.map((p) => (
                             <tr key={p.id}>
                                 <td className="px-3 py-2 font-medium">{p.name}</td>
                                 <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
@@ -253,6 +278,7 @@ export function StockTakeView() {
                     </ul>
                 )}
             </section>
+            </div>
         </ProductsPageShell>
     );
 }

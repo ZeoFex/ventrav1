@@ -1,10 +1,11 @@
 "use client";
 
-import { User, Mail, Phone, MapPin, Camera, Save, Loader2 } from "lucide-react";
+import { User, Mail, Phone, MapPin, Camera, Save, Loader2, KeyRound } from "lucide-react";
 import { useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
 import { toast } from "sonner";
 import { useUploadThing } from "@/app/lib/uploadthing";
+import { ChangePasswordCard } from "./security-settings-view";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -14,7 +15,10 @@ export function AccountSettingsView() {
     const [lastName, setLastName] = useState("");
     const [phone, setPhone] = useState("");
     const [city, setCity] = useState("");
+    const [email, setEmail] = useState("");
+    const [emailPassword, setEmailPassword] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [isSavingEmail, setIsSavingEmail] = useState(false);
 
     const { startUpload, isUploading } = useUploadThing("userProfile", {
         onClientUploadComplete: () => {
@@ -34,8 +38,38 @@ export function AccountSettingsView() {
             setLastName(data.user.lastName || "");
             setPhone(data.user.phone || "");
             setCity(data.user.city || "");
+            setEmail(data.user.email || "");
         }
     }, [data]);
+
+    const savedEmail = (data?.user?.email || "").trim().toLowerCase();
+    const emailChanged = email.trim().toLowerCase() !== savedEmail && email.trim().length > 0;
+
+    const handleEmailSave = async () => {
+        setIsSavingEmail(true);
+        try {
+            const res = await fetch("/api/auth/email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: email.trim(),
+                    currentPassword: emailPassword,
+                }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(typeof body.error === "string" ? body.error : "Could not update email.");
+            }
+            setEmailPassword("");
+            toast.success("Sign-in email updated.");
+            mutate("/api/auth/profile");
+            mutate("/api/auth/session");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Could not update email.");
+        } finally {
+            setIsSavingEmail(false);
+        }
+    };
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -100,18 +134,40 @@ export function AccountSettingsView() {
                                     />
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground ml-1">Email Address</label>
+                            <div className="space-y-2 sm:col-span-2">
+                                <label className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground ml-1" htmlFor="account-email">Sign-in email</label>
                                 <div className="relative">
-                                    <Mail className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/50" />
+                                    <Mail className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                     <input
+                                        id="account-email"
                                         type="email"
-                                        value={data?.user?.email || ""}
-                                        disabled
-                                        className="w-full rounded-2xl border border-[#e5e7eb] bg-surface-card/50 py-3.5 pl-11 pr-4 text-[15px] text-muted-foreground/60 outline-none dark:border-white/[0.12]"
+                                        autoComplete="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full rounded-2xl border border-[#e5e7eb] bg-transparent py-3.5 pl-11 pr-4 text-[15px] outline-none ring-[#006c49]/15 transition-all focus:border-[#006c49]/40 focus:ring-4 dark:border-white/[0.12] dark:focus:border-[#6ffbbe]"
                                     />
                                 </div>
+                                <p className="ml-1 text-[12px] text-muted-foreground">
+                                    This is the email you use to sign in. Confirm with your current password when you change it.
+                                </p>
                             </div>
+                            {emailChanged ? (
+                                <div className="space-y-2 sm:col-span-2 sm:max-w-md">
+                                    <label className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground ml-1" htmlFor="email-current-password">Current password</label>
+                                    <div className="relative">
+                                        <KeyRound className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                        <input
+                                            id="email-current-password"
+                                            type="password"
+                                            autoComplete="current-password"
+                                            value={emailPassword}
+                                            onChange={(e) => setEmailPassword(e.target.value)}
+                                            className="w-full rounded-2xl border border-[#e5e7eb] bg-transparent py-3.5 pl-11 pr-4 text-[15px] outline-none ring-[#006c49]/15 transition-all focus:border-[#006c49]/40 focus:ring-4 dark:border-white/[0.12] dark:focus:border-[#6ffbbe]"
+                                            placeholder="Confirm it is you"
+                                        />
+                                    </div>
+                                </div>
+                            ) : null}
                             <div className="space-y-2">
                                 <label className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground ml-1">Phone Number</label>
                                 <div className="relative">
@@ -138,8 +194,20 @@ export function AccountSettingsView() {
                             </div>
                         </div>
 
-                        <div className="mt-8 flex justify-end">
+                        <div className="mt-8 flex flex-wrap justify-end gap-3">
+                            {emailChanged ? (
+                                <button
+                                    type="button"
+                                    onClick={handleEmailSave}
+                                    disabled={isSavingEmail || emailPassword.length === 0}
+                                    className="flex items-center gap-2 rounded-xl border border-[#006c49]/30 bg-[#006c49]/10 px-6 py-3 text-[14px] font-bold text-[#006c49] transition-all hover:bg-[#006c49]/15 disabled:opacity-50 dark:border-[#6ffbbe]/30 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                                >
+                                    {isSavingEmail ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+                                    {isSavingEmail ? "Updating email..." : "Update email"}
+                                </button>
+                            ) : null}
                             <button
+                                type="button"
                                 onClick={handleSave}
                                 disabled={isSaving}
                                 className="flex items-center gap-2 rounded-xl bg-[#006c49] px-6 py-3 text-[14px] font-bold text-white shadow-xl shadow-[#006c49]/20 transition-all hover:brightness-110 disabled:opacity-50"
@@ -225,6 +293,8 @@ export function AccountSettingsView() {
                     </div>
                 </div>
             </div>
+
+            <ChangePasswordCard />
 
             <style jsx>{`
                 @keyframes dash {

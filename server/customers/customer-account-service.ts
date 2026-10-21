@@ -1,7 +1,8 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, count, desc, sql } from "drizzle-orm";
 import { db } from "../db";
 import { customers } from "../db/schema/customers";
 import { customerAccountEntries } from "../db/schema/customer-account-entries";
+import { sales } from "../db/schema/sales";
 import { redis } from "../lib/redis";
 
 const CACHE_KEYS = {
@@ -13,6 +14,38 @@ export async function invalidateCustomerCaches(businessId: string, customerId?: 
     const keys = [CACHE_KEYS.CUSTOMERS_LIST(businessId)];
     if (customerId) keys.push(CACHE_KEYS.CUSTOMER_DETAIL(businessId, customerId));
     await Promise.all(keys.map((k) => redis.del(k)));
+}
+
+/**
+ * Drop leftover ledger rows after admin sale deletes (payments are not FK-tied to sales).
+ * If the customer has no remaining sales, the whole ledger and AR balance are cleared.
+ */
+export async function pruneOrphanedCustomerLedger(businessId: string, customerId: string) {
+    const [remaining] = await db
+        .select({ n: count() })
+        .from(sales)
+        .where(and(eq(sales.businessId, businessId), eq(sales.customerId, customerId)));
+
+    if (Number(remaining?.n ?? 0) > 0) return false;
+
+    const deleted = await db
+        .delete(customerAccountEntries)
+        .where(
+            and(
+                eq(customerAccountEntries.businessId, businessId),
+                eq(customerAccountEntries.customerId, customerId),
+            ),
+        )
+        .returning({ id: customerAccountEntries.id });
+
+    if (deleted.length === 0) return false;
+
+    await db
+        .update(customers)
+        .set({ accountsReceivableGhs: "0", updatedAt: new Date() })
+        .where(and(eq(customers.id, customerId), eq(customers.businessId, businessId)));
+    await invalidateCustomerCaches(businessId, customerId);
+    return true;
 }
 
 export async function recordCustomerAccountPayment(

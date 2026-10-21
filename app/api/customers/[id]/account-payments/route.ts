@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { recordCustomerAccountPayment } from "@/server/customers/customer-account-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 export async function POST(
     req: Request,
@@ -31,6 +32,17 @@ export async function POST(
             paymentMethod,
             note,
             branchId,
+        });
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.customer.payment",
+            resource: "customer",
+            resourceId: customerId,
+            detail: `GHS ${amountGhs.toFixed(2)} · ${paymentMethod}${note ? ` · ${note}` : ""}`,
+            metadata: { amountGhs, paymentMethod, note: note ?? null },
         });
 
         return NextResponse.json({ success: true });

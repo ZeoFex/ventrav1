@@ -5,7 +5,7 @@ export default function AccountSettingsPage() {
     return (
         <SettingsPageShell
             title="Account Settings"
-            description="Manage your personal information, contact details and profile photo."
+            description="Update your name, sign-in email, and password."
         >
             <AccountSettingsView />
         </SettingsPageShell>

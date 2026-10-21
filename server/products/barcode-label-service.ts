@@ -155,11 +155,17 @@ export async function searchGlobalBarcodeLabels(
     const q = query.trim();
     const limit = Math.min(Math.max(options?.limit ?? 40, 1), 100);
 
-    const conditions = q.length >= 1
+    const pattern = q.length >= 1 ? `%${q}%` : null;
+
+    const conditions = pattern
         ? or(
-              ilike(productBarcodeLabels.labelName, `%${q}%`),
-              ilike(productBarcodeLabels.labelDescription, `%${q}%`),
+              ilike(productBarcodeLabels.labelName, pattern),
+              ilike(productBarcodeLabels.labelDescription, pattern),
               ilike(productBarcodeLabels.sku, `%${q.toUpperCase()}%`),
+              ilike(products.name, pattern),
+              ilike(products.description, pattern),
+              ilike(products.sku, pattern),
+              ilike(products.barcode, pattern),
           )
         : undefined;
 
@@ -176,18 +182,37 @@ export async function searchGlobalBarcodeLabels(
             quantity: productBarcodeLabels.quantity,
             createdAt: productBarcodeLabels.createdAt,
             businessName: businesses.name,
+            linkedProductName: products.name,
         })
         .from(productBarcodeLabels)
         .innerJoin(businesses, eq(productBarcodeLabels.businessId, businesses.id))
+        .leftJoin(products, eq(productBarcodeLabels.productId, products.id))
         .where(conditions)
         .orderBy(desc(productBarcodeLabels.createdAt))
         .limit(limit);
 
     return rows.map((row) => ({
-        ...row,
-        productName: row.labelName,
+        id: row.id,
+        businessId: row.businessId,
+        branchId: row.branchId,
+        productId: row.productId,
+        labelName: row.labelName,
+        labelDescription: row.labelDescription,
+        imageSrc: row.imageSrc,
+        sku: row.sku,
+        quantity: row.quantity,
+        createdAt: row.createdAt,
+        businessName: row.businessName,
+        productName: row.linkedProductName ?? row.labelName,
         isOwnShop: options?.viewerBusinessId
             ? row.businessId === options.viewerBusinessId
             : false,
     }));
+}
+
+/** Recent labels platform-wide — for catalog preview slider. */
+export async function listRecentGlobalBarcodeLabels(
+    options?: { limit?: number; viewerBusinessId?: string },
+) {
+    return searchGlobalBarcodeLabels("", options);
 }

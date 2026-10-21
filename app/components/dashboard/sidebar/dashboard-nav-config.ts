@@ -61,6 +61,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         label: "Held sales",
         href: "/dashboard/pos/held",
       },
+      {
+        id: "reprint-receipts",
+        label: "Reprint receipts",
+        href: "/dashboard/pos/receipts",
+      },
     ],
   },
   {
@@ -128,7 +133,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   },
   {
     id: "customers",
-    label: "Contacts",
+    label: "Vendors",
     href: "/dashboard/customers",
     icon: "contacts",
     collapsibleOnly: true,
@@ -263,6 +268,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     icon: "settings",
     collapsibleOnly: true,
     children: [
+      {
+        id: "settings-account",
+        label: "Account & login",
+        href: "/dashboard/settings/account",
+      },
       {
         id: "settings-profile",
         label: "Business profile",

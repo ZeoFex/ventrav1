@@ -33,8 +33,8 @@ export function DashboardMobileBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-[#bfc9c3]/20 bg-surface-card/95 backdrop-blur-md lg:hidden dark:border-white/[0.08] dark:bg-[#0a0a0a]/95"
-      style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface-card/95 backdrop-blur-md lg:hidden dark:border-white/[0.08] dark:bg-[#0a0a0a]/95"
+      style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
       aria-label="Quick POS navigation"
     >
       <div className="mx-auto grid max-w-lg grid-cols-3">
@@ -44,14 +44,14 @@ export function DashboardMobileBottomNav() {
             <Link
               key={href}
               href={href}
-              className={`tap-target flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${
+              className={`flex min-h-0 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-semibold transition-colors ${
                 active
                   ? "text-[#006c49] dark:text-[#6ffbbe]"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               aria-current={active ? "page" : undefined}
             >
-              <Icon className="size-5" strokeWidth={active ? 2.5 : 2} aria-hidden />
+              <Icon className="size-4" strokeWidth={active ? 2.5 : 2} aria-hidden />
               {label}
             </Link>
           );

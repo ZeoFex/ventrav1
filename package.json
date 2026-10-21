@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.64",
+    "@ai-sdk/groq": "3.0.78",
     "@ai-sdk/react": "^3.0.170",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@ericblade/quagga2": "^1.12.1",

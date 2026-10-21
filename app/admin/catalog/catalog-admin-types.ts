@@ -11,6 +11,8 @@ import {
     ScrollText,
     Store,
     StoreIcon,
+    ClipboardList,
+    ShoppingBag,
 } from "lucide-react";
 
 export type TabId =
@@ -18,6 +20,8 @@ export type TabId =
     | "shops"
     | "subscriptions"
     | "reviews"
+    | "activity"
+    | "ecommerce"
     | "catalog"
     | "categories"
     | "products"
@@ -136,18 +140,26 @@ export type HierarchyNode = {
     }[];
 };
 
-export type ShopDetailTab = "products" | "subscription" | "insights";
+export type ShopDetailTab =
+    | "products"
+    | "transactions"
+    | "customers"
+    | "subscription"
+    | "insights"
+    | "account";
 
 export const TABS: { id: TabId; label: string; icon: LucideIcon; group?: string }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard, group: "Platform" },
     { id: "shops", label: "All Shops", icon: StoreIcon, group: "Platform" },
     { id: "subscriptions", label: "Subscriptions", icon: CreditCard, group: "Platform" },
     { id: "reviews", label: "Reviews", icon: MessageSquareQuote, group: "Platform" },
+    { id: "activity", label: "Activity logs", icon: ClipboardList, group: "Platform" },
+    { id: "ecommerce", label: "Ecommerce", icon: ShoppingBag, group: "Platform" },
     { id: "catalog", label: "Product Catalog", icon: LayoutGrid, group: "Catalog" },
     { id: "products", label: "Master Products", icon: Package, group: "Catalog" },
     { id: "shop-types", label: "Shop Types", icon: Store, group: "Catalog" },
     { id: "categories", label: "Categories", icon: FolderTree, group: "Catalog" },
-    { id: "sync-logs", label: "Sync Logs", icon: ScrollText, group: "Catalog" },
+    { id: "sync-logs", label: "Catalog sync", icon: ScrollText, group: "Catalog" },
 ];
 
 export function shopTypeIcon(id: string): LucideIcon {

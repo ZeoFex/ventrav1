@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { updateStock } from "@/server/products/product-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 import { db } from "@/server/db";
 import { products } from "@/server/db/schema/products";
 import { and, eq } from "drizzle-orm";
@@ -41,7 +42,7 @@ export async function PATCH(
         }
 
         const [existing] = await db
-            .select({ stock: products.stock, branchId: products.branchId })
+            .select({ branchId: products.branchId })
             .from(products)
             .where(and(eq(products.id, id), eq(products.businessId, payload.bid)))
             .limit(1);
@@ -57,15 +58,21 @@ export async function PATCH(
             );
         }
 
-        const currentStock = Number(existing.stock) || 0;
-        if (currentStock + delta < 0) {
-            return NextResponse.json({ error: "Stock cannot go below zero" }, { status: 400 });
-        }
-
         const updated = await updateStock(payload.bid, id, delta);
         if (!updated) {
             return NextResponse.json({ error: "Product not found" }, { status: 404 });
         }
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.stock.adjusted",
+            resource: "stock",
+            resourceId: id,
+            detail: `${delta > 0 ? "+" : ""}${delta} units · now ${updated.stock}`,
+            metadata: { delta, stock: updated.stock },
+        });
 
         return NextResponse.json({
             id: updated.id,

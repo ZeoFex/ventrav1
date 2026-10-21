@@ -12,8 +12,12 @@ import {
     Package,
     Phone,
     Plus,
+    Receipt,
     Search,
+    Settings2,
     Store,
+    Trash2,
+    Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,7 +33,12 @@ import {
 } from "./catalog-status-badge";
 import { CatalogShopSubscriptionPanel } from "./catalog-shop-subscription-panel";
 import { CatalogShopInsightsPanel } from "./catalog-shop-insights-panel";
+import { CatalogShopAccountPanel } from "./catalog-shop-account-panel";
+import { CatalogShopSalesPanel } from "./catalog-shop-sales-panel";
+import { CatalogShopCustomersPanel } from "./catalog-shop-customers-panel";
 import { CatalogBulkShopDelete } from "./catalog-bulk-shop-delete";
+import { CatalogCreateAccountModal } from "./catalog-create-account-modal";
+import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 import {
     CatalogPagination,
     pageOffset,
@@ -58,7 +67,10 @@ function ShopEmails({ emails }: { emails: string[] }) {
 
 const DETAIL_TABS: { id: ShopDetailTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: "products", label: "Products", icon: Package },
+    { id: "transactions", label: "Transactions", icon: Receipt },
+    { id: "customers", label: "Customers", icon: Users },
     { id: "subscription", label: "Subscription", icon: CreditCard },
+    { id: "account", label: "Account", icon: Settings2 },
     { id: "insights", label: "Insights", icon: LayoutGrid },
 ];
 
@@ -84,8 +96,12 @@ export function CatalogShopsPanel({
     const [productsLoading, setProductsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [addProductOpen, setAddProductOpen] = useState(false);
+    const [createAccountOpen, setCreateAccountOpen] = useState(false);
     const [selectedShops, setSelectedShops] = useState<Map<string, CatalogShop>>(new Map());
     const [shopQuery, setShopQuery] = useState("");
+    const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+    const [deletingProducts, setDeletingProducts] = useState(false);
+    const [pendingProductDelete, setPendingProductDelete] = useState(false);
 
     const apiGet = useCallback(
         async <T,>(path: string): Promise<T> => {
@@ -145,6 +161,7 @@ export function CatalogShopsPanel({
                 );
                 setShopProducts(data.items);
                 setProductTotal(data.total);
+                setSelectedProductIds(new Set());
                 if (data.shop) setSelectedShop(data.shop);
                 const maxPage = Math.max(0, Math.ceil(data.total / PRODUCT_PAGE_SIZE) - 1);
                 if (page > maxPage) setProductPage(maxPage);
@@ -200,6 +217,56 @@ export function CatalogShopsPanel({
         setProductPage(0);
     };
 
+    const allProductsOnPageSelected =
+        shopProducts.length > 0 &&
+        shopProducts.every((p) => selectedProductIds.has(p.id));
+
+    const toggleAllProducts = () => {
+        if (allProductsOnPageSelected) {
+            setSelectedProductIds(new Set());
+            return;
+        }
+        setSelectedProductIds(new Set(shopProducts.map((p) => p.id)));
+    };
+
+    const toggleProduct = (id: string) => {
+        setSelectedProductIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const deleteSelectedProducts = async () => {
+        if (!selectedShop || selectedProductIds.size === 0) return;
+        const ids = Array.from(selectedProductIds);
+
+        setDeletingProducts(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/platform/businesses/${selectedShop.id}/products`, {
+                method: "DELETE",
+                headers: {
+                    ...authHeaders(token),
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ ids }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+            const deleted = Number(data.deletedProducts ?? ids.length);
+            setProductTotal((n) => Math.max(0, n - deleted));
+            patchShop({ productCount: Math.max(0, (selectedShop.productCount ?? 0) - deleted) });
+            setPendingProductDelete(false);
+            await fetchProducts(appliedProductSearch, productPage);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to delete products");
+        } finally {
+            setDeletingProducts(false);
+        }
+    };
+
     const openShop = (shop: CatalogShop) => {
         setProductSearch("");
         setAppliedProductSearch("");
@@ -210,8 +277,12 @@ export function CatalogShopsPanel({
 
     const backToShops = () => {
         setSelectedShop(null);
+        setSelectedProductIds(new Set());
         setShopProducts([]);
         setProductTotal(0);
+        setDetailTab("products");
+        setProductSearch("");
+        setAppliedProductSearch("");
         setProductPage(0);
     };
 
@@ -267,10 +338,26 @@ export function CatalogShopsPanel({
                         All shops
                     </Button>
                     {detailTab === "products" ? (
-                        <Button type="button" size="sm" onClick={() => setAddProductOpen(true)}>
-                            <Plus className="mr-1.5 h-4 w-4" />
-                            Add product
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button type="button" size="sm" onClick={() => setAddProductOpen(true)}>
+                                <Plus className="mr-1.5 h-4 w-4" />
+                                Add product
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="destructive"
+                                disabled={deletingProducts || selectedProductIds.size === 0}
+                                onClick={() => setPendingProductDelete(true)}
+                            >
+                                {deletingProducts ? (
+                                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Trash2 className="mr-1.5 h-4 w-4" />
+                                )}
+                                Delete selected ({selectedProductIds.size})
+                            </Button>
+                        </div>
                     ) : null}
                 </div>
 
@@ -309,11 +396,31 @@ export function CatalogShopsPanel({
                                         {selectedShop.phone}
                                     </p>
                                 ) : null}
+                                {selectedShop.contactEmail ? (
+                                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Mail className="h-3.5 w-3.5" />
+                                        {selectedShop.contactEmail}
+                                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80">
+                                            (shop contact)
+                                        </span>
+                                    </p>
+                                ) : null}
                                 <div className="mt-3 rounded-lg bg-muted/40 px-3 py-2">
                                     <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                                         Registered emails
                                     </p>
                                     <ShopEmails emails={selectedShop.registeredEmails} />
+                                    <p className="mt-2 text-[11px] text-muted-foreground">
+                                        Edit shop contact email &amp; phone under the{" "}
+                                        <button
+                                            type="button"
+                                            className="font-semibold text-foreground underline-offset-2 hover:underline"
+                                            onClick={() => setDetailTab("account")}
+                                        >
+                                            Account
+                                        </button>{" "}
+                                        tab.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -329,7 +436,7 @@ export function CatalogShopsPanel({
                     </div>
                 </div>
 
-                <nav className="flex gap-1 rounded-xl border border-border bg-card p-1">
+                <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1">
                     {DETAIL_TABS.map((t) => {
                         const Icon = t.icon;
                         const active = detailTab === t.id;
@@ -339,7 +446,7 @@ export function CatalogShopsPanel({
                                 type="button"
                                 onClick={() => setDetailTab(t.id)}
                                 className={cn(
-                                    "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                                    "flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition",
                                     active
                                         ? "bg-primary text-primary-foreground"
                                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -366,6 +473,27 @@ export function CatalogShopsPanel({
                             });
                             setShopTotal((n) => Math.max(0, n - 1));
                             backToShops();
+                        }}
+                    />
+                ) : null}
+
+                {detailTab === "transactions" ? (
+                    <CatalogShopSalesPanel token={token} shop={selectedShop} />
+                ) : null}
+
+                {detailTab === "customers" ? (
+                    <CatalogShopCustomersPanel token={token} shop={selectedShop} />
+                ) : null}
+
+                {detailTab === "account" ? (
+                    <CatalogShopAccountPanel
+                        token={token}
+                        shop={selectedShop}
+                        onUpdated={patchShop}
+                        onProductsCleared={() => {
+                            setShopProducts([]);
+                            setProductTotal(0);
+                            setSelectedProductIds(new Set());
                         }}
                     />
                 ) : null}
@@ -428,63 +556,88 @@ export function CatalogShopsPanel({
                                             No products found for this shop.
                                         </div>
                                     ) : (
-                                        <ul className="divide-y divide-border">
-                                            {shopProducts.map((p) => (
-                                                <li
-                                                    key={p.id}
-                                                    className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"
-                                                >
-                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                                                        <CatalogProductThumb product={p} size="lg" />
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="truncate font-medium text-foreground">
-                                                                {p.name}
-                                                            </p>
-                                                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                                                <span>{p.categoryName}</span>
-                                                                {p.barcode ? (
-                                                                    <span className="font-mono">
-                                                                        {p.barcode}
-                                                                    </span>
-                                                                ) : null}
-                                                                {p.sku ? (
-                                                                    <span className="font-mono">
-                                                                        SKU {p.sku}
-                                                                    </span>
-                                                                ) : null}
-                                                            </div>
-                                                            <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                                                                <p className="text-sm font-semibold text-foreground">
-                                                                    GHS {p.priceGhs}
-                                                                </p>
-                                                                <p
-                                                                    className={cn(
-                                                                        "text-xs tabular-nums",
-                                                                        p.stock <= 0
-                                                                            ? "text-destructive"
-                                                                            : p.stock <= 5
-                                                                              ? "text-amber-600"
-                                                                              : "text-muted-foreground"
-                                                                    )}
-                                                                >
-                                                                    {p.stock} in stock
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <span
-                                                        className={cn(
-                                                            "shrink-0 rounded-full px-2 py-0.5 text-xs capitalize",
-                                                            p.status === "active"
-                                                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                                                : "bg-muted text-muted-foreground"
-                                                        )}
-                                                    >
-                                                        {p.status.replace(/_/g, " ")}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        <>
+                                            <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                <label className="flex items-center gap-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={allProductsOnPageSelected}
+                                                        onChange={toggleAllProducts}
+                                                        className="size-4 rounded border-input"
+                                                    />
+                                                    Select page
+                                                </label>
+                                            </div>
+                                            <ul className="divide-y divide-border">
+                                                {shopProducts.map((p) => {
+                                                    const checked = selectedProductIds.has(p.id);
+                                                    return (
+                                                        <li
+                                                            key={p.id}
+                                                            className={cn(
+                                                                "flex flex-col gap-3 p-4 sm:flex-row sm:items-center",
+                                                                checked && "bg-destructive/5",
+                                                            )}
+                                                        >
+                                                            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={() => toggleProduct(p.id)}
+                                                                    className="size-4 shrink-0 rounded border-input"
+                                                                />
+                                                                <CatalogProductThumb product={p} size="lg" />
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="truncate font-medium text-foreground">
+                                                                        {p.name}
+                                                                    </p>
+                                                                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                                                        <span>{p.categoryName}</span>
+                                                                        {p.barcode ? (
+                                                                            <span className="font-mono">
+                                                                                {p.barcode}
+                                                                            </span>
+                                                                        ) : null}
+                                                                        {p.sku ? (
+                                                                            <span className="font-mono">
+                                                                                SKU {p.sku}
+                                                                            </span>
+                                                                        ) : null}
+                                                                    </div>
+                                                                    <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                                                                        <p className="text-sm font-semibold text-foreground">
+                                                                            GHS {p.priceGhs}
+                                                                        </p>
+                                                                        <p
+                                                                            className={cn(
+                                                                                "text-xs tabular-nums",
+                                                                                p.stock <= 0
+                                                                                    ? "text-destructive"
+                                                                                    : p.stock <= 5
+                                                                                      ? "text-amber-600"
+                                                                                      : "text-muted-foreground",
+                                                                            )}
+                                                                        >
+                                                                            {p.stock} in stock
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </label>
+                                                            <span
+                                                                className={cn(
+                                                                    "shrink-0 rounded-full px-2 py-0.5 text-xs capitalize",
+                                                                    p.status === "active"
+                                                                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                                                        : "bg-muted text-muted-foreground",
+                                                                )}
+                                                            >
+                                                                {p.status.replace(/_/g, " ")}
+                                                            </span>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </>
                                     )}
                                 </div>
 
@@ -507,12 +660,44 @@ export function CatalogShopsPanel({
                         />
                     </>
                 ) : null}
+                {pendingProductDelete ? (
+                    <DeleteConfirmModal
+                        title={`Delete ${selectedProductIds.size} product${selectedProductIds.size === 1 ? "" : "s"}?`}
+                        description={
+                            <>
+                                Permanently remove the selected product
+                                {selectedProductIds.size === 1 ? "" : "s"} from{" "}
+                                <span className="font-semibold text-foreground">{selectedShop.name}</span>.
+                                This cannot be undone.
+                            </>
+                        }
+                        confirmLabel={selectedProductIds.size === 1 ? "Delete product" : "Delete products"}
+                        isDeleting={deletingProducts}
+                        onCancel={() => {
+                            if (!deletingProducts) setPendingProductDelete(false);
+                        }}
+                        onConfirm={() => void deleteSelectedProducts()}
+                    />
+                ) : null}
             </div>
         );
     }
 
     return (
         <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-lg font-semibold text-foreground">Shop accounts</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Create a login for a new shop, or open an existing one.
+                    </p>
+                </div>
+                <Button type="button" onClick={() => setCreateAccountOpen(true)}>
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Create account
+                </Button>
+            </div>
+
             <div className="rounded-xl border border-border bg-card p-4">
                 <label className="grid gap-1.5 text-sm">
                     <span className="font-medium text-foreground">Search shop name</span>
@@ -535,6 +720,13 @@ export function CatalogShopsPanel({
                     </div>
                 </label>
             </div>
+
+            <CatalogCreateAccountModal
+                token={token}
+                open={createAccountOpen}
+                onClose={() => setCreateAccountOpen(false)}
+                onCreated={() => void loadShops()}
+            />
 
             <CatalogBulkShopDelete
                 token={token}

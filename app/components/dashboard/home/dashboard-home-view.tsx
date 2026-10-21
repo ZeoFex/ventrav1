@@ -8,13 +8,13 @@ import { HomeMobileStorefront } from "./home-mobile-storefront";
 export function DashboardHomeView() {
   return (
     <>
-      {/* Mobile: Walmart-style storefront, VentraPOS theme */}
-      <div className="lg:hidden">
+      {/* Mobile / handheld POS: sales overview */}
+      <div className="flex h-full min-h-0 flex-col overflow-hidden lg:hidden">
         <HomeMobileStorefront />
       </div>
 
       {/* Desktop: original dashboard home */}
-      <main className="mx-auto hidden max-w-5xl px-4 py-4 pb-8 sm:px-6 sm:py-10 sm:pb-10 lg:block">
+      <main className="mx-auto hidden h-full max-w-5xl overflow-y-auto px-4 py-4 pb-8 sm:px-6 sm:py-10 sm:pb-10 lg:block">
         <div className="space-y-6 sm:space-y-8 lg:space-y-10">
           <div data-tour-target="home-greeting" data-tour-mount="main">
             <HomeGreeting />

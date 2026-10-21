@@ -35,8 +35,11 @@ export function GlobalBarcodeModal({
   }, [isOpen]);
 
   const handleProductFound = useCallback(
-    (product: ProductRow) => {
-      addToCart(product.id, undefined, product.stock);
+    (product: ProductRow, _barcode: string, variationId?: string) => {
+      const variation = variationId
+        ? product.variations?.find((v) => v.id === variationId)
+        : undefined;
+      addToCart(product.id, variationId, variation?.stock ?? product.stock);
       if (closeTimeout.current) clearTimeout(closeTimeout.current);
       closeTimeout.current = setTimeout(() => {}, 1250);
     },
@@ -95,7 +98,7 @@ export function GlobalBarcodeModal({
           ) : null}
 
           <PosBarcodeScanner
-            active={cameraActive && !isLoading}
+            active={cameraActive && !isLoading && !createModal}
             products={products}
             onProductFound={handleProductFound}
             onCreateProduct={handleCreateProduct}

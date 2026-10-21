@@ -8,7 +8,7 @@ import { useBranchContext } from "../branch-context";
 import { type ProductRow } from "../products/types";
 import { Skeleton } from "../ui/skeleton";
 import { HomeCatalogCard } from "./home-catalog-card";
-import { HomeRetailProductCard } from "./home-retail-product-card";
+import { PosProductCard } from "../pos/sale/pos-product-card";
 import {
   HomeVariationModal,
   sellableForLine,
@@ -67,23 +67,16 @@ export function HomeProductGrid({
 
   return (
     <>
-      <section className="space-y-3" aria-label="Product catalog">
+      <section className={isRetail ? "space-y-0" : "space-y-3"} aria-label="Product catalog">
+        {!isRetail ? (
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2
-              className={
-                isRetail
-                  ? "text-[17px] font-bold text-foreground"
-                  : "text-[13px] font-semibold uppercase tracking-wide text-muted-foreground"
-              }
-            >
-              {isRetail ? "Shop all products" : "All products"}
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+              All products
             </h2>
-            {!isRetail ? (
-              <p className="mt-0.5 text-[12px] text-muted-foreground">
-                Tap + to add — full catalog for quick selling
-              </p>
-            ) : null}
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              Tap + to add — full catalog for quick selling
+            </p>
           </div>
           <Link
             href="/dashboard/products"
@@ -92,6 +85,7 @@ export function HomeProductGrid({
             Manage
           </Link>
         </div>
+        ) : null}
 
         {!hideSearchBar ? (
           <div className="relative">
@@ -107,11 +101,27 @@ export function HomeProductGrid({
         ) : null}
 
         {isLoading ? (
+          isRetail ? (
+            <div className="overflow-hidden">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex h-[58px] items-center gap-2.5 border-b border-[#edf1ef] px-0 last:border-b-0 dark:border-white/[0.06]"
+                >
+                  <Skeleton className="size-11 rounded-xl" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-4 w-14" />
+                  <Skeleton className="size-8 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="aspect-[3/4] rounded-2xl" />
             ))}
           </div>
+          )
         ) : catalog.length === 0 ? (
           <div className="flex flex-col items-center rounded-2xl border border-dashed px-6 py-12 text-center">
             <Store className="mb-3 size-8 text-muted-foreground/40" />
@@ -120,26 +130,27 @@ export function HomeProductGrid({
               {search ? "Try a different search term." : "Add products to start selling."}
             </p>
           </div>
+        ) : isRetail ? (
+          <div>
+            {catalog.map((product) => (
+              <PosProductCard
+                key={product.id}
+                product={product}
+                availableStock={sellableForLine(product)}
+                onAdd={() => handleAdd(product)}
+              />
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
-            {catalog.map((product) =>
-              isRetail ? (
-                <HomeRetailProductCard
-                  key={product.id}
-                  layout="grid"
-                  product={product}
-                  availableStock={sellableForLine(product)}
-                  onAdd={() => handleAdd(product)}
-                />
-              ) : (
+            {catalog.map((product) => (
                 <HomeCatalogCard
                   key={product.id}
                   product={product}
                   availableStock={sellableForLine(product)}
                   onAdd={() => handleAdd(product)}
                 />
-              ),
-            )}
+            ))}
           </div>
         )}
       </section>

@@ -1,4 +1,4 @@
-import { eq, inArray, or, sql } from "drizzle-orm";
+import { desc, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { globalBarcodeCatalog } from "@/server/db/schema/products";
 
@@ -57,6 +57,43 @@ export async function lookupGlobalBarcode(
         .limit(1);
 
     return row ?? null;
+}
+
+/** Search shared retail barcode catalog by product name (cross-shop). */
+export async function searchGlobalBarcodeCatalogByName(
+    query: string,
+    limit = 8,
+): Promise<GlobalBarcodeCatalogEntry[]> {
+    const q = query.trim();
+    if (q.length < 2) return [];
+
+    const pattern = `%${q}%`;
+    const capped = Math.min(Math.max(limit, 1), 20);
+
+    return db
+        .select({
+            id: globalBarcodeCatalog.id,
+            barcode: globalBarcodeCatalog.barcode,
+            productName: globalBarcodeCatalog.productName,
+            description: globalBarcodeCatalog.description,
+            imageSrc: globalBarcodeCatalog.imageSrc,
+            unit: globalBarcodeCatalog.unit,
+            sourceBusinessName: globalBarcodeCatalog.sourceBusinessName,
+            contributionCount: globalBarcodeCatalog.contributionCount,
+            updatedAt: globalBarcodeCatalog.updatedAt,
+        })
+        .from(globalBarcodeCatalog)
+        .where(
+            or(
+                ilike(globalBarcodeCatalog.productName, pattern),
+                ilike(globalBarcodeCatalog.description, pattern),
+            ),
+        )
+        .orderBy(
+            desc(globalBarcodeCatalog.contributionCount),
+            desc(globalBarcodeCatalog.updatedAt),
+        )
+        .limit(capped);
 }
 
 export type UpsertGlobalBarcodeInput = {

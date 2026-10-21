@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { groq } from "@ai-sdk/groq";
 import {
   convertToModelMessages,
   safeValidateUIMessages,
@@ -6,8 +6,8 @@ import {
   stepCountIs,
 } from "ai";
 import {
-  assertGoogleApiKeyConfigured,
-  getCopilotGeminiModelId,
+  assertGroqApiKeyConfigured,
+  getCopilotGroqModelId,
   getCopilotMaxSteps,
 } from "../config";
 import { logCopilotAudit } from "../audit";
@@ -25,7 +25,7 @@ export async function orchestrateCopilotChat(options: {
   preferredLanguage?: CopilotPreferredLanguage;
   onEvent: (e: CopilotStreamEvent) => void;
 }): Promise<void> {
-  assertGoogleApiKeyConfigured();
+  assertGroqApiKeyConfigured();
   const validated = await safeValidateUIMessages({
     messages: options.messages,
   });
@@ -37,7 +37,7 @@ export async function orchestrateCopilotChat(options: {
   const modelMessages = await convertToModelMessages(validated.data, {
     tools,
   });
-  const model = google(getCopilotGeminiModelId());
+  const model = groq(getCopilotGroqModelId());
 
   const result = streamText({
     model,

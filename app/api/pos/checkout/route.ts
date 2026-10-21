@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { completeCheckout, type CheckoutInput } from "@/server/pos/pos-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 /**
  * POST /api/pos/checkout
@@ -21,6 +22,22 @@ export async function POST(req: Request) {
         }
 
         const result = await completeCheckout(payload.bid, body, branchId, payload.sub);
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.sale.completed",
+            resource: "sales",
+            resourceId: result.saleId,
+            detail: `Invoice ${body.invoiceId} · GHS ${Number(body.totalGhs).toFixed(2)} · ${body.customerId ? "Saved customer" : "Walk-in"}`,
+            metadata: {
+                invoiceId: body.invoiceId,
+                totalGhs: body.totalGhs,
+                customerId: body.customerId ?? null,
+                itemCount: body.lines.length,
+            },
+        });
 
         return NextResponse.json({ success: true, saleId: result.saleId });
     } catch (error: unknown) {
