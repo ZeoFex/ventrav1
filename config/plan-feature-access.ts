@@ -6,7 +6,7 @@
 
 export type PlanId = "starter" | "growth" | "pro";
 
-/** Feature id for Zuri in-dashboard assistant (`copilot` key; Pro-only). */
+/** Feature id for Zuri in-dashboard assistant (`copilot` key; Growth and Pro). */
 export const COPILOT_FEATURE_ID = "copilot" as const;
 
 export const PLAN_LIMITS = {
@@ -93,7 +93,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "support": true,
     "audit-logs": false, "approval-workflows": false,
     "restricted-discounts": false, "cash-reconciliation": false,
-    "copilot": false,
+    "copilot": true,
   },
 
   // ── PRO — Everything unlocked

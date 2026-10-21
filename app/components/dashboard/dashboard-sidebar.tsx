@@ -47,7 +47,7 @@ export function DashboardSidebarPanel({
 
       <div className="shrink-0 space-y-4 border-t border-border px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:border-white/[0.06]">
         <div
-          className="hidden w-full lg:block"
+          className="w-full"
           data-tour-target="copilot-sidebar"
           data-tour-mount="main"
         >

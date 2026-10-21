@@ -269,6 +269,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     collapsibleOnly: true,
     children: [
       {
+        id: "settings-account",
+        label: "Account & login",
+        href: "/dashboard/settings/account",
+      },
+      {
         id: "settings-profile",
         label: "Business profile",
         href: "/dashboard/settings/profile",
