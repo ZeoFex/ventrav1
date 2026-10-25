@@ -25,9 +25,9 @@ export function BarcodeItem({
   imageSrc,
   priceGhs,
   unit,
-  width = 1.5,
-  height = 40,
-  fontSize = 10,
+  width = 1,
+  height = 26,
+  fontSize = 9,
   className,
 }: BarcodeItemProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -61,7 +61,10 @@ export function BarcodeItem({
           {description}
         </div>
       ) : null}
-      <svg ref={svgRef} className="barcode-svg block h-auto w-full bg-white" />
+      <svg
+        ref={svgRef}
+        className="barcode-svg mx-auto block h-auto max-h-[16mm] w-auto max-w-[40mm] bg-white"
+      />
       {typeof priceGhs === "number" && (
         <div className="mt-1 text-center text-[11px] font-bold tabular-nums">
           GHS {priceGhs.toFixed(2)}

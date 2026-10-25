@@ -933,9 +933,9 @@ export function ProductsBarcodesView() {
                         name={row.labelName}
                         description={row.labelDescription}
                         imageSrc={row.imageSrc}
-                        width={1.2}
-                        height={36}
-                        fontSize={9}
+                        width={1}
+                        height={24}
+                        fontSize={8}
                       />
                       <button
                         type="button"

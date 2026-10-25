@@ -44,6 +44,8 @@ export {
     customers,
     customerStatusEnum,
 } from "./customers";
+export { shoppers } from "./shoppers";
+export { shopConversations, shopMessages } from "./shop-conversations";
 export { customerAccountEntries } from "./customer-account-entries";
 export {
     customerOrders,

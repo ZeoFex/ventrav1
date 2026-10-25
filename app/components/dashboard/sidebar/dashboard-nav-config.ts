@@ -28,6 +28,7 @@ export type DashboardNavIconId =
   | "branches"
   | "reports"
   | "marketing"
+  | "ecommerce"
   | "settings";
 
 export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
@@ -67,6 +68,12 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         href: "/dashboard/pos/receipts",
       },
     ],
+  },
+  {
+    id: "ecommerce-orders",
+    label: "Ecommerce orders",
+    href: "/dashboard/ecommerce",
+    icon: "ecommerce",
   },
   {
     id: "sales",

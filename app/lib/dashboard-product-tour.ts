@@ -181,9 +181,9 @@ export function buildDashboardTourSteps(opts: BuildTourStepsOpts): DriveStep[] {
     {
       element: `[data-tour-target="home-quick-sale"][data-tour-mount="main"]`,
       popover: {
-        title: "Quick sale",
+        title: "What people are buying",
         description:
-          "Tap a best-selling product to add it to your cart instantly—checkout from the floating cart button.",
+          "These are products customers have already bought. Tap one to add it to the cart and check out.",
         side: "top",
         align: "start",
       },

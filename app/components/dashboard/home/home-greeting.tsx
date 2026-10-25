@@ -25,14 +25,14 @@ export function HomeGreeting({
       <div className="min-w-0">
         <h1
           className={`font-[family-name:var(--font-display)] font-semibold leading-tight tracking-tight text-[#14261e] dark:text-white ${
-            compact ? "text-[1.15rem]" : "text-[1.35rem] sm:text-2xl"
+            compact ? "text-[1.15rem] lg:text-[1.75rem]" : "text-[1.35rem] sm:text-2xl"
           }`}
         >
           {title}
         </h1>
         <p
           className={`mt-0.5 font-medium tracking-wide text-[#7a8c84] dark:text-muted-foreground ${
-            compact ? "text-[11px]" : "text-[12px] sm:text-[14px]"
+            compact ? "text-[11px] lg:text-sm" : "text-[12px] sm:text-[14px]"
           }`}
         >
           {dateLabel}

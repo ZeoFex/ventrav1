@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCopilot } from "./copilot-context";
 import { cn } from "@/lib/utils";
@@ -133,9 +134,12 @@ function CopilotFabMascot() {
 }
 
 /**
- * Floating Zuri button on every screen size. Drag it anywhere; tap to open.
+ * Floating Zuri button. Hidden on the desktop homepage; on a phone it stays
+ * on screen so it can be dragged.
  */
 export function CopilotMobileFab() {
+  const pathname = usePathname() ?? "";
+  const isHome = pathname === "/dashboard" || pathname === "/dashboard/";
   const { toggle, copilotEnabled, open } = useCopilot();
   const [position, setPosition] = useState<FabPosition | null>(null);
   const dragRef = useRef({
@@ -253,6 +257,7 @@ export function CopilotMobileFab() {
         "dark:shadow-[0_6px_22px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-3px_0_rgba(0,0,0,0.14)]",
         "cursor-grab active:cursor-grabbing active:scale-[0.98] active:brightness-[0.98]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        isHome && "lg:hidden",
       )}
       aria-label="Open Zuri — drag to move"
       title="Zuri — tap to open, drag to move"

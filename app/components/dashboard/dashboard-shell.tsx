@@ -35,6 +35,7 @@ function DashboardShellFrame({
   const lockMainScroll =
     pathname === "/dashboard" ||
     pathname === "/dashboard/" ||
+    pathname.startsWith("/dashboard/ecommerce") ||
     pathname.startsWith("/dashboard/pos/sale") ||
     pathname.startsWith("/dashboard/pos/receipts") ||
     pathname === "/dashboard/products" ||

@@ -6,6 +6,7 @@ import { ThemeToggle } from "../theme-toggle";
 import { motion, AnimatePresence } from "motion/react";
 
 const NAV = [
+  { href: "/shop", label: "Shop" },
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
   { href: "/compare", label: "Compare" },
