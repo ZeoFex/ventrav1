@@ -50,27 +50,26 @@ export function CopilotPanel() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="copilot-panel-title"
-        className="fixed inset-y-0 right-0 z-[70] flex w-full max-w-lg flex-col border-l border-[#bfc9c3]/15 bg-surface-card shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right-4 dark:border-white/[0.08] dark:bg-[#0a0a0a] max-lg:max-w-full"
+        className="fixed z-[70] flex flex-col bg-surface-card shadow-2xl dark:bg-[#0a0a0a] max-lg:inset-x-3 max-lg:bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-lg:h-[min(70dvh,34rem)] max-lg:overflow-hidden max-lg:rounded-[1.75rem] max-lg:border max-lg:border-[#bfc9c3]/20 motion-safe:max-lg:animate-in motion-safe:max-lg:slide-in-from-bottom-4 dark:max-lg:border-white/[0.1] lg:inset-y-0 lg:right-0 lg:w-full lg:max-w-lg lg:border-l lg:border-[#bfc9c3]/15 motion-safe:lg:animate-in motion-safe:lg:slide-in-from-right-4 dark:lg:border-white/[0.08]"
         style={{
-          paddingBottom: "max(0px, env(safe-area-inset-bottom))",
           paddingRight: "max(0px, env(safe-area-inset-right))",
         }}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-[#bfc9c3]/15 px-4 py-3 dark:border-white/[0.08]">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="flex shrink-0 items-center justify-between border-b border-[#bfc9c3]/15 px-3 py-2.5 dark:border-white/[0.08] lg:px-4 lg:py-3">
+          <div className="flex min-w-0 items-center gap-2.5 lg:gap-3">
             <CopilotMascotAvatar
-              size="lg"
-              className="shadow-md ring-2 ring-[#006c49]/10 dark:ring-[#6ffbbe]/15"
+              size="md"
+              className="shadow-md ring-2 ring-[#006c49]/10 dark:ring-[#6ffbbe]/15 lg:size-12"
             />
             <div className="min-w-0">
               <h2
                 id="copilot-panel-title"
-                className="text-lg font-semibold tracking-tight text-foreground"
+                className="text-[16px] font-semibold tracking-tight text-foreground lg:text-lg"
               >
                 Zuri
               </h2>
-              <p className="text-[12px] text-muted-foreground">
-                Your store assistant · Gemini, grounded in your data
+              <p className="truncate text-[12px] text-muted-foreground">
+                Store assistant
               </p>
             </div>
           </div>

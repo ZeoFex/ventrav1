@@ -205,8 +205,8 @@ export function QuickCheckoutDrawer({
   return (
     <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()} direction="bottom">
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto mt-24 flex max-h-[92vh] min-h-0 w-full max-w-[480px] flex-col rounded-t-2xl bg-background shadow-2xl outline-none sm:max-h-[85vh] sm:rounded-t-[2rem]">
+        <Drawer.Overlay className="fixed inset-0 z-[80] bg-black/40 backdrop-blur-sm" />
+        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-[80] mx-auto mt-24 flex max-h-[92vh] min-h-0 w-full max-w-[480px] flex-col rounded-t-2xl bg-background shadow-2xl outline-none sm:max-h-[85vh] sm:rounded-t-[2rem]">
           <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/20" />
           <div className="flex shrink-0 items-center justify-between border-b px-3 py-2.5 dark:border-white/10 sm:px-5 sm:py-4">
             <Drawer.Title className="text-[15px] font-semibold sm:text-lg">

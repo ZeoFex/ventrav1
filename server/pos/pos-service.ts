@@ -499,7 +499,7 @@ async function getTopSellingProductIds(
     );
 }
 
-/** Active products ordered by recent sales volume, with catalog fallback. */
+/** Active products people have actually bought in the last 30 days. */
 async function resolveQuickSaleProducts(businessId: string, branchId?: string | null) {
     const { getProducts } = await import("../products/product-service");
     const catalog = (await getProducts(businessId, branchId)) as Array<{
@@ -513,23 +513,14 @@ async function resolveQuickSaleProducts(businessId: string, branchId?: string | 
 
     const activeCatalog = catalog.filter((p) => p.status === "active");
 
-    const topIds = await getTopSellingProductIds(businessId, branchId);
+    const topIds = await getTopSellingProductIds(businessId, branchId, 6);
     const rankById = new Map(topIds.map((t, i) => [t.productId, i]));
+    const qtyById = new Map(topIds.map((t) => [t.productId, t.qtySold]));
 
-    const ranked = activeCatalog
+    return activeCatalog
         .filter((p) => rankById.has(p.id))
-        .sort((a, b) => (rankById.get(a.id) ?? 999) - (rankById.get(b.id) ?? 999));
-
-    if (ranked.length >= 6) {
-        return ranked.slice(0, QUICK_SALE_LIMIT);
-    }
-
-    const rankedIds = new Set(ranked.map((p) => p.id));
-    const fillers = activeCatalog
-        .filter((p) => !rankedIds.has(p.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-    return [...ranked, ...fillers].slice(0, QUICK_SALE_LIMIT);
+        .sort((a, b) => (rankById.get(a.id) ?? 999) - (rankById.get(b.id) ?? 999))
+        .map((p) => ({ ...p, qtySold: qtyById.get(p.id) ?? 0 }));
 }
 
 /**
@@ -537,7 +528,7 @@ async function resolveQuickSaleProducts(businessId: string, branchId?: string | 
  * - Today's total sales and transaction count
  * - Comparison with yesterday
  * - 10 most recent transactions
- * - Quick-sale carousel products (best sellers, last 30 days)
+ * - Products customers have been buying (last 30 days)
  */
 export async function getDashboardHomeData(businessId: string, branchId?: string | null) {
     const cacheKey = CACHE_KEYS.DASHBOARD_HOME(businessId, branchId);
@@ -631,7 +622,7 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
             .orderBy(desc(sql`SUM(${sales.totalGhs}::numeric)`))
             .limit(5),
 
-        // 6. Quick-sale carousel (best sellers in last 30 days)
+        // 6. Products customers have bought in the last 30 days
         resolveQuickSaleProducts(businessId, branchId),
 
         // 7. Layaway orders awaiting pickup

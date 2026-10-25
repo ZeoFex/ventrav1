@@ -11,10 +11,11 @@ import { computePosTotals } from "./sale/pos-cart-totals";
 import { type ProductRow } from "../products/types";
 
 export function GlobalCartIndicator() {
-  const pathname = usePathname();
-  const { lines } = useGlobalCart();
+  const pathname = usePathname() ?? "";
+  const { lines, lastAdded } = useGlobalCart();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const isHome = pathname === "/dashboard" || pathname === "/dashboard/";
   
   // We only enable fetching products if we have lines
   const { products = [] } = useProducts(lines.length > 0);
@@ -22,6 +23,11 @@ export function GlobalCartIndicator() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted || !isHome || !lastAdded) return;
+    setIsDrawerOpen(true);
+  }, [mounted, isHome, lastAdded]);
 
   const total = useMemo(() => {
     if (!products.length || !lines.length) return 0;
@@ -33,8 +39,8 @@ export function GlobalCartIndicator() {
 
   if (!mounted) return null;
 
-  // Don't show indicator if we are on the main POS page, as it has its own cart panel
-  if (pathname === "/dashboard/pos/sale" || pathname === "/dashboard" || pathname === "/dashboard/") {
+  // POS sale has its own cart panel. Home opens this drawer when an item is added.
+  if (pathname === "/dashboard/pos/sale") {
     return null;
   }
 
@@ -50,7 +56,7 @@ export function GlobalCartIndicator() {
         <button
           type="button"
           onClick={() => setIsDrawerOpen(true)}
-          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-50 flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in zoom-in-95 rounded-full bg-[#006c49] px-5 py-3.5 text-white shadow-lg lg:bottom-10 lg:right-10 hover:bg-[#003527] hover:scale-105 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] dark:bg-[#6ffbbe] dark:text-[#0a0a0a] dark:hover:bg-white"
+          className="fixed bottom-[calc(8.75rem+env(safe-area-inset-bottom))] right-4 z-50 flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in zoom-in-95 rounded-full bg-[#006c49] px-5 py-3.5 text-white shadow-lg lg:bottom-28 lg:right-10 hover:bg-[#003527] hover:scale-105 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] dark:bg-[#6ffbbe] dark:text-[#0a0a0a] dark:hover:bg-white"
           aria-label="Open quick checkout"
         >
           <div className="relative">

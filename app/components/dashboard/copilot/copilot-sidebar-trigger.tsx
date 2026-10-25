@@ -26,24 +26,3 @@ export function CopilotSidebarTrigger({ isCollapsed }: { isCollapsed: boolean })
     </button>
   );
 }
-
-/** Mascot button in the mobile top bar. Hidden on desktop and on Starter. */
-export function CopilotMobileHeaderButton() {
-  const { toggle, copilotEnabled } = useCopilot();
-
-  if (!copilotEnabled) return null;
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      className="tap-target flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#bfc9c3]/25 bg-[#006c49]/10 lg:hidden dark:border-white/[0.1] dark:bg-[#6ffbbe]/10"
-      aria-label="Open Zuri"
-      title="Zuri"
-      data-tour-target="copilot-mobile"
-      data-tour-mount="main"
-    >
-      <CopilotMascotAvatar size="sm" className="shadow-none ring-0" />
-    </button>
-  );
-}

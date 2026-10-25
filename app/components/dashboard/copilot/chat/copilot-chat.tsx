@@ -22,7 +22,7 @@ export function CopilotChat() {
   const { pathname } = useCopilot();
   const { lines: cartLines } = useGlobalCart();
   const [speechMode, setSpeechMode] = useState<CopilotPreferredLanguage>("en");
-  const { turns, pendingText, pendingTools, streaming, error, sendMessage, clear } =
+  const { turns, pendingText, streaming, error, sendMessage, clear } =
     useCopilotChat(pathname, speechMode, cartLines);
   const [draft, setDraft] = useState("");
 
@@ -110,7 +110,6 @@ export function CopilotChat() {
         <CopilotMessageList
           turns={turns}
           pendingText={pendingText}
-          pendingTools={pendingTools}
           streaming={streaming}
           khayaTtsLanguage={khayaTtsLanguage}
         />

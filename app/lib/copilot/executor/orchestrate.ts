@@ -63,8 +63,14 @@ export async function orchestrateCopilotChat(options: {
   let sawFinish = false;
   for await (const part of result.fullStream) {
     switch (part.type) {
-      case "text-delta":
-        options.onEvent({ type: "text-delta", delta: part.text });
+      case "text-delta": {
+        const chunk = textChunk(part);
+        if (chunk) options.onEvent({ type: "text-delta", delta: chunk });
+        break;
+      }
+      case "reasoning-delta":
+      case "reasoning-start":
+      case "reasoning-end":
         break;
       case "tool-call":
         options.onEvent({
@@ -119,6 +125,17 @@ export async function orchestrateCopilotChat(options: {
       options.onEvent({ type: "done" });
     }
   }
+}
+
+function textChunk(part: {
+  text?: string;
+  textDelta?: string;
+  delta?: string;
+}): string {
+  if (typeof part.text === "string") return part.text;
+  if (typeof part.textDelta === "string") return part.textDelta;
+  if (typeof part.delta === "string") return part.delta;
+  return "";
 }
 
 function truncate(s: string, n: number): string {

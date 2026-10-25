@@ -9,6 +9,7 @@ import { PrivacyPolicyContent, TermsOfServiceContent } from "./legal-content";
 
 const footerLinks = {
     product: [
+        { name: "Shop here", href: "/shop" },
         { name: "Features", href: "/features" },
         { name: "Pricing", href: "/pricing" },
         { name: "Changelog", href: "/changelog" },
