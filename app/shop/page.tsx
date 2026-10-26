@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { SiteFooter } from "@/app/components/landing/site-footer";
-import { SiteHeader } from "@/app/components/landing/site-header";
 import { ShopMarket } from "./shop-market";
 
 export const metadata: Metadata = {
@@ -10,12 +9,13 @@ export const metadata: Metadata = {
 
 export default function ShopPage() {
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-[#f4f1ea] dark:bg-[#0c0c0c]">
-      <SiteHeader />
-      <main className="flex-1 pt-28">
+    <div className="flex min-h-full flex-1 flex-col bg-[#f4f1ea] lg:h-dvh lg:max-h-dvh lg:min-h-0 lg:overflow-hidden dark:bg-[#0c0c0c]">
+      <main className="flex min-h-0 flex-1 flex-col pt-4 lg:overflow-hidden">
         <ShopMarket />
       </main>
-      <SiteFooter />
+      <div className="lg:hidden">
+        <SiteFooter />
+      </div>
     </div>
   );
 }

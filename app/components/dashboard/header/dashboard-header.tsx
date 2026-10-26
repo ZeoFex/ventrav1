@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useDashboardNav } from "../dashboard-nav-context";
 import { HeaderBranchSelector } from "./header-branch-selector";
 import { HeaderNotifications } from "./header-notifications";
+import { ShopLiveAlerts } from "./shop-live-alerts";
 import { HeaderSubscriptionProgress } from "./header-subscription-progress";
 import { HeaderSearch } from "./header-search";
 import { HeaderPosCategories, HeaderPosProductSearch } from "./header-pos-product-search";
@@ -125,6 +126,7 @@ export function DashboardHeader({
           <HeaderSubscriptionProgress />
         </div>
         <HeaderNotifications />
+        <ShopLiveAlerts />
       </div>
 
       <div

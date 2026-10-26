@@ -5,10 +5,10 @@ import { verifyPassword } from "@/server/auth/password-service";
 import { COOKIE_NAMES } from "@/server/config/auth-config";
 import { db } from "@/server/db";
 import { shoppers } from "@/server/db/schema/shoppers";
-import { shopperCookieOptions, signShopperToken } from "@/server/shop/shopper-auth";
+import { shopperCookieOptions, shopperPhoneKey, signShopperToken } from "@/server/shop/shopper-auth";
 
 const bodySchema = z.object({
-    email: z.string().trim().email("Enter a valid email"),
+    phone: z.string().trim().min(10, "Enter a phone number").max(20),
     password: z.string().min(1, "Enter your password"),
 });
 
@@ -22,6 +22,11 @@ export async function POST(request: Request) {
         );
     }
 
+    const phoneKey = shopperPhoneKey(parsed.data.phone);
+    if (!phoneKey) {
+        return NextResponse.json({ error: "Enter a Ghana phone number" }, { status: 400 });
+    }
+
     const [row] = await db
         .select({
             id: shoppers.id,
@@ -31,11 +36,11 @@ export async function POST(request: Request) {
             passwordHash: shoppers.passwordHash,
         })
         .from(shoppers)
-        .where(eq(shoppers.emailNormalized, parsed.data.email.toLowerCase()))
+        .where(eq(shoppers.phoneNormalized, phoneKey))
         .limit(1);
 
     if (!row || !(await verifyPassword(row.passwordHash, parsed.data.password))) {
-        return NextResponse.json({ error: "Email or password is incorrect" }, { status: 401 });
+        return NextResponse.json({ error: "Phone number or password is incorrect" }, { status: 401 });
     }
 
     const shopper = {

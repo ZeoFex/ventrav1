@@ -5,6 +5,7 @@ import { customers } from "@/server/db/schema/customers";
 import { notifications } from "@/server/db/schema/notifications";
 import { productVariations, products } from "@/server/db/schema/products";
 import { shopConversations, shopMessages } from "@/server/db/schema/shop-conversations";
+import { shopperNotifications } from "@/server/db/schema/shopper-notifications";
 import { createCustomerOrder } from "@/server/customer-orders/customer-order-service";
 import type { ShopperProfile } from "./shopper-auth";
 
@@ -22,17 +23,9 @@ const PAYMENT_LABEL: Record<ShopPaymentChoice, string> = {
     delivery: "Pay on delivery",
 };
 
-function customerName(email: string): string {
-    const local = email.split("@")[0] ?? "Customer";
-    const words = local
-        .split(/[._-]+/)
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .slice(0, 3);
-    if (words.length === 0) return "Customer";
-    return words
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(" ");
+function customerName(phone: string): string {
+    const digits = phone.replace(/\D/g, "");
+    return digits ? `Customer ${digits.slice(-4)}` : "Customer";
 }
 
 function roundMoney(n: number): number {
@@ -116,7 +109,7 @@ export async function placeShopOrder(
         groups.set(line.businessId, bucket);
     }
 
-    const name = customerName(shopper.email);
+    const name = customerName(shopper.phone);
     const placed: {
         shopName: string;
         invoiceId: string;
@@ -140,7 +133,7 @@ export async function placeShopOrder(
                     branchId: group.find((line) => line.branchId)?.branchId ?? null,
                     name,
                     phone: shopper.phone,
-                    email: shopper.email,
+                    email: shopper.email || null,
                     status: "active",
                 })
                 .returning({ id: customers.id });
@@ -198,6 +191,13 @@ export async function placeShopOrder(
             sender: "customer",
             senderName: name,
             body: `I placed order ${order.invoiceId} (${summary}). I will pay by ${PAYMENT_LABEL[paymentMethod]}.`,
+        });
+
+        await db.insert(shopperNotifications).values({
+            shopperId: shopper.id,
+            title: `Order sent to ${group[0]!.shopName}`,
+            body: `Order ${order.invoiceId} is with the shop. Total GHS ${order.totalGhs.toFixed(2)}.`,
+            href: "/customer",
         });
 
         placed.push({
