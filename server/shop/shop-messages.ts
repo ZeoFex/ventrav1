@@ -2,6 +2,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/server/db";
 import { notifications } from "@/server/db/schema/notifications";
 import { shopConversations, shopMessages } from "@/server/db/schema/shop-conversations";
+import { shopperNotifications } from "@/server/db/schema/shopper-notifications";
 
 export async function listBusinessConversations(businessId: string) {
     const conversations = await db
@@ -98,6 +99,15 @@ export async function sendShopMessage(input: {
             title: "New shop message",
             body: `${conversation.customerName} (${conversation.customerPhone}): ${body.slice(0, 180)}`,
             icon: "info",
+        });
+    }
+
+    if (input.sender === "shop") {
+        await db.insert(shopperNotifications).values({
+            shopperId: conversation.shopperId,
+            title: `Message from ${conversation.shopName}`,
+            body: body.slice(0, 180),
+            href: "/customer?tab=messages",
         });
     }
 

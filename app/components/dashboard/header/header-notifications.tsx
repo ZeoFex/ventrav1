@@ -3,7 +3,8 @@
 import { Bell, Package, Receipt, Settings, X, Info, AlertTriangle, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNotifications } from "./notifications-data-hooks";
+import { useRouter } from "next/navigation";
+import { useNotifications, isOnlineCustomerAlert } from "./notifications-data-hooks";
 import type { NotificationIcon } from "./notifications-data-hooks";
 
 function formatTimeAgo(dateInput: string) {
@@ -32,6 +33,7 @@ export function HeaderNotifications() {
   const [open, setOpen] = useState(false);
   const [panelTop, setPanelTop] = useState(72);
   const bellRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
   const { notifications, mutate, isLoading, isError } = useNotifications();
   const panelId = useId();
   const unread = notifications.filter((i) => !i.isRead).length;
@@ -188,7 +190,13 @@ export function HeaderNotifications() {
                   <li key={n.id}>
                     <button
                       type="button"
-                      onClick={() => markRead(n.id)}
+                      onClick={() => {
+                        void markRead(n.id);
+                        if (isOnlineCustomerAlert(n.title)) {
+                          close();
+                          router.push("/dashboard/ecommerce");
+                        }
+                      }}
                       className={`flex w-full gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface-elevated/80 dark:hover:bg-[#141414]/90 ${
                         !n.isRead ? "bg-[#006c49]/[0.04] dark:bg-[#6ffbbe]/[0.04]" : ""
                       }`}

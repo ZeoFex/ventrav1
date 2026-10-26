@@ -5,10 +5,11 @@ export const shoppers = pgTable(
     "shoppers",
     {
         id: uuid("id").primaryKey().defaultRandom(),
-        email: varchar("email", { length: 320 }).notNull().unique(),
-        emailNormalized: varchar("email_normalized", { length: 320 }).notNull().unique(),
+        email: varchar("email", { length: 320 }).unique(),
+        emailNormalized: varchar("email_normalized", { length: 320 }).unique(),
         passwordHash: text("password_hash").notNull(),
         phone: varchar("phone", { length: 30 }).notNull(),
+        phoneNormalized: varchar("phone_normalized", { length: 20 }).notNull().unique(),
         region: varchar("region", { length: 100 }).notNull(),
         createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { jwtVerify, SignJWT } from "jose";
 import { eq } from "drizzle-orm";
+import { phoneNormalizedKey } from "@/server/auth/phone-utils";
 import { ACCESS_TOKEN_TTL, COOKIE_NAMES } from "@/server/config/auth-config";
 import { db } from "@/server/db";
 import { shoppers } from "@/server/db/schema/shoppers";
@@ -10,10 +11,17 @@ const AUDIENCE = "ventrapos:shop";
 
 export type ShopperProfile = {
     id: string;
-    email: string;
+    email: string | null;
     phone: string;
     region: string;
 };
+
+/** Digits-only Ghana key used to look a customer up by phone. */
+export function shopperPhoneKey(phone: string): string | null {
+    const key = phoneNormalizedKey(phone);
+    if (key.length < 12 || !key.startsWith("233")) return null;
+    return key;
+}
 
 function secret(): Uint8Array {
     const value = process.env.JWT_SECRET;
@@ -25,7 +33,7 @@ function secret(): Uint8Array {
 
 export async function signShopperToken(profile: ShopperProfile): Promise<string> {
     return new SignJWT({
-        email: profile.email,
+        email: profile.email ?? "",
         phone: profile.phone,
         region: profile.region,
         role: "shopper",
@@ -60,7 +68,7 @@ export async function readShopperToken(token: string): Promise<ShopperProfile | 
         if (typeof payload.region !== "string") return null;
         return {
             id: payload.sub,
-            email: payload.email,
+            email: payload.email || null,
             phone: payload.phone,
             region: payload.region,
         };

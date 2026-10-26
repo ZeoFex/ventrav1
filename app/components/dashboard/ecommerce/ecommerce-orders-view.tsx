@@ -52,15 +52,24 @@ export function EcommerceOrdersView() {
 
   useEffect(() => {
     let cancelled = false;
-    loadList()
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load orders");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const pull = (first: boolean) => {
+      loadList()
+        .catch((err) => {
+          if (!cancelled && first) {
+            setError(err instanceof Error ? err.message : "Could not load orders");
+          }
+        })
+        .finally(() => {
+          if (!cancelled && first) setLoading(false);
+        });
+    };
+    pull(true);
+    const timer = window.setInterval(() => {
+      if (!cancelled && document.visibilityState === "visible") pull(false);
+    }, 5000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, [loadList]);
 

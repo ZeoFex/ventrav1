@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+import { businessTypeLabel } from "@/config/business-types";
 import { db } from "@/server/db";
 import { branches } from "@/server/db/schema/branches";
 import { businesses } from "@/server/db/schema/businesses";
@@ -20,6 +21,7 @@ export type ShopListing = {
     categoryName: string;
     shopId: string;
     shopName: string;
+    shopType: string;
     region: string;
     branchId: string | null;
     sellable: number;
@@ -42,6 +44,7 @@ export async function listShopCatalog(): Promise<{
             categoryName: categories.name,
             shopId: businesses.id,
             shopName: businesses.name,
+            businessType: businesses.businessType,
             businessRegion: businesses.region,
             businessCity: businesses.city,
             branchId: products.branchId,
@@ -114,6 +117,7 @@ export async function listShopCatalog(): Promise<{
             categoryName: row.categoryName?.trim() || "General",
             shopId: row.shopId,
             shopName: row.shopName,
+            shopType: row.businessType ? businessTypeLabel(row.businessType) : "Other",
             region,
             branchId: row.branchId,
             sellable,
