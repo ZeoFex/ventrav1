@@ -20,6 +20,7 @@ import {
     CatalogProductThumb,
 } from "./catalog-product-display";
 import { CatalogShopsPanel } from "./catalog-shops-panel";
+import { CatalogReferrersPanel } from "./catalog-referrers-panel";
 import { CatalogOverviewPanel } from "./catalog-overview-panel";
 import { CatalogSubscriptionsPanel } from "./catalog-subscriptions-panel";
 import { CatalogReviewsPanel } from "./catalog-reviews-panel";
@@ -444,6 +445,16 @@ export function CatalogAdminClient() {
                         <CatalogShopsPanel
                             token={token}
                             focusBusinessId={focusBusinessId}
+                        />
+                    ) : null}
+
+                    {tab === "referrers" && token ? (
+                        <CatalogReferrersPanel
+                            token={token}
+                            onOpenShop={(businessId) => {
+                                setFocusBusinessId(businessId);
+                                setTab("shops");
+                            }}
                         />
                     ) : null}
 

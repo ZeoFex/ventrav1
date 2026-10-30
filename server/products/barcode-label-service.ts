@@ -2,7 +2,7 @@ import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 import { productBarcodeLabels, products } from "@/server/db/schema/products";
-import { generateSku } from "./product-service";
+import { generateShortBarcode } from "./product-service";
 
 export type BarcodeLabelInput = {
     businessId: string;
@@ -107,7 +107,7 @@ export async function createBarcodeLabel(input: BarcodeLabelInput) {
     const productName = input.productName.trim();
     const labelDescription = input.labelDescription.trim();
     const imageSrc = input.imageSrc.trim();
-    const sku = (input.sku?.trim() || generateSku()).toUpperCase();
+    const sku = (input.sku?.trim() || generateShortBarcode()).toUpperCase();
 
     const [inserted] = await db
         .insert(productBarcodeLabels)

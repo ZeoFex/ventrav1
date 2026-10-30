@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Minus, Plus, Search, ShoppingBag, SlidersHorizontal, Store, Trash2, X } from "lucide-react";
 import { CatalogProductImage } from "@/app/components/dashboard/products/catalog-product-image";
@@ -22,8 +22,10 @@ type Listing = {
   imageSrc: string | null;
   categoryName: string;
   shopName: string;
+  shopId: string;
   shopType: string;
   region: string;
+  place: string;
   sellable: number;
   variations?: ShopVariation[];
 };
@@ -37,6 +39,45 @@ type Shopper = {
 };
 
 const CART_KEY = "ventra-shop-cart";
+const PAGE_SIZE = 24;
+
+type ShopOption = { id: string; name: string; place: string; count: number };
+
+function MenuOption({
+  active,
+  label,
+  hint,
+  count,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  hint?: string;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left ${
+        active
+          ? "bg-[#1f3d32] text-white"
+          : "text-[#1c1917] hover:bg-[#f4f1ea] dark:text-zinc-100 dark:hover:bg-white/5"
+      }`}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium">{label}</span>
+        {hint ? (
+          <span className={`block truncate text-[11px] ${active ? "text-white/70" : "text-[#8a8478]"}`}>{hint}</span>
+        ) : null}
+      </span>
+      <span className={`shrink-0 text-[12px] tabular-nums ${active ? "text-white/80" : "text-[#8a8478]"}`}>
+        {count.toLocaleString()}
+      </span>
+    </button>
+  );
+}
 
 type CartLine = Listing & {
   qty: number;
@@ -73,79 +114,17 @@ function formatGhs(n: number): string {
   }).format(n);
 }
 
-function FilterSection({
-  label,
-  value,
-  allLabel,
-  options,
-  open,
-  onToggle,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  allLabel: string;
-  options: { name: string; count: number }[];
-  open: boolean;
-  onToggle: () => void;
-  onChange: (value: string) => void;
-}) {
-  const selected = value !== "All";
-  const choices = [
-    { name: "All", count: options.reduce((sum, item) => sum + item.count, 0), label: allLabel },
-    ...options.map((item) => ({ ...item, label: item.name })),
-  ];
-  return (
-    <div className={`border-b border-[#efe8dc] last:border-b-0 dark:border-white/10 ${open ? "flex min-h-0 flex-1 flex-col" : "shrink-0"}`}>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex w-full shrink-0 items-center justify-between gap-3 px-4 py-3.5 text-left"
-      >
-        <span className="min-w-0">
-          <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a8478]">{label}</span>
-          <span className={`mt-0.5 block truncate text-sm ${selected ? "font-semibold text-[#1f3d32] dark:text-[#6ffbbe]" : "text-[#1c1917] dark:text-zinc-100"}`}>
-            {selected ? value : allLabel}
-          </span>
-        </span>
-        <ChevronDown className={`size-4 shrink-0 text-[#8a8478] transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open ? (
-        <div role="menu" className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-          {choices.map((item) => {
-            const active = item.name === "All" ? !selected : value === item.name;
-            return (
-              <button
-                key={item.name}
-                type="button"
-                role="menuitem"
-                onClick={() => onChange(item.name)}
-                className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm ${
-                  active
-                    ? "bg-[#efe8dc] font-semibold text-[#1f3d32] dark:bg-white/10 dark:text-[#6ffbbe]"
-                    : "text-[#1c1917] hover:bg-[#f7f4ee] dark:text-zinc-100 dark:hover:bg-white/5"
-                }`}
-              >
-                <span className="min-w-0 truncate">{item.label}</span>
-                <span className="shrink-0 text-xs tabular-nums text-[#8a8478]">{item.count}</span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function ShopMarket() {
   const [products, setProducts] = useState<Listing[]>([]);
   const [category, setCategory] = useState("All");
   const [shopType, setShopType] = useState("All");
-  const [location, setLocation] = useState("All");
-  const [openFilter, setOpenFilter] = useState<"category" | "shop" | "location" | null>(null);
+  const [shopId, setShopId] = useState("All");
+  const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [menu, setMenu] = useState<"type" | "shop" | "category" | null>(null);
+  const [menuQuery, setMenuQuery] = useState("");
   const [query, setQuery] = useState("");
+  const filterRef = useRef<HTMLElement>(null);
   const [cartReady, setCartReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -165,6 +144,48 @@ export function ShopMarket() {
   const [inbox, setInbox] = useState<
     { id: string; shopName: string; invoiceId: string; lastMessage: string }[]
   >([]);
+
+  useEffect(() => {
+    if (!menu) return;
+    function onPointer(event: PointerEvent) {
+      if (!filterRef.current?.contains(event.target as Node)) setMenu(null);
+    }
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, [menu]);
+
+  useEffect(() => {
+    const page = document.querySelector("main")?.parentElement;
+    if (!(page instanceof HTMLElement)) return;
+    const paint = () => {
+      page.style.backgroundColor = document.documentElement.classList.contains("dark") ? "#0c0c0c" : "#ffffff";
+    };
+    paint();
+    const observer = new MutationObserver(paint);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => {
+      observer.disconnect();
+      page.style.backgroundColor = "";
+    };
+  }, []);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const lock = () => {
+      if (!desktop.matches) {
+        document.documentElement.style.overflow = "";
+        return;
+      }
+      window.scrollTo(0, 0);
+      document.documentElement.style.overflow = "hidden";
+    };
+    lock();
+    desktop.addEventListener("change", lock);
+    return () => {
+      desktop.removeEventListener("change", lock);
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,20 +231,26 @@ export function ShopMarket() {
     const needle = query.trim().toLowerCase();
     if (!needle) return products;
     return products.filter((item) =>
-      [item.name, item.shopName, item.shopType, item.categoryName, item.region].some((value) =>
+      [item.name, item.shopName, item.shopType, item.categoryName, item.region, item.place].some((value) =>
         (value ?? "").toLowerCase().includes(needle),
       ),
     );
   }, [products, query]);
 
-  const shopTypes = useMemo(() => {
-    const source = location === "All" ? searched : searched.filter((item) => item.region === location);
-    return countBy(source, (item) => item.shopType || "Other");
-  }, [searched, location]);
+  const shopTypes = useMemo(
+    () => countBy(searched, (item) => item.shopType || "Other"),
+    [searched],
+  );
 
-  const locations = useMemo(() => {
+  const shops = useMemo(() => {
     const source = shopType === "All" ? searched : searched.filter((item) => item.shopType === shopType);
-    return countBy(source, (item) => item.region || "Ghana");
+    const buckets = new Map<string, ShopOption>();
+    for (const item of source) {
+      const current = buckets.get(item.shopId);
+      if (current) current.count += 1;
+      else buckets.set(item.shopId, { id: item.shopId, name: item.shopName, place: item.place || item.region, count: 1 });
+    }
+    return [...buckets.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   }, [searched, shopType]);
 
   const narrowed = useMemo(
@@ -231,9 +258,9 @@ export function ShopMarket() {
       searched.filter(
         (item) =>
           (shopType === "All" || item.shopType === shopType) &&
-          (location === "All" || item.region === location),
+          (shopId === "All" || item.shopId === shopId),
       ),
-    [searched, shopType, location],
+    [searched, shopType, shopId],
   );
 
   const visibleCategories = useMemo(
@@ -241,17 +268,31 @@ export function ShopMarket() {
     [narrowed],
   );
 
-  const groups = useMemo(() => {
-    const source =
-      category === "All" ? narrowed : narrowed.filter((item) => item.categoryName === category);
-    const buckets = new Map<string, Listing[]>();
-    for (const product of source) {
-      const list = buckets.get(product.categoryName) ?? [];
-      list.push(product);
-      buckets.set(product.categoryName, list);
-    }
-    return [...buckets.entries()].map(([name, items]) => ({ name, items }));
-  }, [narrowed, category]);
+  const listed = useMemo(
+    () => (category === "All" ? narrowed : narrowed.filter((item) => item.categoryName === category)),
+    [narrowed, category],
+  );
+  const pageCount = Math.max(1, Math.ceil(listed.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageItems = listed.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const activeFilters = [shopType, shopId, category].filter((value) => value !== "All").length;
+  const selectedShop = shops.find((shop) => shop.id === shopId);
+  const menuNeedle = menuQuery.trim().toLowerCase();
+  const shopChoices = shops.filter(
+    (shop) =>
+      !menuNeedle ||
+      shop.name.toLowerCase().includes(menuNeedle) ||
+      shop.place.toLowerCase().includes(menuNeedle),
+  );
+  const categoryChoices = visibleCategories.filter(
+    (item) => !menuNeedle || item.name.toLowerCase().includes(menuNeedle),
+  );
+  const typeChoices = shopTypes.filter((item) => !menuNeedle || item.name.toLowerCase().includes(menuNeedle));
+
+  function toggleMenu(next: "type" | "shop" | "category") {
+    setMenu((current) => (current === next ? null : next));
+    setMenuQuery("");
+  }
   const itemCount = cart.reduce((sum, line) => sum + line.qty, 0);
   const total = cart.reduce((sum, line) => sum + Number(line.unitPriceGhs) * line.qty, 0);
   const pickingGroups = picking ? preferenceGroups(picking) : [];
@@ -393,7 +434,7 @@ export function ShopMarket() {
   }
 
   return (
-    <div className={`mx-auto flex w-full max-w-[90rem] flex-col px-3 pb-32 text-[#1c1917] sm:px-6 lg:min-h-0 lg:flex-1 lg:px-8 dark:text-zinc-100 ${step === "browse" ? "lg:overflow-hidden lg:pb-0" : "lg:overflow-y-auto lg:pb-8"}`}>
+    <div className={`shop-paper mx-auto flex w-full max-w-[90rem] flex-col px-3 pb-32 text-[#1c1917] sm:px-6 lg:min-h-0 lg:flex-1 lg:px-8 dark:bg-transparent dark:text-zinc-100 ${step === "browse" ? "lg:overflow-hidden lg:pb-0" : "lg:overflow-y-auto lg:pb-8"}`}>
       <MarketNav current="shop" signedIn={Boolean(shopper)} />
       {shopper ? <CustomerLiveAlerts /> : null}
 
@@ -404,7 +445,7 @@ export function ShopMarket() {
       ) : null}
 
       {step === "browse" ? (
-        <div className="flex items-start gap-8 lg:min-h-0 lg:flex-1 lg:items-stretch lg:overflow-hidden">
+        <div className="flex items-start gap-5 lg:min-h-0 lg:flex-1 lg:items-stretch lg:gap-6 lg:overflow-hidden">
           {filtersOpen ? (
             <button
               type="button"
@@ -414,14 +455,15 @@ export function ShopMarket() {
             />
           ) : null}
           <aside
+            ref={filterRef}
             className={`${
               filtersOpen ? "fixed inset-y-0 left-0 z-[80] flex w-[min(20rem,88vw)] shadow-2xl" : "hidden"
-            } flex-col overflow-hidden rounded-r-[1.75rem] border border-[#e7e0d4] bg-white dark:border-white/10 dark:bg-[#141414] lg:static lg:z-auto lg:flex lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)] lg:w-72 lg:shrink-0 lg:rounded-[1.75rem] lg:shadow-none`}
+            } shop-paper flex-col overflow-hidden rounded-r-[1.5rem] border border-[#e7e0d4] dark:border-white/10 dark:bg-[#141414] lg:sticky lg:top-4 lg:z-auto lg:flex lg:max-h-[calc(100dvh-6.75rem)] lg:w-[18.5rem] lg:shrink-0 lg:self-start lg:overflow-hidden lg:rounded-[1.5rem] lg:shadow-none`}
           >
             <div className="flex items-center justify-between gap-3 bg-[#1f3d32] px-4 py-4 text-[#f4f1ea]">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#cde7d8]">Filters</p>
-                <p className="mt-1 text-sm">{narrowed.length} products</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#cde7d8]">Refine</p>
+                <p className="mt-1 text-lg font-semibold">{listed.length.toLocaleString()} products</p>
               </div>
               <button
                 type="button"
@@ -432,43 +474,170 @@ export function ShopMarket() {
                 <X className="size-4" />
               </button>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <FilterSection
-                label="Category"
-                value={category}
-                allLabel="All categories"
-                options={visibleCategories}
-                open={openFilter === "category"}
-                onToggle={() => setOpenFilter((current) => (current === "category" ? null : "category"))}
-                onChange={setCategory}
-              />
-              <FilterSection
-                label="Shop type"
-                value={shopType}
-                allLabel="All shop types"
-                options={shopTypes}
-                open={openFilter === "shop"}
-                onToggle={() => setOpenFilter((current) => (current === "shop" ? null : "shop"))}
-                onChange={setShopType}
-              />
-              <FilterSection
-                label="Location"
-                value={location}
-                allLabel="All locations"
-                options={locations}
-                open={openFilter === "location"}
-                onToggle={() => setOpenFilter((current) => (current === "location" ? null : "location"))}
-                onChange={setLocation}
-              />
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-3 py-3">
+              <label className="relative block shrink-0">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8478]" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search products, SKU..."
+                  aria-label="Search items"
+                  className="w-full rounded-xl border border-[#e7e0d4] bg-white py-2.5 pl-9 pr-3 text-base outline-none placeholder:text-[#a39d90] focus:border-[#1f3d32] dark:border-white/10 dark:bg-[#1c1c1c] sm:text-sm"
+                />
+              </label>
+              <div className="overflow-hidden rounded-2xl border border-[#e7e0d4] bg-white dark:border-white/10 dark:bg-[#1c1c1c]">
+                {(
+                  [
+                    { id: "type" as const, label: "Shop type", value: shopType === "All" ? "All types" : shopType },
+                    {
+                      id: "shop" as const,
+                      label: "Shop",
+                      value: selectedShop ? `${selectedShop.name} · ${selectedShop.place}` : "All shops",
+                    },
+                    { id: "category" as const, label: "Category", value: category === "All" ? "All categories" : category },
+                  ]
+                ).map((item, index) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-expanded={menu === item.id}
+                    onClick={() => toggleMenu(item.id)}
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left ${
+                      index > 0 ? "border-t border-[#efe8dc] dark:border-white/10" : ""
+                    } ${menu === item.id ? "bg-[#eef6f1] dark:bg-white/5" : ""}`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a8478]">
+                        {item.label}
+                      </span>
+                      <span className="mt-0.5 block truncate text-sm font-medium">{item.value}</span>
+                    </span>
+                    <ChevronDown className={`size-4 shrink-0 text-[#8a8478] transition ${menu === item.id ? "rotate-180" : ""}`} />
+                  </button>
+                ))}
+              </div>
+              {menu ? (
+                <div className="flex min-h-0 flex-col rounded-2xl border border-[#e7e0d4] bg-white p-2 dark:border-white/10 dark:bg-[#1c1c1c]">
+                  {menu !== "type" || shopTypes.length > 6 ? (
+                    <label className="relative mb-2 block shrink-0">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#8a8478]" />
+                      <input
+                        value={menuQuery}
+                        onChange={(event) => setMenuQuery(event.target.value)}
+                        placeholder={menu === "shop" ? "Find a shop" : menu === "category" ? "Find a category" : "Find a type"}
+                        aria-label={menu === "shop" ? "Find a shop" : menu === "category" ? "Find a category" : "Find a type"}
+                        className="w-full rounded-xl border border-[#e7e0d4] bg-white py-2 pl-8 pr-3 text-base outline-none focus:border-[#1f3d32] dark:border-white/10 dark:bg-[#141414] sm:text-sm"
+                      />
+                    </label>
+                  ) : null}
+                  <div className="max-h-64 space-y-0.5 overflow-y-auto overscroll-contain">
+                    {menu === "type" ? (
+                      <>
+                        <MenuOption
+                          active={shopType === "All"}
+                          label="All types"
+                          count={shopTypes.reduce((sum, item) => sum + item.count, 0)}
+                          onClick={() => {
+                            setShopType("All");
+                            setShopId("All");
+                            setCategory("All");
+                            setPage(1);
+                            setMenu(null);
+                          }}
+                        />
+                        {typeChoices.map((item) => (
+                          <MenuOption
+                            key={item.name}
+                            active={shopType === item.name}
+                            label={item.name}
+                            count={item.count}
+                            onClick={() => {
+                              setShopType(item.name);
+                              setShopId("All");
+                              setCategory("All");
+                              setPage(1);
+                              setMenu(null);
+                            }}
+                          />
+                        ))}
+                      </>
+                    ) : null}
+                    {menu === "shop" ? (
+                      <>
+                        <MenuOption
+                          active={shopId === "All"}
+                          label="All shops"
+                          count={shops.reduce((sum, shop) => sum + shop.count, 0)}
+                          onClick={() => {
+                            setShopId("All");
+                            setCategory("All");
+                            setPage(1);
+                            setMenu(null);
+                          }}
+                        />
+                        {shopChoices.map((shop) => (
+                          <MenuOption
+                            key={shop.id}
+                            active={shopId === shop.id}
+                            label={shop.name}
+                            hint={shop.place}
+                            count={shop.count}
+                            onClick={() => {
+                              setShopId(shop.id);
+                              setCategory("All");
+                              setPage(1);
+                              setMenu(null);
+                            }}
+                          />
+                        ))}
+                      </>
+                    ) : null}
+                    {menu === "category" ? (
+                      <>
+                        <MenuOption
+                          active={category === "All"}
+                          label="All categories"
+                          count={visibleCategories.length}
+                          onClick={() => {
+                            setCategory("All");
+                            setPage(1);
+                            setMenu(null);
+                          }}
+                        />
+                        {categoryChoices.map((item) => (
+                          <MenuOption
+                            key={item.name}
+                            active={category === item.name}
+                            label={item.name}
+                            count={item.count}
+                            onClick={() => {
+                              setCategory(item.name);
+                              setPage(1);
+                              setMenu(null);
+                            }}
+                          />
+                        ))}
+                      </>
+                    ) : null}
+                    {menuQuery.trim() &&
+                    ((menu === "type" && typeChoices.length === 0) ||
+                      (menu === "shop" && shopChoices.length === 0) ||
+                      (menu === "category" && categoryChoices.length === 0)) ? (
+                      <p className="px-2 py-3 text-sm text-[#8a8478]">Nothing matches that.</p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
-            <div className="flex gap-2 border-t border-[#efe8dc] p-3 dark:border-white/10">
+            <div className="flex gap-2 border-t border-[#efe8dc] p-3 lg:hidden dark:border-white/10">
               <button
                 type="button"
                 onClick={() => {
                   setCategory("All");
                   setShopType("All");
-                  setLocation("All");
-                  setOpenFilter(null);
+                  setShopId("All");
+                  setQuery("");
+                  setPage(1);
                 }}
                 className="h-11 flex-1 rounded-full border border-[#e7e0d4] text-sm font-medium dark:border-white/10"
               >
@@ -477,7 +646,7 @@ export function ShopMarket() {
               <button
                 type="button"
                 onClick={() => setFiltersOpen(false)}
-                className="h-11 flex-1 rounded-full bg-[#1f3d32] text-sm font-semibold text-white lg:hidden"
+                className="h-11 flex-1 rounded-full bg-[#1f3d32] text-sm font-semibold text-white"
               >
                 Show products
               </button>
@@ -485,109 +654,104 @@ export function ShopMarket() {
           </aside>
 
           <div className="min-w-0 flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-28">
-            <div className="mb-5 flex gap-2 lg:sticky lg:top-0 lg:z-10 lg:bg-[#f4f1ea] lg:pb-3 lg:pt-1 dark:lg:bg-[#0c0c0c]">
-              <label className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#8a8478]" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search items, shops, types, or locations"
-                  aria-label="Search items"
-                  className="w-full rounded-2xl border border-[#e7e0d4] bg-white py-3 pl-11 pr-4 text-base outline-none placeholder:text-[#a39d90] focus:border-[#1f3d32] dark:border-white/10 dark:bg-[#141414] dark:focus:border-[#6ffbbe] sm:text-sm"
-                />
-              </label>
+            <div className="mb-4 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => setFiltersOpen(true)}
-                className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#e7e0d4] bg-white text-[#1f3d32] dark:border-white/10 dark:bg-[#141414] dark:text-[#6ffbbe] lg:hidden"
+                className="relative inline-flex h-10 items-center gap-2 rounded-full border border-[#e7e0d4] bg-white px-3 text-sm font-medium text-[#1f3d32] dark:border-white/10 dark:bg-[#141414] dark:text-[#6ffbbe] lg:hidden"
                 aria-label="Open filters"
               >
-                <SlidersHorizontal className="size-5" />
-                {[category, shopType, location].filter((value) => value !== "All").length > 0 ? (
-                  <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[#1f3d32] text-[10px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003527]">
-                    {[category, shopType, location].filter((value) => value !== "All").length}
+                <SlidersHorizontal className="size-4" />
+                Refine
+                {activeFilters > 0 ? (
+                  <span className="flex size-5 items-center justify-center rounded-full bg-[#1f3d32] text-[10px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003527]">
+                    {activeFilters}
                   </span>
                 ) : null}
               </button>
+              <p className="text-sm text-[#8a8478]">
+                Page {currentPage} of {pageCount}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  className="rounded-full border border-[#e7e0d4] bg-white px-3 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-white/10 dark:bg-[#141414]"
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage >= pageCount}
+                  onClick={() => setPage((value) => value + 1)}
+                  className="rounded-full border border-[#e7e0d4] bg-white px-3 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-white/10 dark:bg-[#141414]"
+                >
+                  Next
+                </button>
+              </div>
             </div>
 
             {loading ? (
               <p className="py-16 text-center text-sm text-[#8a8478]">Loading the market…</p>
-            ) : groups.length === 0 ? (
+            ) : pageItems.length === 0 ? (
               <div className="rounded-[2rem] border border-dashed border-[#e7e0d4] px-6 py-20 text-center dark:border-white/10">
                 <Store className="mx-auto mb-3 size-8 opacity-40" />
                 <p className="font-medium">
-                  {query.trim() || shopType !== "All" || location !== "All"
-                    ? "No items match these filters."
-                    : "No products in this category yet."}
+                  {query.trim() || activeFilters > 0 ? "No items match these filters." : "No products in the shop yet."}
                 </p>
               </div>
             ) : (
-              <div className="space-y-8 sm:space-y-10">
-                {groups.map((group) => (
-                  <section key={group.name} aria-labelledby={`category-${group.name}`}>
-                    <div className="mb-3 flex items-end justify-between gap-3 px-0.5 sm:mb-4">
-                      <h2
-                        id={`category-${group.name}`}
-                        className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight sm:text-2xl"
-                      >
-                        {group.name}
-                      </h2>
-                      <p className="shrink-0 text-xs text-[#8a8478] sm:text-sm">
-                        {group.items.length} {group.items.length === 1 ? "item" : "items"}
+              <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
+                {pageItems.map((product) => (
+                  <li key={product.id}>
+                    <article
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Add ${product.name} to cart`}
+                      onClick={() => startAdd(product)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          startAdd(product);
+                        }
+                      }}
+                      className="shop-paper flex h-full cursor-pointer flex-col rounded-3xl border border-[#e7e0d4] p-2.5 text-left active:scale-[0.98] dark:border-white/10 dark:bg-[#141414] sm:p-3"
+                    >
+                      <div className="shop-paper relative aspect-[4/3] overflow-hidden rounded-[0.875rem] dark:bg-[#1a1a1a]">
+                        {product.imageSrc ? (
+                          <CatalogProductImage
+                            src={product.imageSrc}
+                            alt=""
+                            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-[#b7b09f]">
+                            <Store className="size-6 sm:size-8" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="mt-2 truncate text-[11px] text-[#8a8478]">
+                        {product.shopName} · {product.place || product.region}
                       </p>
-                    </div>
-                    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                      {group.items.map((product) => (
-                        <li key={product.id}>
-                          <article
-                            role="button"
-                            tabIndex={0}
-                            aria-label={`Add ${product.name} to cart`}
-                            onClick={() => startAdd(product)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                startAdd(product);
-                              }
-                            }}
-                            className="flex h-full cursor-pointer flex-col overflow-hidden rounded-lg border border-[#e7e0d4] bg-white text-left active:scale-[0.98] dark:border-white/10 dark:bg-[#141414] sm:rounded-2xl sm:shadow-[0_10px_28px_-18px_rgba(31,61,50,0.55)]"
-                          >
-                            <div className="relative aspect-square overflow-hidden bg-[#f7f4ee] dark:bg-[#1a1a1a]">
-                              {product.imageSrc ? (
-                                <CatalogProductImage
-                                  src={product.imageSrc}
-                                  alt=""
-                                  className="pointer-events-none absolute inset-0 h-full w-full object-contain p-2"
-                                />
-                              ) : (
-                                <div className="flex h-full items-center justify-center text-[#b7b09f]">
-                                  <Store className="size-6 sm:size-8" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex flex-1 flex-col px-2 pb-2 pt-1.5 sm:p-3">
-                              <h3 className="line-clamp-2 text-[12px] font-normal leading-snug text-[#1c1917] dark:text-zinc-100 sm:min-h-[2.4em] sm:text-sm sm:font-medium">
-                                {product.name}
-                              </h3>
-                              <p className="mt-0.5 hidden truncate text-[11px] text-[#8a8478] sm:block">
-                                {product.shopName} · {product.region}
-                              </p>
-                              <p className="mt-1 text-[13px] font-bold leading-none tracking-tight text-[#006c49] tabular-nums dark:text-[#6ffbbe] sm:mt-2 sm:text-base">
-                                {formatGhs(Number(product.priceGhs))}
-                              </p>
-                              <p className="mt-0.5 hidden text-[11px] text-[#8a8478] sm:block">{product.sellable} in stock</p>
-                              <span className="mt-2 inline-flex h-8 w-full items-center justify-center rounded-lg bg-[#1f3d32] text-[12px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003527]">
-                                Add to cart
-                              </span>
-                            </div>
-                          </article>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
+                      <h3 className="mt-0.5 line-clamp-2 min-h-[2.4em] text-[13px] font-medium leading-snug sm:text-sm">
+                        {product.name}
+                      </h3>
+                      <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-bold leading-none tracking-tight text-[#006c49] tabular-nums dark:text-[#6ffbbe] sm:text-base">
+                            {formatGhs(Number(product.priceGhs))}
+                          </p>
+                          <p className="mt-1 text-[11px] text-[#8a8478]">{product.sellable} in stock</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-[#1f3d32] px-3 py-1.5 text-[12px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003527]">
+                          Add
+                        </span>
+                      </div>
+                    </article>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
             <div className="hidden lg:block">
               <SiteFooter />

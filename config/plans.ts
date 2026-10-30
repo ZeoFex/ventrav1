@@ -3,7 +3,7 @@ export type PlanId = "starter" | "growth" | "pro";
 /** Max active branches per subscription tier (enforced on branch create). */
 export const MAX_BRANCHES_BY_PLAN: Record<PlanId, number> = {
   starter: 1,
-  growth: 3,
+  growth: 5,
   pro: 5,
 };
 
@@ -42,6 +42,8 @@ export interface Plan {
   highlighted: boolean;
   trialDays: number;
   features: string[];
+  /** Not a self-serve package. The card asks the shop to hire VentraPOS or commission a custom build. */
+  custom?: boolean;
 }
 
 export const PLANS: Plan[] = [
@@ -70,8 +72,8 @@ export const PLANS: Plan[] = [
     id: "growth",
     name: "Growth",
     badge: "Most Popular",
-    description: "Reporting, branches, and barcode support for growing SMEs.",
-    bestFor: "Growing SMEs that need better control, reporting, and branch management.",
+    description: "The full VentraPOS toolkit for growing shops, including register controls and approvals.",
+    bestFor: "Growing SMEs that need the complete shop system, reporting, and branch management.",
     priceMonthly: 249,
     priceAnnually: 2490,
     highlighted: true,
@@ -87,34 +89,36 @@ export const PLANS: Plan[] = [
       "Barcode support",
       "Expiry and batch tracking",
       "Refunds and returns",
-      "Up to 3 branches",
+      "Up to 5 branches",
       "Stock transfers between branches",
       "Advanced staff roles and permissions",
       "Cashier performance tracking",
       "Business analytics",
       "Zuri assistant",
+      "Cash reconciliation",
+      "Approval workflows",
+      "Restricted discounts",
+      "Register open and close",
+      "Multi-terminal POS",
+      "Z-reports and audit logs",
+      "Priority support",
     ],
   },
   {
     id: "pro",
     name: "Pro",
+    badge: "Custom",
     description:
-      "Multi-branch scale, register controls, and priority support for serious operators.",
-    bestFor: "Serious supermarkets, pharmacies, and multi-branch businesses.",
-    priceMonthly: 349,
-    priceAnnually: 3490,
+      "Hire VentraPOS to run the system with you, or let us build a custom one for your business.",
+    bestFor: "Shops that want a team on the ground, or a system built around how they work.",
+    priceMonthly: 0,
+    priceAnnually: 0,
     highlighted: false,
-    trialDays: PREMIUM_TRIAL_DAYS,
+    trialDays: 0,
+    custom: true,
     features: [
-      "Everything in Growth",
-      "Up to 5 branches",
-      "Cash reconciliation",
-      "Approval workflows",
-      "Restricted discounts",
-      "Register open/close controls",
-      "Multi-terminal POS support",
-      "Priority support",
-      "Assisted onboarding",
+      "Hire our team to set up and run VentraPOS with you",
+      "Or we build a custom system for your shop",
     ],
   },
 ];
@@ -131,6 +135,7 @@ export function getPlanById(id: PlanId): Plan {
 
 export function getPlanSignupLabel(planId: PlanId): string {
   const plan = getPlanById(planId);
+  if (plan.custom) return `${plan.name} — Custom`;
   if (planId === "starter") return `${plan.name} — Free Forever`;
   return `${plan.name} — ${plan.trialDays}-Day Free Trial`;
 }
@@ -138,9 +143,9 @@ export function getPlanSignupLabel(planId: PlanId): string {
 export function getPlanCtaLabel(planId: PlanId): string {
   if (planId === "starter") return "Get Started Free";
   if (planId === "growth") return "Start Growth Trial";
-  return "Start Pro Trial";
+  return "Talk to us";
 }
 
 export function planHasTrialCountdown(planId: PlanId): boolean {
-  return planId === "growth" || planId === "pro";
+  return planId === "growth";
 }

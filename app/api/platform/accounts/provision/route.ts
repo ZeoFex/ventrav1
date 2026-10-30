@@ -27,6 +27,7 @@ const provisionSchema = z.object({
     fullName: z.string().trim().min(2).max(200),
     email: z.string().trim().email().max(320),
     phone: z.string().trim().max(30).optional(),
+    broughtByName: z.string().trim().max(120).optional(),
     password: createPasswordSchema(),
     plan: z.string().refine(isValidPlanId, "Please select a valid plan"),
     businessType: z

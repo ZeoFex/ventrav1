@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function ShopPage() {
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-[#f4f1ea] lg:h-dvh lg:max-h-dvh lg:min-h-0 lg:overflow-hidden dark:bg-[#0c0c0c]">
+    <div className="shop-paper flex min-h-full flex-1 flex-col bg-[#ffffff] lg:fixed lg:inset-0 lg:h-dvh lg:max-h-dvh lg:min-h-0 lg:overflow-hidden dark:bg-[#0c0c0c]">
       <main className="flex min-h-0 flex-1 flex-col pt-4 lg:overflow-hidden">
         <ShopMarket />
       </main>

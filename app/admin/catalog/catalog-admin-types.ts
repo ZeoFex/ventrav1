@@ -13,11 +13,13 @@ import {
     StoreIcon,
     ClipboardList,
     ShoppingBag,
+    UserPlus,
 } from "lucide-react";
 
 export type TabId =
     | "overview"
     | "shops"
+    | "referrers"
     | "subscriptions"
     | "reviews"
     | "activity"
@@ -92,6 +94,7 @@ export type CatalogShop = {
     createdAt: string;
     updatedAt: string;
     onboardingCompleted: boolean;
+    broughtByName: string | null;
 };
 
 export type ShopProduct = {
@@ -145,12 +148,14 @@ export type ShopDetailTab =
     | "transactions"
     | "customers"
     | "subscription"
+    | "referral"
     | "insights"
     | "account";
 
 export const TABS: { id: TabId; label: string; icon: LucideIcon; group?: string }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard, group: "Platform" },
     { id: "shops", label: "All Shops", icon: StoreIcon, group: "Platform" },
+    { id: "referrers", label: "Referrers", icon: UserPlus, group: "Platform" },
     { id: "subscriptions", label: "Subscriptions", icon: CreditCard, group: "Platform" },
     { id: "reviews", label: "Reviews", icon: MessageSquareQuote, group: "Platform" },
     { id: "activity", label: "Activity logs", icon: ClipboardList, group: "Platform" },

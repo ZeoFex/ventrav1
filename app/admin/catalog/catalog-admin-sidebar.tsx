@@ -220,6 +220,10 @@ export const TAB_META: Record<TabId, { title: string; description: string }> = {
         title: "All Shops",
         description: "Browse tenants, products, subscriptions, and shop insights.",
     },
+    referrers: {
+        title: "Referrers",
+        description: "People who bring shop owners onto VentraPOS, and the shops they brought.",
+    },
     subscriptions: {
         title: "Subscriptions",
         description: "Monitor plans, renewal dates, and past-due accounts.",

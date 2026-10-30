@@ -27,6 +27,10 @@ const patchBody = z
             .union([z.string().min(3).max(30), z.literal("")])
             .optional()
             .nullable(),
+        broughtByName: z
+            .union([z.string().trim().max(120), z.literal("")])
+            .optional()
+            .nullable(),
     })
     .refine(
         (o) =>
@@ -145,6 +149,14 @@ export async function PATCH(
             : {}),
         ...(p.phone !== undefined
             ? { phone: p.phone === "" || p.phone === null ? null : p.phone }
+            : {}),
+        ...(p.broughtByName !== undefined
+            ? {
+                  broughtByName:
+                      p.broughtByName === "" || p.broughtByName === null
+                          ? null
+                          : p.broughtByName.trim(),
+              }
             : {}),
     });
 

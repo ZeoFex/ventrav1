@@ -24,7 +24,7 @@ import { BarcodeHelpPanel } from "./barcode-help-panel";
 import { BarcodeGridModal, type BarcodeLabelProduct } from "./barcode-grid-modal";
 import { BarcodeItem } from "./product-barcode-preview";
 import { CatalogProductImage } from "./catalog-product-image";
-import { generateProductSku } from "./product-catalog-codes";
+import { generateBarcodeNumber } from "./product-catalog-codes";
 import { useBranchContext } from "../branch-context";
 import { useUploadThing } from "@/app/lib/uploadthing";
 
@@ -301,7 +301,7 @@ export function ProductsBarcodesView() {
   const [debouncedProductName, setDebouncedProductName] = useState("");
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [labelDescription, setLabelDescription] = useState("");
-  const [sku, setSku] = useState(() => generateProductSku());
+  const [sku, setSku] = useState(() => generateBarcodeNumber());
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -399,7 +399,7 @@ export function ProductsBarcodesView() {
     setDebouncedProductName("");
     setShowNameSuggestions(false);
     setLabelDescription("");
-    setSku(generateProductSku());
+    setSku(generateBarcodeNumber());
     setImagePreview(null);
     setSelectedFile(null);
     setQuantity(1);
@@ -717,13 +717,16 @@ export function ProductsBarcodesView() {
                   />
                   <button
                     type="button"
-                    onClick={() => setSku(generateProductSku())}
+                    onClick={() => setSku(generateBarcodeNumber())}
                     className="flex items-center justify-center rounded-2xl border border-border px-4 hover:bg-muted dark:border-white/10"
                     title="Generate new barcode number"
                   >
                     <RefreshCw className="size-4" />
                   </button>
                 </div>
+                <p className="ml-1 text-[12px] text-muted-foreground">
+                  Six digits, so the bars stay short enough for a scanner.
+                </p>
               </div>
 
               <div className="space-y-2">
