@@ -28,7 +28,10 @@ const signupSchema = z.object({
         .max(320),
     phone: z.string().trim().max(30).optional(),
     password: createPasswordSchema(),
-    plan: z.string().refine(isValidPlanId, "Please select a valid plan"),
+    plan: z.string().refine(
+        (value) => isValidPlanId(value) && value !== "pro",
+        "Pro is a custom plan. Contact us to hire VentraPOS or request a custom build.",
+    ),
     referralCode: z.string().trim().max(32).optional(),
 });
 

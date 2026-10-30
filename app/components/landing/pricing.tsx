@@ -19,7 +19,7 @@ const comparisonFeatures = [
   {
     category: "Core POS & Inventory",
     items: [
-      { name: "Branches", starter: "1", growth: "Up to 3", pro: "Up to 5" },
+      { name: "Branches", starter: "1", growth: "Up to 5", pro: "Custom" },
       { name: "POS Checkout & Digital Receipts", starter: true, growth: true, pro: true },
       { name: "Product Catalog", starter: true, growth: true, pro: true },
       { name: "View Current Stock Levels", starter: true, growth: true, pro: true },
@@ -43,19 +43,19 @@ const comparisonFeatures = [
   {
     category: "Staff & Management",
     items: [
-      { name: "Staff Accounts", starter: "Up to 2", growth: "Up to 15", pro: "Unlimited" },
+      { name: "Staff Accounts", starter: "Up to 2", growth: "Unlimited", pro: "Custom" },
       { name: "Advanced Roles & Permissions", starter: false, growth: true, pro: true },
       { name: "Cashier Performance Tracking", starter: false, growth: true, pro: true },
       { name: "Refunds & Returns", starter: false, growth: true, pro: true },
-      { name: "Register Open/Close & Reconciliation", starter: false, growth: false, pro: true },
-      { name: "Approval Workflows & Restricted Discounts", starter: false, growth: false, pro: true },
+      { name: "Register Open/Close & Reconciliation", starter: false, growth: true, pro: "Custom" },
+      { name: "Approval Workflows & Restricted Discounts", starter: false, growth: true, pro: "Custom" },
     ],
   },
   {
     category: "Support & Scale",
     items: [
-      { name: "Multi-terminal POS", starter: false, growth: false, pro: true },
-      { name: "Priority Support & Assisted Onboarding", starter: false, growth: false, pro: true },
+      { name: "Multi-terminal POS", starter: false, growth: true, pro: "Custom" },
+      { name: "Hire us, or a custom build", starter: false, growth: false, pro: true },
     ],
   },
 ];
@@ -212,7 +212,7 @@ function PricingCompareMatrix({
                           selected ? "text-white/80 dark:text-[#003527]/70" : "text-muted-foreground"
                         }`}
                       >
-                        {price === 0 ? "Free" : `GHS ${price.toLocaleString()}${period}`}
+                        {plan.custom ? "Custom" : price === 0 ? "Free" : `GHS ${price.toLocaleString()}${period}`}
                       </p>
                     </button>
                   );
@@ -309,7 +309,9 @@ function PricingCompareMatrix({
                               {plan.name}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {price === 0 ? (
+                              {plan.custom ? (
+                                "Custom"
+                              ) : price === 0 ? (
                                 "Free"
                               ) : (
                                 <>
@@ -391,6 +393,10 @@ export function LandingPricing({
   const [showCompare, setShowCompare] = useState(defaultShowCompare);
 
   const handlePlanClick = (plan: (typeof PLANS)[0], cycle: BillingCycle) => {
+    if (plan.custom) {
+      router.push("/contact");
+      return;
+    }
     if (onSelectPlan) {
       onSelectPlan(plan.id as PlanId, cycle);
       return;
@@ -417,8 +423,8 @@ export function LandingPricing({
             Pricing that grows with you
           </h2>
           <p className="mb-10 text-lg leading-relaxed text-muted-foreground">
-            Start free on Starter, or try Growth and Pro with a 14-day trial. Upgrade
-            anytime as your operations expand.
+            Start free on Starter, or try Growth with a 14-day trial. Pro is a custom
+            engagement: hire our team, or let us build a system for your shop.
           </p>
 
           <div className="inline-flex items-center rounded-full border border-border/50 bg-surface-elevated p-1 shadow-sm">
@@ -518,23 +524,31 @@ export function LandingPricing({
                 </div>
 
                 <div className="mb-4 flex items-end gap-1 font-[family-name:var(--font-display)]">
-                  <span
-                    className={`pb-1 text-sm font-medium ${
-                      plan.highlighted ? "text-white/55" : "text-muted-foreground"
-                    }`}
-                  >
-                    GHS
-                  </span>
-                  <span className="text-4xl font-bold leading-none tracking-tight sm:text-[2.75rem]">
-                    {price}
-                  </span>
-                  <span
-                    className={`pb-1 text-sm font-medium ${
-                      plan.highlighted ? "text-white/55" : "text-muted-foreground"
-                    }`}
-                  >
-                    {period}
-                  </span>
+                  {plan.custom ? (
+                    <span className="text-4xl font-bold leading-none tracking-tight sm:text-[2.75rem]">
+                      Custom
+                    </span>
+                  ) : (
+                    <>
+                      <span
+                        className={`pb-1 text-sm font-medium ${
+                          plan.highlighted ? "text-white/55" : "text-muted-foreground"
+                        }`}
+                      >
+                        GHS
+                      </span>
+                      <span className="text-4xl font-bold leading-none tracking-tight sm:text-[2.75rem]">
+                        {price}
+                      </span>
+                      <span
+                        className={`pb-1 text-sm font-medium ${
+                          plan.highlighted ? "text-white/55" : "text-muted-foreground"
+                        }`}
+                      >
+                        {period}
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {plan.trialDays > 0 ? (

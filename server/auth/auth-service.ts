@@ -124,7 +124,7 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
 
     // 5. Transaction: create everything atomically
     const plan: PlanId = input.plan;
-    const isPremiumTrial = plan === "growth" || plan === "pro";
+    const isPremiumTrial = plan === "growth";
     const trialEnd = isPremiumTrial
         ? new Date(Date.now() + PREMIUM_TRIAL_DAYS * 24 * 60 * 60 * 1000)
         : null;
@@ -247,6 +247,7 @@ export interface ProvisionClientInput {
     plan: PlanId;
     phone?: string;
     businessType?: string;
+    broughtByName?: string;
 }
 
 export interface ProvisionClientResult {
@@ -285,11 +286,12 @@ export async function provisionClientAccount(
     const lastName = nameParts.slice(1).join(" ") || null;
     const slug = generateSlug(input.businessName);
     const plan: PlanId = input.plan;
-    const isPremiumTrial = plan === "growth" || plan === "pro";
+    const isPremiumTrial = plan === "growth";
     const trialEnd = isPremiumTrial
         ? new Date(Date.now() + PREMIUM_TRIAL_DAYS * 24 * 60 * 60 * 1000)
         : null;
     const businessName = input.businessName.trim();
+    const broughtByName = input.broughtByName?.trim() || null;
 
     const result = await db.transaction(async (tx) => {
         const [business] = await tx
@@ -300,6 +302,7 @@ export async function provisionClientAccount(
                 businessType: input.businessType?.trim() || null,
                 contactEmail: emailNormalized,
                 phone: input.phone?.trim() || null,
+                broughtByName,
                 plan,
                 subscriptionStatus: "active",
                 currentPeriodEnd: trialEnd,

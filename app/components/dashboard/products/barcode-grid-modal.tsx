@@ -286,9 +286,9 @@ export function BarcodeGridModal({
   #barcode-print-grid svg {
     background: #fff !important;
     width: auto !important;
-    max-width: 40mm !important;
+    max-width: 32mm !important;
     height: auto !important;
-    max-height: 16mm !important;
+    max-height: 14mm !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

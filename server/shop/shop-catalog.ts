@@ -23,6 +23,7 @@ export type ShopListing = {
     shopName: string;
     shopType: string;
     region: string;
+    place: string;
     branchId: string | null;
     sellable: number;
     variations: ShopVariation[];
@@ -65,7 +66,7 @@ export async function listShopCatalog(): Promise<{
             ),
         )
         .orderBy(asc(categories.name), asc(products.name))
-        .limit(400);
+        .limit(2400);
 
     const ids = rows.map((row) => row.id);
     const variationRows = ids.length
@@ -109,6 +110,7 @@ export async function listShopCatalog(): Promise<{
             row.businessRegion?.trim() ||
             row.businessCity?.trim() ||
             "Ghana";
+        const place = row.businessCity?.trim() || region;
         return {
             id: row.id,
             name: row.name,
@@ -119,6 +121,7 @@ export async function listShopCatalog(): Promise<{
             shopName: row.shopName,
             shopType: row.businessType ? businessTypeLabel(row.businessType) : "Other",
             region,
+            place,
             branchId: row.branchId,
             sellable,
             variations: variationsByProduct.get(row.id) ?? [],

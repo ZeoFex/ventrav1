@@ -32,7 +32,7 @@ export function renderCode128Barcode(
       height,
       displayValue: true,
       fontSize,
-      margin: 4,
+      margin: 2,
       background: "transparent",
       lineColor,
       fontOptions: "bold",

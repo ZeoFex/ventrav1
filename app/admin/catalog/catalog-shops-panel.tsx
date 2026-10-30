@@ -16,6 +16,7 @@ import {
     Search,
     Settings2,
     Store,
+    UserPlus,
     Trash2,
     Users,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import {
 import { CatalogShopSubscriptionPanel } from "./catalog-shop-subscription-panel";
 import { CatalogShopInsightsPanel } from "./catalog-shop-insights-panel";
 import { CatalogShopAccountPanel } from "./catalog-shop-account-panel";
+import { CatalogShopReferralPanel } from "./catalog-shop-referral-panel";
 import { CatalogShopSalesPanel } from "./catalog-shop-sales-panel";
 import { CatalogShopCustomersPanel } from "./catalog-shop-customers-panel";
 import { CatalogBulkShopDelete } from "./catalog-bulk-shop-delete";
@@ -70,6 +72,7 @@ const DETAIL_TABS: { id: ShopDetailTab; label: string; icon: React.ComponentType
     { id: "transactions", label: "Transactions", icon: Receipt },
     { id: "customers", label: "Customers", icon: Users },
     { id: "subscription", label: "Subscription", icon: CreditCard },
+    { id: "referral", label: "Referral", icon: UserPlus },
     { id: "account", label: "Account", icon: Settings2 },
     { id: "insights", label: "Insights", icon: LayoutGrid },
 ];
@@ -396,6 +399,12 @@ export function CatalogShopsPanel({
                                         {selectedShop.phone}
                                     </p>
                                 ) : null}
+                                {selectedShop.broughtByName ? (
+                                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                        <UserPlus className="h-3.5 w-3.5" />
+                                        Brought by {selectedShop.broughtByName}
+                                    </p>
+                                ) : null}
                                 {selectedShop.contactEmail ? (
                                     <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                                         <Mail className="h-3.5 w-3.5" />
@@ -483,6 +492,14 @@ export function CatalogShopsPanel({
 
                 {detailTab === "customers" ? (
                     <CatalogShopCustomersPanel token={token} shop={selectedShop} />
+                ) : null}
+
+                {detailTab === "referral" ? (
+                    <CatalogShopReferralPanel
+                        token={token}
+                        shop={selectedShop}
+                        onUpdated={patchShop}
+                    />
                 ) : null}
 
                 {detailTab === "account" ? (

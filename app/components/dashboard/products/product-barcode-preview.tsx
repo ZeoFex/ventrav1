@@ -63,7 +63,7 @@ export function BarcodeItem({
       ) : null}
       <svg
         ref={svgRef}
-        className="barcode-svg mx-auto block h-auto max-h-[16mm] w-auto max-w-[40mm] bg-white"
+        className="barcode-svg mx-auto block h-auto max-h-[14mm] w-auto max-w-[32mm] bg-white"
       />
       {typeof priceGhs === "number" && (
         <div className="mt-1 text-center text-[11px] font-bold tabular-nums">

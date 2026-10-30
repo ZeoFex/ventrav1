@@ -27,6 +27,11 @@ export function generateSku(): string {
     return `VTR-${ts}-${rand}`;
 }
 
+/** Six-digit code so a printed Code 128 stays short enough to scan. */
+export function generateShortBarcode(): string {
+    return String(Math.floor(100_000 + Math.random() * 900_000));
+}
+
 export function prepareVariations(productId: string, variations: any[]) {
     return variations.map((v: any) => ({
         productId,
@@ -35,7 +40,7 @@ export function prepareVariations(productId: string, variations: any[]) {
         priceGhs: v.priceGhs?.toString(),
         stock: toStockQty(v.stock),
         sku: v.sku || generateSku(),
-        barcode: v.barcode || v.sku || generateSku(),
+        barcode: v.barcode || generateShortBarcode(),
     }));
 }
 

@@ -11,7 +11,7 @@ export const COPILOT_FEATURE_ID = "copilot" as const;
 
 export const PLAN_LIMITS = {
   starter: { maxBranches: 1, maxStaff: 2, maxProducts: 500, maxTerminals: 1 },
-  growth: { maxBranches: 3, maxStaff: 15, maxProducts: 5000, maxTerminals: 3 },
+  growth: { maxBranches: 5, maxStaff: -1, maxProducts: -1, maxTerminals: -1 },
   pro: { maxBranches: 5, maxStaff: -1, maxProducts: -1, maxTerminals: -1 },
 } as const;
 
@@ -62,7 +62,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
   growth: {
     "home": true,
     "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,
-    "open-register": false, "pos-scan": true,
+    "open-register": true, "pos-scan": true,
     "reprint-receipts": true,
     "sales": true, "sales-overview": true, "sales-transactions": true,
     "sales-revenue": true, "sales-profit": true,
@@ -85,7 +85,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "reports": true, "reports-sales-summary": true,
     "reports-product-report": true,
     "reports-inventory-valuation": true, "reports-taxes": true,
-    "reports-z-report": false, "reports-branch-profitability": true,
+    "reports-z-report": true, "reports-branch-profitability": true,
     "marketing": true, "marketing-discounts": true,
     "ecommerce-orders": true,
     "settings": true, "settings-profile": true, "settings-receipt": true,
@@ -93,12 +93,12 @@ export const PLAN_FEATURE_ACCESS: Record<PlanId, Record<string, boolean>> = {
     "settings-security": true, "settings-billing": true,
     "settings-referrals": true,
     "support": true,
-    "audit-logs": false, "approval-workflows": false,
-    "restricted-discounts": false, "cash-reconciliation": false,
+    "audit-logs": true, "approval-workflows": true,
+    "restricted-discounts": true, "cash-reconciliation": true,
     "copilot": true,
   },
 
-  // ── PRO — Everything unlocked
+  // ── PRO — Custom engagement. Feature flags stay open for shops already on Pro.
   pro: {
     "home": true,
     "pos": true, "new-sale": true, "held-sales": true, "customer-orders": true,

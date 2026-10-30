@@ -486,6 +486,10 @@ html:not(.dark) .bg-\[\#ffffff\] {
   background-color: var(--surface-card);
 }
 
+html:not(.dark) .shop-paper {
+  background-color: #ffffff;
+}
+
 html:not(.dark) .border-\[\#eef0f2\],
 html:not(.dark) .border-\[\#e5e7eb\] {
   border-color: var(--border);
