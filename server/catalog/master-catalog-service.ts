@@ -89,6 +89,7 @@ export type CatalogShopDto = {
     createdAt: string;
     updatedAt: string;
     onboardingCompleted: boolean;
+    broughtByName: string | null;
 };
 
 /** Product from a specific shop's inventory (read-only, for catalog admin). */
@@ -982,6 +983,7 @@ function mapCatalogShopRow(
         onboardingCompleted: boolean | null;
         paidExtraBranches: number;
         productCount: number;
+        broughtByName: string | null;
     },
     registeredEmails: string[],
     branchCount: number
@@ -1008,6 +1010,7 @@ function mapCatalogShopRow(
         createdAt: toIso(r.createdAt),
         updatedAt: toIso(r.updatedAt),
         onboardingCompleted: r.onboardingCompleted ?? false,
+        broughtByName: r.broughtByName?.trim() || null,
     };
 }
 
@@ -1023,7 +1026,8 @@ export async function listCatalogShops(params: CatalogShopListParams) {
                 ilike(businesses.city, term),
                 ilike(businesses.region, term),
                 ilike(businesses.contactEmail, term),
-                ilike(businesses.phone, term)
+                ilike(businesses.phone, term),
+                ilike(businesses.broughtByName, term)
             )
         );
     }
@@ -1069,6 +1073,7 @@ export async function listCatalogShops(params: CatalogShopListParams) {
             updatedAt: businesses.updatedAt,
             onboardingCompleted: businesses.onboardingCompleted,
             paidExtraBranches: businesses.paidExtraBranches,
+            broughtByName: businesses.broughtByName,
             productCount: sql<number>`count(${products.id})::int`,
         })
         .from(businesses)
@@ -1089,7 +1094,8 @@ export async function listCatalogShops(params: CatalogShopListParams) {
             businesses.createdAt,
             businesses.updatedAt,
             businesses.onboardingCompleted,
-            businesses.paidExtraBranches
+            businesses.paidExtraBranches,
+            businesses.broughtByName
         )
         .orderBy(orderFn(sortCol))
         .limit(params.limit)
@@ -1174,6 +1180,7 @@ export async function getCatalogShopById(
             updatedAt: businesses.updatedAt,
             onboardingCompleted: businesses.onboardingCompleted,
             paidExtraBranches: businesses.paidExtraBranches,
+            broughtByName: businesses.broughtByName,
         })
         .from(businesses)
         .where(eq(businesses.id, businessId))

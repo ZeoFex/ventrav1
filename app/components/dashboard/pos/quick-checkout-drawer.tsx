@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useBranchContext } from "../branch-context";
 import { useBranches } from "../branches/branches-data-hooks";
 import { resolveBranchReceiptMeta } from "./sale/pos-receipt-data";
@@ -13,6 +13,7 @@ import { PosPaymentStep } from "./sale/pos-payment-step";
 import { PosReceiptStep } from "./sale/pos-receipt-step";
 import { computePosTotals } from "./sale/pos-cart-totals";
 import { ProductRow } from "../products/types";
+import { applySoldToCatalog } from "@/app/lib/apply-sold-stock";
 import { usePosConfig } from "./sale/pos-config-hooks";
 import { useSession } from "../../auth/use-session";
 import type { PosReceiptData } from "./sale/pos-receipt-data";
@@ -29,16 +30,34 @@ function newInvoiceId(): string {
 export function QuickCheckoutDrawer({
   isOpen,
   onClose,
+  startAt = "cart",
 }: {
   isOpen: boolean;
   onClose: () => void;
+  /** Where to land when the drawer opens. Payment only if the cart has lines. */
+  startAt?: "cart" | "payment";
 }) {
-  const { lines, setLines, addToCart, increment, decrement, remove, resetCart } = useGlobalCart();
-  const { products = [], mutate: mutateProducts } = useProducts(isOpen);
+  const { lines, setLines, increment, decrement, remove, resetCart, selectedCustomer, selectCustomer, finishActiveCustomerCart } = useGlobalCart();
+  const { products = [], mutate: mutateProducts } = useProducts(isOpen || lines.length > 0);
   const { config } = usePosConfig();
   const { user } = useSession();
   const { branchId } = useBranchContext();
   const { branches = [] } = useBranches();
+
+  const setQuantity = (productId: string, qty: number, variationId?: string) => {
+    const nextQty = Math.floor(qty);
+    if (!Number.isFinite(nextQty) || nextQty <= 0) {
+      remove(productId, variationId);
+      return;
+    }
+    setLines((prev) =>
+      prev.map((l) =>
+        l.productId === productId && l.variationId === variationId
+          ? { ...l, qty: nextQty }
+          : l,
+      ),
+    );
+  };
 
   const branchMeta = useMemo(
     () => resolveBranchReceiptMeta(branches, branchId),
@@ -46,11 +65,18 @@ export function QuickCheckoutDrawer({
   );
 
   const [flow, setFlow] = useState<"cart" | "payment" | "receipt">("cart");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [paymentSnapshot, setPaymentSnapshot] = useState<PosPaymentSnapshot | null>(null);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      setFlow(startAt === "payment" && lines.length > 0 ? "payment" : "cart");
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen, startAt, lines.length]);
 
   const productById = useMemo(() => {
     const m = new Map<string, ProductRow>();
@@ -88,7 +114,7 @@ export function QuickCheckoutDrawer({
       totalGhs: totals.total,
       paymentMethod: paymentLines.length > 1 ? "split" : paymentLines[0]!.paymentMethod,
       paymentLines,
-      customerId: selectedCustomerId,
+      customerId: selectedCustomer?.id ?? null,
       lines: lines.map((l) => {
         const p = productById.get(l.productId)!;
         let price = Number(p.priceGhs);
@@ -131,17 +157,20 @@ export function QuickCheckoutDrawer({
         }
       }
 
-      mutateProducts(
-        (current: ProductRow[] | undefined) => {
-          if (!current) return current;
-          return current.map((p: ProductRow) => {
-            const sold = lines.find((l) => l.productId === p.id);
-            if (!sold) return p;
-            return { ...p, stock: Math.max(0, p.stock - sold.qty) };
-          });
-        },
-        { revalidate: navigator.onLine },
-      );
+        mutateProducts(
+          (current: ProductRow[] | undefined) => {
+            if (!current) return current;
+            return applySoldToCatalog(
+              current,
+              lines.map((l) => ({
+                productId: l.productId,
+                variationId: l.variationId,
+                qty: l.qty,
+              })),
+            );
+          },
+          { revalidate: navigator.onLine },
+        );
 
       setInvoiceId(thisInvoiceId);
       setPaymentSnapshot({ completion, _offline: !navigator.onLine });
@@ -155,6 +184,8 @@ export function QuickCheckoutDrawer({
 
   const receiptData = useMemo((): PosReceiptData | null => {
     if (!invoiceId || !paymentSnapshot || lines.length === 0) return null;
+    const missingProduct = lines.some((l) => !productById.get(l.productId));
+    if (missingProduct && productById.size === 0) return null;
     return buildReceiptData(
       lines,
       productById,
@@ -164,17 +195,17 @@ export function QuickCheckoutDrawer({
       branchMeta.name,
       branchMeta.location,
       receiptSaleId,
-      undefined,
+      selectedCustomer?.name,
       config?.name || "Ventra POS",
       config?.receiptHeader ?? undefined,
       config?.receiptFooter ?? undefined,
       config?.currency || "GHS",
       user?.name || "SYSTEM",
     );
-  }, [invoiceId, receiptSaleId, paymentSnapshot, lines, productById, totals, config, user, branchMeta]);
+  }, [invoiceId, receiptSaleId, paymentSnapshot, lines, productById, totals, config, user, branchMeta, selectedCustomer]);
 
   const handleNewSale = () => {
-    resetCart();
+    finishActiveCustomerCart();
     setPaymentSnapshot(null);
     setInvoiceId(null);
     setReceiptSaleId(null);
@@ -185,16 +216,18 @@ export function QuickCheckoutDrawer({
   return (
     <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()} direction="bottom">
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto mt-24 flex max-h-[92vh] min-h-0 w-full max-w-[480px] flex-col rounded-t-[2rem] bg-background shadow-2xl outline-none sm:max-h-[85vh]">
-          <div className="mx-auto mt-4 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/20" />
-          <div className="flex shrink-0 items-center justify-between border-b px-5 py-4 dark:border-white/10">
-            <h2 className="font-semibold text-lg">{flow === "payment" ? "Payment" : flow === "receipt" ? "Receipt" : "Quick Cart"}</h2>
-            <button onClick={onClose} className="rounded-full bg-surface-elevated p-2 hover:bg-muted">
-              <X className="size-5" />
+        <Drawer.Overlay className="fixed inset-0 z-[80] bg-black/40 backdrop-blur-sm" />
+        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-[80] mx-auto mt-24 flex max-h-[92vh] min-h-0 w-full max-w-[480px] flex-col rounded-t-2xl bg-background shadow-2xl outline-none sm:max-h-[85vh] sm:rounded-t-[2rem]">
+          <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/20" />
+          <div className="flex shrink-0 items-center justify-between border-b px-3 py-2.5 dark:border-white/10 sm:px-5 sm:py-4">
+            <Drawer.Title className="text-[15px] font-semibold sm:text-lg">
+              {flow === "payment" ? "Payment" : flow === "receipt" ? "Receipt" : "Quick Cart"}
+            </Drawer.Title>
+            <button type="button" onClick={onClose} className="rounded-full bg-surface-elevated p-1.5 hover:bg-muted sm:p-2">
+              <X className="size-4 sm:size-5" />
             </button>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-pb-4 px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-pb-4 px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-3">
             {flow === "cart" && (
               <PosCartPanelContent
                 variant="drawer"
@@ -202,11 +235,12 @@ export function QuickCheckoutDrawer({
                 productById={productById}
                 onIncrement={increment}
                 onDecrement={decrement}
+                onSetQuantity={setQuantity}
                 onRemove={remove}
                 onReset={resetCart}
                 onContinue={() => setFlow("payment")}
-                customerId={selectedCustomerId}
-                onCustomerSelect={(c) => setSelectedCustomerId(c?.id || null)}
+                customerId={selectedCustomer?.id ?? null}
+                onCustomerSelect={selectCustomer}
                 discounts={[]}
               />
             )}
@@ -217,7 +251,7 @@ export function QuickCheckoutDrawer({
                   isProcessing={isCheckingOut}
                   onBack={() => setFlow("cart")}
                   onComplete={handlePaymentComplete}
-                  allowCreditDeposit={Boolean(selectedCustomerId)}
+                  allowCreditDeposit={Boolean(selectedCustomer)}
                 />
               </div>
             )}

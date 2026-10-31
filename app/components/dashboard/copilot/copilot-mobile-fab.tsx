@@ -1,9 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { COPILOT_FEATURE_ID } from "@/config/plan-feature-access";
-import { UpgradeTooltip } from "@/app/components/dashboard/sidebar/upgrade-tooltip";
 import { useCopilot } from "./copilot-context";
 import { cn } from "@/lib/utils";
 import { COPILOT_MASCOT_SRC } from "./copilot-mascot-avatar";
@@ -50,11 +49,12 @@ function clampFabPosition(x: number, y: number): FabPosition {
 }
 
 function defaultFabPosition(): FabPosition {
-  const bottomNavReserve = 76;
+  const bottomReserve = 96;
   const side = 16;
+  const x = window.innerWidth - FAB_SIZE_PX - side;
   const y =
-    window.innerHeight - FAB_SIZE_PX - bottomNavReserve - Math.max(16, readSafeAreaBottom());
-  return clampFabPosition(side, y);
+    window.innerHeight - FAB_SIZE_PX - bottomReserve - Math.max(12, readSafeAreaBottom());
+  return clampFabPosition(x, y);
 }
 
 function readStoredPosition(): FabPosition | null {
@@ -134,11 +134,13 @@ function CopilotFabMascot() {
 }
 
 /**
- * Floating Zuri entry for small screens. Draggable so it can be moved away from
- * the cart FAB and bottom navigation.
+ * Floating Zuri button. Hidden on the desktop homepage; on a phone it stays
+ * on screen so it can be dragged.
  */
 export function CopilotMobileFab() {
-  const { toggle, copilotEnabled } = useCopilot();
+  const pathname = usePathname() ?? "";
+  const isHome = pathname === "/dashboard" || pathname === "/dashboard/";
+  const { toggle, copilotEnabled, open } = useCopilot();
   const [position, setPosition] = useState<FabPosition | null>(null);
   const dragRef = useRef({
     active: false,
@@ -230,6 +232,10 @@ export function CopilotMobileFab() {
     drag.moved = false;
   };
 
+  if (!copilotEnabled || open) {
+    return null;
+  }
+
   if (!position) {
     return null;
   }
@@ -241,7 +247,6 @@ export function CopilotMobileFab() {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
-      disabled={!copilotEnabled}
       style={{ left: position.x, top: position.y }}
       className={cn(
         "fixed z-[55] flex size-14 touch-none select-none items-center justify-center rounded-full p-1 transition-[box-shadow,filter] duration-150",
@@ -252,22 +257,16 @@ export function CopilotMobileFab() {
         "dark:shadow-[0_6px_22px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-3px_0_rgba(0,0,0,0.14)]",
         "cursor-grab active:cursor-grabbing active:scale-[0.98] active:brightness-[0.98]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ffbbe] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        !copilotEnabled && "cursor-not-allowed opacity-75",
+        isHome && "lg:hidden",
       )}
-      aria-label={copilotEnabled ? "Open Zuri — drag to move" : "Zuri (Pro plan)"}
-      title={copilotEnabled ? "Zuri — tap to open, drag to move" : "Upgrade to Pro to use Zuri"}
+      aria-label="Open Zuri — drag to move"
+      title="Zuri — tap to open, drag to move"
+      data-tour-target="copilot-mobile"
+      data-tour-mount="main"
     >
       <CopilotFabMascot />
     </button>
   );
 
-  if (!copilotEnabled) {
-    return (
-      <div className="lg:hidden">
-        <UpgradeTooltip featureId={COPILOT_FEATURE_ID}>{button}</UpgradeTooltip>
-      </div>
-    );
-  }
-
-  return <div className="lg:hidden">{button}</div>;
+  return button;
 }

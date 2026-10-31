@@ -12,6 +12,15 @@ type UiMessage = {
   parts: Array<{ type: "text"; text: string }>;
 };
 
+/** Drop leaked tool names so the shop owner only sees the written answer. */
+function visibleReply(raw: string): string {
+  return raw
+    .replace(/<\|[^|>]*\|>/g, "")
+    .replace(/\b(?:get|search|list|suggest|explain|save|request)_[a-z0-9_]+\b/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 function turnsToUiMessages(turns: ChatTurn[]): UiMessage[] {
   return turns.map((t) => ({
     id: nanoid(),
@@ -110,7 +119,7 @@ export function useCopilotChat(
             const t = ev.type;
             if (t === "text-delta" && typeof ev.delta === "string") {
               assistantText += ev.delta;
-              setPendingText(assistantText);
+              setPendingText(visibleReply(assistantText));
             } else if (
               t === "tool-start" &&
               typeof ev.id === "string" &&
@@ -146,10 +155,11 @@ export function useCopilotChat(
       } finally {
         setStreaming(false);
         setPendingTools([]);
-        if (assistantText.trim()) {
+        const reply = visibleReply(assistantText).trim();
+        if (reply) {
           setTurns((t) => [
             ...t,
-            { role: "assistant", content: assistantText.trim() },
+            { role: "assistant", content: reply },
           ]);
         }
         setPendingText("");

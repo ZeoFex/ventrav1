@@ -182,10 +182,9 @@ export function BarcodeGridModal({
                                                 imageSrc={p.imageSrc}
                                                 priceGhs={p.priceGhs}
                                                 unit={p.unit}
-                                                width={1.4}
-                                                height={45}
-                                                fontSize={10}
-                                                className="w-full"
+                                                width={1}
+                                                height={24}
+                                                fontSize={8}
                                             />
                                         </div>
                                     ))}
@@ -286,6 +285,10 @@ export function BarcodeGridModal({
   }
   #barcode-print-grid svg {
     background: #fff !important;
+    width: auto !important;
+    max-width: 32mm !important;
+    height: auto !important;
+    max-height: 14mm !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

@@ -11,6 +11,7 @@ import {
   SquareTerminal,
   UsersRound,
   Megaphone,
+  MessagesSquare,
 } from "lucide-react";
 import type { DashboardNavIconId } from "./dashboard-nav-config";
 
@@ -26,5 +27,6 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavIconId, LucideIcon> = {
   branches: Building2,
   reports: BarChart3,
   marketing: Megaphone,
+  ecommerce: MessagesSquare,
   settings: Settings,
 };

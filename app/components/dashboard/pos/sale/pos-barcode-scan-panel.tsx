@@ -1,6 +1,7 @@
 "use client";
 
 import QRCode from "qrcode";
+import { toast } from "sonner";
 import {
   Keyboard,
   Minus,
@@ -24,18 +25,19 @@ import { useIsDesktopLayout } from "./use-pos-keyboard-wedge";
 import { CatalogProductImage } from "../../products/catalog-product-image";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
+import { lineUnitPrice } from "./pos-cart-totals";
 
 type PosBarcodeScanPanelProps = {
   open: boolean;
   onClose: () => void;
   products: ProductRow[];
-  onProductAdded: (product: ProductRow) => void;
+  onProductAdded: (product: ProductRow, variationId?: string) => void;
   /** Mobile: show live cart under the camera while scanning (camera stays open). */
   mobileCart?: {
     lines: CartLine[];
     productById: Map<string, ProductRow>;
-    onIncrement: (productId: string) => void;
-    onDecrement: (productId: string) => void;
+    onIncrement: (productId: string, variationId?: string) => void;
+    onDecrement: (productId: string, variationId?: string) => void;
     totalGhs: number;
     /** Closes scan + starts payment flow */
     onContinueToPayment?: () => void;
@@ -63,8 +65,8 @@ export function PosBarcodeScanPanel({
   } | null>(null);
 
   const applyScan = useCallback(
-    (product: ProductRow, _barcode: string) => {
-      onProductAdded(product);
+    (product: ProductRow, _barcode: string, variationId?: string) => {
+      onProductAdded(product, variationId);
     },
     [onProductAdded],
   );
@@ -98,8 +100,6 @@ export function PosBarcodeScanPanel({
 
     let cancelled = false;
     setRelayError(null);
-    console.log(`[scan:pair] requesting new relay session…`);
-
     (async () => {
       try {
         const res = await fetch("/api/pos/relay", { method: "POST" });
@@ -108,13 +108,11 @@ export function PosBarcodeScanPanel({
           sessionId: string;
           token: string;
         };
-        console.log(`[scan:pair] session created: id=${data.sessionId} token=${data.token.slice(0, 8)}…`);
         if (cancelled) return;
         setSessionId(data.sessionId);
         setPairToken(data.token);
         const origin = window.location.origin;
         const url = `${origin}/pos-scan?s=${encodeURIComponent(data.sessionId)}&t=${encodeURIComponent(data.token)}`;
-        console.log(`[scan:pair] QR URL: ${url}`);
         const dataUrl = await QRCode.toDataURL(url, {
           width: 220,
           margin: 2,
@@ -122,7 +120,7 @@ export function PosBarcodeScanPanel({
         });
         if (!cancelled) setQrDataUrl(dataUrl);
       } catch (err) {
-        console.error(`[scan:pair] pairing failed:`, err);
+        console.error("POS scan pairing failed:", err);
         if (!cancelled) setRelayError("Pairing unavailable. Check connection.");
       }
     })();
@@ -139,29 +137,26 @@ export function PosBarcodeScanPanel({
     if (!isDesktop) return;
     if (!sessionId || !pairToken) return;
 
-    console.log(`[scan:poll] starting poll loop for session ${sessionId}`);
     let cancelled = false;
     const tick = async () => {
       try {
         const res = await fetch(
           `/api/pos/relay/${encodeURIComponent(sessionId)}/poll?token=${encodeURIComponent(pairToken)}`,
         );
-        if (!res.ok || cancelled) {
-          if (!res.ok) console.log(`[scan:poll] ⚠ poll returned ${res.status}`);
-          return;
-        }
+        if (!res.ok || cancelled) return;
         const data = (await res.json()) as {
           scans: { id: string; barcode: string }[];
         };
-        if (data.scans.length > 0) {
-          console.log(`[scan:poll] 📥 received ${data.scans.length} scan(s):`, data.scans.map(s => s.barcode));
-        }
         for (const s of data.scans) {
           const result = resolveProductFromScan(s.barcode, products);
-          if (result.ok) applyScan(result.product, result.normalizedBarcode);
+          if (result.ok) {
+            applyScan(result.product, result.normalizedBarcode, result.variationId);
+          } else if (result.normalizedBarcode) {
+            toast.error(result.message);
+          }
         }
       } catch (err) {
-        console.error(`[scan:poll] ❌ poll error:`, err);
+        console.error("POS scan poll failed:", err);
       }
     };
 
@@ -170,7 +165,6 @@ export function PosBarcodeScanPanel({
     return () => {
       cancelled = true;
       window.clearInterval(id);
-      console.log(`[scan:poll] stopped poll loop`);
     };
   }, [isDesktop, sessionId, pairToken, applyScan, products]);
 
@@ -224,7 +218,7 @@ export function PosBarcodeScanPanel({
             <p className="mt-0.5 text-[12px] text-muted-foreground sm:text-[13px]">
               {isDesktop
                 ? "Use your phone below, or scan from the sale screen with a handheld scanner."
-                : "Point at the product — any angle or orientation."}
+                : "Point the barcode at the yellow frame."}
             </p>
           </div>
           <button
@@ -317,7 +311,7 @@ export function PosBarcodeScanPanel({
         ) : showMobileCart && mobileCart ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <PosBarcodeScanner
-              active
+              active={!createModal}
               products={products}
               onProductFound={applyScan}
               onCreateProduct={handleCreateProduct}
@@ -344,9 +338,15 @@ export function PosBarcodeScanPanel({
                     {mobileCart.lines.map((line) => {
                       const p = mobileCart.productById.get(line.productId);
                       if (!p) return null;
+                      const variation = line.variationId
+                        ? p.variations?.find((v) => v.id === line.variationId)
+                        : undefined;
+                      const lineKey = line.variationId
+                        ? `${line.productId}:${line.variationId}`
+                        : line.productId;
                       return (
                         <li
-                          key={line.productId}
+                          key={lineKey}
                           className="flex gap-3 rounded-2xl border border-[#eef0f2] bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.08] dark:bg-[#141414] dark:shadow-none"
                         >
                           <div className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-[#f8f9fa] dark:bg-[#1a1a1a] flex items-center justify-center">
@@ -364,19 +364,19 @@ export function PosBarcodeScanPanel({
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-[14px] font-medium leading-snug text-foreground">
-                              {p.name}
+                              {variation ? `${p.name} (${variation.name})` : p.name}
                             </p>
                             <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
-                              {p.sku}
+                              {variation?.sku || p.sku}
                             </p>
                             <p className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">
-                              {formatGhs(Number(p.priceGhs))} each
+                              {formatGhs(lineUnitPrice(line, mobileCart.productById))} each
                             </p>
                             <div className="mt-2 flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() =>
-                                  mobileCart.onDecrement(line.productId)
+                                  mobileCart.onDecrement(line.productId, line.variationId)
                                 }
                                 className="tap-target flex size-9 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#006c49] transition-colors active:bg-[#f4f4f5] dark:border-white/[0.12] dark:text-[#6ffbbe] dark:active:bg-[#262626]"
                                 aria-label="Decrease quantity"
@@ -389,7 +389,7 @@ export function PosBarcodeScanPanel({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  mobileCart.onIncrement(line.productId)
+                                  mobileCart.onIncrement(line.productId, line.variationId)
                                 }
                                 className="tap-target flex size-9 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#006c49] transition-colors active:bg-[#f4f4f5] dark:border-white/[0.12] dark:text-[#6ffbbe] dark:active:bg-[#262626]"
                                 aria-label="Increase quantity"
@@ -438,7 +438,7 @@ export function PosBarcodeScanPanel({
           </div>
         ) : (
           <PosBarcodeScanner
-            active
+            active={!createModal}
             products={products}
             onProductFound={applyScan}
             onCreateProduct={handleCreateProduct}

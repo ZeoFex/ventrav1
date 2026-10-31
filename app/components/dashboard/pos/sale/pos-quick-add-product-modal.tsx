@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { generateProductSku } from "../../products/product-catalog-codes";
 import { type CategoryRow } from "../../products/types";
 import { useSWRConfig } from "swr";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
 
 function slugifyName(name: string): string {
   return name
@@ -38,9 +40,9 @@ export function PosQuickAddProductModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const n = name.trim();
-    const priceNum = Number(price);
+    const priceNum = parseAmountInput(price);
     const costTrim = cost.trim();
-    const costNum = costTrim === "" ? null : Number(costTrim);
+    const costNum = costTrim === "" ? null : parseAmountInput(costTrim);
     const stockNum = Math.max(0, Math.floor(Number(stock) || 0));
 
     if (!n) {
@@ -140,12 +142,9 @@ export function PosQuickAddProductModal({
               <label className="mb-1 block text-[13px] font-medium text-muted-foreground">
                 Price (GHS)
               </label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
+              <AmountInput
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={setPrice}
                 className="w-full rounded-xl border border-[#e5e7eb] bg-transparent px-3 py-2.5 text-[14px] focus:border-[#006c49] focus:outline-none focus:ring-1 focus:ring-[#006c49] dark:border-white/[0.12]"
               />
             </div>
@@ -153,12 +152,9 @@ export function PosQuickAddProductModal({
               <label className="mb-1 block text-[13px] font-medium text-muted-foreground">
                 Cost (GHS, opt.)
               </label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
+              <AmountInput
                 value={cost}
-                onChange={(e) => setCost(e.target.value)}
+                onChange={setCost}
                 placeholder="COGS"
                 className="w-full rounded-xl border border-[#e5e7eb] bg-transparent px-3 py-2.5 text-[14px] focus:border-[#006c49] focus:outline-none focus:ring-1 focus:ring-[#006c49] dark:border-white/[0.12]"
               />
@@ -184,7 +180,7 @@ export function PosQuickAddProductModal({
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-xl border border-[#e5e7eb] bg-transparent px-3 py-2.5 text-[14px] focus:border-[#006c49] focus:outline-none focus:ring-1 focus:ring-[#006c49] dark:border-white/[0.12] dark:bg-[#111]"
+              className="w-full rounded-xl border border-[#e5e7eb] bg-background px-3 py-2.5 text-[14px] text-foreground focus:border-[#006c49] focus:outline-none focus:ring-1 focus:ring-[#006c49] dark:border-white/[0.12] dark:bg-[#141414]"
             >
               <option value="">Uncategorized</option>
               {categories.map((c) => (

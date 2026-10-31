@@ -325,7 +325,7 @@ export function SalesSummaryView() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
                     <KpiCard title="Gross Sales" value={formatGhs(kpis.grossSales)} trend={trends.grossSales} href="/dashboard/sales/revenue" />
                     <KpiCard title="Discounts" value={formatGhs(kpis.discounts)} trend={trends.discounts} invertTrend href="/dashboard/sales/revenue" />
                     <KpiCard title="Net Sales" value={formatGhs(kpis.netSales)} trend={trends.netSales} highlight href="/dashboard/sales/revenue" />
@@ -455,17 +455,19 @@ function KpiCard({
     return (
         <Link
             href={href}
-            className={`relative flex flex-col rounded-[1.25rem] border p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-md ${
+            className={`relative z-0 flex min-w-0 flex-col overflow-hidden rounded-[1.25rem] border p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all hover:z-10 hover:-translate-y-0.5 hover:shadow-md sm:p-4 ${
                 highlight
                     ? "border-[#006c49]/30 bg-[#006c49]/04 dark:border-[#6ffbbe]/30 dark:bg-[#6ffbbe]/05"
                     : "border-[#eef0f2] bg-surface-card dark:border-white/[0.08] dark:bg-[#111]"
             }`}
         >
-            <div className="mb-2 flex items-start justify-between gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{title}</span>
+            <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
+                <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+                    {title}
+                </span>
                 {trend !== undefined && trend !== 0 ? (
                     <div
-                        className={`flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                        className={`flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums sm:text-[10px] ${
                             isPositive
                                 ? "bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
                                 : isNegative
@@ -484,7 +486,7 @@ function KpiCard({
                 ) : null}
             </div>
             <span
-                className={`truncate font-[family-name:var(--font-display)] text-[18px] font-bold tracking-tight ${
+                className={`truncate font-[family-name:var(--font-display)] text-[17px] font-bold tracking-tight sm:text-[18px] ${
                     highlight ? "text-[#006c49] dark:text-[#6ffbbe]" : "text-foreground"
                 }`}
             >

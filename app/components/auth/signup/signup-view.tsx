@@ -45,13 +45,18 @@ function SignupViewContent() {
   
   const isPaid = searchParams.get("paid") === "true";
   const planParam = searchParams.get("plan") || "";
-  const selectedPlan = isValidPlanId(planParam) ? planParam : null;
+  const selectedPlan =
+    isValidPlanId(planParam) && planParam !== "pro" ? planParam : null;
 
   useEffect(() => {
+    if (planParam === "pro") {
+      router.replace("/contact");
+      return;
+    }
     if (!selectedPlan) {
       router.replace("/pricing");
     }
-  }, [selectedPlan, router]);
+  }, [planParam, selectedPlan, router]);
 
   useEffect(() => {
     const emailParam = searchParams.get("email");

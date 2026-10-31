@@ -6,8 +6,10 @@ import {
   IconLock,
 } from "@/app/components/auth/auth-icons";
 import { inputBase, inputPassword } from "@/app/components/auth/auth-input-classes";
+import { GHANA_REGIONS } from "@/app/components/onboarding/constants";
 
-export type LoginType = "owner" | "staff";
+export type LoginType = "owner" | "staff" | "customer";
+export type CustomerAccountMode = "signin" | "create";
 
 type LoginFormProps = {
   loginType: LoginType;
@@ -22,6 +24,12 @@ type LoginFormProps = {
   setShowPassword: (v: boolean | ((s: boolean) => boolean)) => void;
   rememberDevice: boolean;
   setRememberDevice: (v: boolean) => void;
+  accountMode: CustomerAccountMode;
+  onAccountModeChange: (mode: CustomerAccountMode) => void;
+  region: string;
+  setRegion: (v: string) => void;
+  confirmPassword: string;
+  setConfirmPassword: (v: string) => void;
   isSubmitting?: boolean;
   apiError?: string | null;
   onSubmit: (e: React.FormEvent) => void;
@@ -40,11 +48,19 @@ export function LoginForm({
   setShowPassword,
   rememberDevice,
   setRememberDevice,
+  accountMode,
+  onAccountModeChange,
+  region,
+  setRegion,
+  confirmPassword,
+  setConfirmPassword,
   isSubmitting,
   apiError,
   onSubmit,
 }: LoginFormProps) {
   const isOwner = loginType === "owner";
+  const isCustomer = loginType === "customer";
+  const isCreating = isCustomer && accountMode === "create";
 
   return (
     <div className="flex flex-1 flex-col justify-center bg-background px-6 pb-12 pt-8 sm:px-10 lg:justify-start lg:px-16 lg:pb-16 lg:pt-14 xl:px-24">
@@ -68,7 +84,11 @@ export function LoginForm({
         <p className="mt-2 text-[15px] text-muted-foreground">
           {isOwner
             ? "Sign in as the business owner with your email and password."
-            : "Sign in as staff with the phone number and password your manager set up."}
+            : isCreating
+              ? "Create a customer account with your phone number, region, and password."
+              : isCustomer
+                ? "Sign in as a customer with your phone number and password."
+                : "Sign in as staff with the phone number and password your manager set up."}
         </p>
 
         <div className="mt-6">
@@ -83,6 +103,7 @@ export function LoginForm({
           >
             <option value="owner">Owner</option>
             <option value="staff">Staff</option>
+            <option value="customer">Customer</option>
           </select>
         </div>
 
@@ -132,6 +153,26 @@ export function LoginForm({
             </div>
           )}
 
+          {isCreating ? (
+            <label className="block">
+              <span className="mb-2 block text-[13px] font-medium text-muted-foreground">Region</span>
+              <select
+                id="customer-region"
+                required
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                className="w-full rounded-xl border border-[#bfc9c3]/35 bg-surface-card px-3.5 py-2.5 text-[14px] text-foreground outline-none transition-[box-shadow,border-color] focus:border-[#95d3ba] focus:ring-2 focus:ring-[#95d3ba]/25 dark:border-white/[0.12] dark:bg-[#171717]"
+              >
+                <option value="">Select your region</option>
+                {GHANA_REGIONS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <div>
             <div className="relative">
               <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -164,6 +205,27 @@ export function LoginForm({
                 )}
               </button>
             </div>
+            {isCreating ? (
+              <div className="relative mt-3">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <IconLock className="size-[1.125rem]" />
+                </span>
+                <label htmlFor="customer-confirm-password" className="sr-only">
+                  Confirm password
+                </label>
+                <input
+                  id="customer-confirm-password"
+                  name="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  placeholder="Confirm password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={inputPassword}
+                  required
+                />
+              </div>
+            ) : null}
             {isOwner && (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <label className="flex cursor-pointer items-center gap-2 text-[14px] text-muted-foreground">
@@ -196,9 +258,11 @@ export function LoginForm({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                {isOwner ? "Signing in…" : "Continue…"}
+                {isCreating ? "Creating account…" : isOwner || isCustomer ? "Signing in…" : "Continue…"}
               </span>
-            ) : isOwner ? (
+            ) : isCreating ? (
+              "Create account"
+            ) : isOwner || isCustomer ? (
               "Sign in"
             ) : (
               "Continue to verification"
@@ -217,6 +281,18 @@ export function LoginForm({
             </Link>
           </p>
         )}
+
+        {isCustomer ? (
+          <p className="mt-8 text-center text-[14px] text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => onAccountModeChange(isCreating ? "signin" : "create")}
+              className="font-semibold text-[#006c49] hover:underline dark:text-[#6ffbbe]"
+            >
+              {isCreating ? "I already have a customer account" : "Create a customer account"}
+            </button>
+          </p>
+        ) : null}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Tag, Loader2, X } from "lucide-react";
 import { ProductsPageShell } from "./products-page-shell";
 import { useTags } from "./products-data-hooks";
+import { DeleteConfirmModal } from "../ui/delete-confirm-modal";
 
 export function ProductsTagsView() {
   const { tags = [], isLoading, mutate } = useTags();
@@ -174,28 +175,23 @@ export function ProductsTagsView() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deletingTag && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeletingTag(null)} />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-red-500/20 bg-white p-6 shadow-xl dark:bg-[#141414]">
-            <h2 className="text-lg font-bold mb-1">Delete Tag</h2>
-            <p className="text-muted-foreground text-sm mb-6">
-              Are you sure you want to delete <span className="font-bold text-foreground">"{deletingTag.name}"</span>? It will be removed from all products.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setDeletingTag(null)} className="px-5 py-2.5 border rounded-xl font-semibold transition-all hover:bg-muted/30">Cancel</button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="bg-red-600 text-white px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all hover:bg-red-700 shadow-lg shadow-red-600/20"
-              >
-                {isDeleting && <Loader2 className="size-4 animate-spin" />}
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {deletingTag ? (
+        <DeleteConfirmModal
+          title="Delete this tag?"
+          description={
+            <>
+              <span className="font-semibold text-foreground">&quot;{deletingTag.name}&quot;</span> will
+              be removed from all products. This cannot be undone.
+            </>
+          }
+          confirmLabel="Delete tag"
+          isDeleting={isDeleting}
+          onCancel={() => {
+            if (!isDeleting) setDeletingTag(null);
+          }}
+          onConfirm={() => void handleDelete()}
+        />
+      ) : null}
 
     </ProductsPageShell>
   );

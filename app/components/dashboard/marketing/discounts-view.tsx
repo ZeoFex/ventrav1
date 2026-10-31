@@ -6,6 +6,9 @@ import { MarketingPageShell } from "./marketing-page-shell";
 import { useDiscounts } from "./discounts-data-hooks";
 import { useBranchContext } from "../branch-context";
 import { useProducts } from "../products/products-data-hooks";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
+import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 
 export function DiscountsView() {
   const { branchId } = useBranchContext();
@@ -54,9 +57,13 @@ export function DiscountsView() {
         id: editingDiscount?.id,
         name: trimmedName,
         type,
-        value,
+        value: parseAmountInput(value) || value,
         autoApply,
-        minOrderValueGhs: autoApply ? minOrderValueGhs : null,
+        minOrderValueGhs: autoApply
+          ? minOrderValueGhs
+            ? parseAmountInput(minOrderValueGhs)
+            : null
+          : null,
         productIds: limitToProducts ? productIds : null,
         isActive: true,
       };
@@ -230,7 +237,7 @@ export function DiscountsView() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold">Value {type === 'percentage' ? '(%)' : '(GH₵)'}</label>
-                    <input required type="number" step="0.01" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder={type === 'percentage' ? "10" : "50"} className="w-full p-2.5 rounded-xl border bg-transparent font-medium" />
+                    <AmountInput required value={value} onChange={setValue} placeholder={type === 'percentage' ? "10" : "50"} className="w-full p-2.5 rounded-xl border bg-transparent font-medium" />
                   </div>
                 </div>
 
@@ -254,7 +261,7 @@ export function DiscountsView() {
                         </label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">GH₵</span>
-                          <input type="number" step="0.01" min="0" value={minOrderValueGhs} onChange={(e) => setMinOrderValueGhs(e.target.value)} placeholder="0.00" className="w-full py-2.5 pl-10 pr-4 rounded-xl border bg-white dark:bg-[#1a1a1a] font-medium" />
+                          <AmountInput value={minOrderValueGhs} onChange={setMinOrderValueGhs} placeholder="0.00" className="w-full py-2.5 pl-10 pr-4 rounded-xl border bg-white dark:bg-[#1a1a1a] font-medium" />
                         </div>
                       </div>
                     </div>
@@ -341,28 +348,23 @@ export function DiscountsView() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deletingDiscount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeletingDiscount(null)} />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-red-500/20 bg-white p-6 shadow-xl dark:bg-[#141414]">
-            <h2 className="text-xl font-bold mb-2">Delete Promotion</h2>
-            <p className="text-muted-foreground text-[15px] mb-6 leading-relaxed">
-              Are you sure you want to delete <span className="font-bold text-foreground">"{deletingDiscount.name}"</span>? It will no longer be available for new sales.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setDeletingDiscount(null)} className="px-5 py-2.5 border rounded-xl font-semibold transition-all hover:bg-muted/30">Cancel</button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="bg-red-600 text-white px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all hover:bg-red-700 shadow-lg shadow-red-600/20"
-              >
-                {isDeleting && <Loader2 className="size-4 animate-spin" />}
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {deletingDiscount ? (
+        <DeleteConfirmModal
+          title="Delete this promotion?"
+          description={
+            <>
+              <span className="font-semibold text-foreground">&quot;{deletingDiscount.name}&quot;</span>{" "}
+              will no longer be available for new sales. This cannot be undone.
+            </>
+          }
+          confirmLabel="Delete promotion"
+          isDeleting={isDeleting}
+          onCancel={() => {
+            if (!isDeleting) setDeletingDiscount(null);
+          }}
+          onConfirm={() => void handleDelete()}
+        />
+      ) : null}
 
     </MarketingPageShell>
   );

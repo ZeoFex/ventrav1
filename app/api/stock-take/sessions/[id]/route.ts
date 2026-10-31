@@ -5,6 +5,7 @@ import {
     saveStockTakeLines,
     completeStockTakeSession,
 } from "@/server/stock-take/stock-take-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 import { z } from "zod";
 
 const patchSchema = z.discriminatedUnion("intent", [
@@ -78,6 +79,15 @@ export async function PATCH(
                       : 400;
             return NextResponse.json({ error: result.error }, { status: code });
         }
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.stock_take.completed",
+            resource: "stock_take",
+            resourceId: id,
+            detail: "Stock take completed",
+        });
         return NextResponse.json({ success: true });
     } catch (e) {
         console.error("PATCH /api/stock-take/sessions/[id]", e);

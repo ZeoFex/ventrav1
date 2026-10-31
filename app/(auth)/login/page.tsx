@@ -11,6 +11,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function LoginPage() {
-  return <LoginView />;
+type LoginPageProps = {
+  searchParams: Promise<{ as?: string; create?: string; next?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  return (
+    <LoginView
+      initialType={params.as === "customer" ? "customer" : "owner"}
+      startCreating={params.as === "customer" && params.create === "1"}
+      nextPath={params.next === "/shop" ? "/shop" : ""}
+    />
+  );
 }

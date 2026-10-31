@@ -7,6 +7,7 @@ import { useCategories } from "./products-data-hooks";
 import { useBranchContext } from "../branch-context";
 import { useBranches } from "../branches/branches-data-hooks";
 import { SyncProgressModal } from "./sync-progress-modal";
+import { DeleteConfirmModal } from "../ui/delete-confirm-modal";
 
 export function ProductsCategoriesView() {
   const { categories = [], isLoading, mutate } = useCategories();
@@ -191,28 +192,23 @@ export function ProductsCategoriesView() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deletingCategory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeletingCategory(null)} />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-red-500/20 bg-white p-6 shadow-xl dark:bg-[#141414]">
-            <h2 className="text-lg font-bold mb-1">Delete Category</h2>
-            <p className="text-muted-foreground text-sm mb-6">
-              Are you sure you want to delete <span className="font-bold text-foreground">"{deletingCategory.name}"</span>? This will also remove the category from any products assigned to it.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setDeletingCategory(null)} className="px-5 py-2.5 border rounded-xl font-semibold transition-all hover:bg-muted/30">Cancel</button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="bg-red-600 text-white px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all hover:bg-red-700 shadow-lg shadow-red-600/20"
-              >
-                {isDeleting && <Loader2 className="size-4 animate-spin" />}
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {deletingCategory ? (
+        <DeleteConfirmModal
+          title="Delete this category?"
+          description={
+            <>
+              <span className="font-semibold text-foreground">&quot;{deletingCategory.name}&quot;</span>{" "}
+              will be removed from any products assigned to it. This cannot be undone.
+            </>
+          }
+          confirmLabel="Delete category"
+          isDeleting={isDeleting}
+          onCancel={() => {
+            if (!isDeleting) setDeletingCategory(null);
+          }}
+          onConfirm={() => void handleDelete()}
+        />
+      ) : null}
 
     </ProductsPageShell>
   );

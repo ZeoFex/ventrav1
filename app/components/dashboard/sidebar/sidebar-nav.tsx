@@ -98,7 +98,7 @@ export function SidebarNav({
         // 2. Permission checks (Skip for owners or if no permissions defined yet)
         if (user && user.role !== "owner" && user.permissions.length > 0) {
           // Some items (like 'home') might not have explicit permissions or are always allowed
-          if (item.id === "home") return true;
+          if (item.id === "home" || item.id === "ecommerce-orders") return true;
 
           // Check if item id is in user's permissions OR if it has any permitted children
           const hasParentPerm = user.permissions.includes(item.id);

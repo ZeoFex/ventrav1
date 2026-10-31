@@ -12,15 +12,26 @@ const PLANS = [
     id: "growth" as PlanId,
     name: "Growth",
     priceGHS: 150,
-    description: "Perfect for growing businesses with multiple branches.",
-    features: ["Multiple Branches", "Advanced Roles", "Revenue Analytics", "Stock Transfers", "Barcode Scanner Support"],
+    custom: false,
+    description: "The full shop system: branches, register controls, approvals, and reports.",
+    features: [
+      "Up to 5 branches",
+      "Advanced roles and stock transfers",
+      "Register open, close, and cash reconciliation",
+      "Approval workflows and restricted discounts",
+      "Z-reports, audit logs, and barcode scanning",
+    ],
   },
   {
     id: "pro" as PlanId,
     name: "Pro",
-    priceGHS: 300,
-    description: "Advanced controls and governance for serious operations.",
-    features: ["Unlimited Everything", "Register Controls", "Expiry & Batch Tracking", "Z-Reports", "Audit Logs & Approvals"],
+    priceGHS: 0,
+    custom: true,
+    description: "Hire our team, or let us build a custom system for your shop.",
+    features: [
+      "We set up and run VentraPOS with you",
+      "Or we build a custom system around how you work",
+    ],
   },
 ];
 
@@ -37,7 +48,7 @@ export default function UpgradePage() {
     router.push("/dashboard");
   };
 
-  if (selectedPlan && selectedPlan !== "starter") {
+  if (selectedPlan === "growth") {
     return (
       <div className="max-w-4xl mx-auto py-12 px-6">
         <button 
@@ -47,7 +58,7 @@ export default function UpgradePage() {
           &larr; Back to plans
         </button>
         <PaymentFlow 
-          plan={selectedPlan as "growth" | "pro"} 
+          plan="growth" 
           cycle="monthly"
           onSuccess={handleSuccess} 
         />
@@ -63,17 +74,15 @@ export default function UpgradePage() {
         </h1>
         <p className="text-lg text-muted-foreground">
           You are currently on the <span className="font-semibold text-foreground capitalize">{currentPlan}</span> plan. 
-          Choose a plan below to unlock premium features and grow your business.
+          Growth includes the full toolkit. Pro is a custom hire, or a system we build for you.
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
         {PLANS.map((plan) => {
-          const isCurrentPlan = currentPlan === plan.id;
-          // Starter can upgrade to growth or pro. Growth can upgrade to pro. Pro cannot upgrade anywhere.
-          const isUpgradeAllowed = 
-            (currentPlan === "starter") || 
-            (currentPlan === "growth" && plan.id === "pro");
+          const isCurrentPlan = currentPlan === plan.id && !plan.custom;
+          const isUpgradeAllowed = plan.id === "growth" && currentPlan === "starter";
+          const canTalk = plan.custom;
 
           return (
             <div 
@@ -96,8 +105,14 @@ export default function UpgradePage() {
               </div>
 
               <div className="mb-8">
-                <span className="text-4xl font-bold tracking-tight">GHS {plan.priceGHS}</span>
-                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider ml-1">/ month</span>
+                {plan.custom ? (
+                  <span className="text-4xl font-bold tracking-tight">Custom</span>
+                ) : (
+                  <>
+                    <span className="text-4xl font-bold tracking-tight">GHS {plan.priceGHS}</span>
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider ml-1">/ month</span>
+                  </>
+                )}
               </div>
 
               <ul className="space-y-4 mb-8 flex-1">
@@ -110,21 +125,27 @@ export default function UpgradePage() {
               </ul>
 
               <button
-                disabled={isCurrentPlan || !isUpgradeAllowed}
-                onClick={() => setSelectedPlan(plan.id)}
+                disabled={!canTalk && (isCurrentPlan || !isUpgradeAllowed)}
+                onClick={() => {
+                  if (plan.custom) {
+                    router.push("/contact");
+                    return;
+                  }
+                  setSelectedPlan(plan.id);
+                }}
                 className={`w-full py-3 rounded-xl font-medium transition-colors ${
-                  isCurrentPlan
+                  !canTalk && (isCurrentPlan || !isUpgradeAllowed)
                   ? "bg-surface-elevated text-muted-foreground border border-border cursor-not-allowed"
-                  : isUpgradeAllowed
-                    ? "bg-[#006c49] text-white hover:bg-[#005a3c] dark:bg-[#6ffbbe] dark:text-[#003527] dark:hover:bg-[#5debb0]"
-                    : "bg-surface text-muted-foreground border border-border cursor-not-allowed"
+                  : "bg-[#006c49] text-white hover:bg-[#005a3c] dark:bg-[#6ffbbe] dark:text-[#003527] dark:hover:bg-[#5debb0]"
                 }`}
               >
-                {isCurrentPlan 
-                  ? "Active Plan" 
-                  : isUpgradeAllowed 
-                    ? `Upgrade to ${plan.name}` 
-                    : "Included in Pro"}
+                {plan.custom
+                  ? "Hire us or request a custom build"
+                  : isCurrentPlan
+                    ? "Active Plan"
+                    : isUpgradeAllowed
+                      ? "Upgrade to Growth"
+                      : "Included in Growth"}
               </button>
             </div>
           );

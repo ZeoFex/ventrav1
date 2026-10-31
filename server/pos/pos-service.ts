@@ -1,4 +1,4 @@
-import { eq, sql, and, gte, lte, desc, inArray } from "drizzle-orm";
+import { eq, sql, and, gte, lte, desc, inArray, isNotNull } from "drizzle-orm";
 import { db } from "../db";
 import { products, categories, productVariations } from "../db/schema/products";
 import { sales, saleItems, salePaymentLines, REVENUE_SALE_STATUSES } from "../db/schema/sales";
@@ -7,7 +7,6 @@ import { customerAccountEntries } from "../db/schema/customer-account-entries";
 import { notifications } from "../db/schema/notifications";
 import { redis } from "../lib/redis";
 import { invalidateCustomerCaches } from "../customers/customer-account-service";
-import { sellableUnits } from "../stock/sellable-stock";
 import { countReadyForPickupOrders } from "../customer-orders/customer-order-service";
 import {
     accraDateKey,
@@ -21,6 +20,7 @@ import {
     buildSalesInsights,
     pctChange,
 } from "../reports/reports-dashboard-service";
+import { inventoryLivesOnParent } from "../stock/sellable-stock";
 
 const CACHE_KEYS = {
     PRODUCTS_LIST: (bizId: string, brn?: string | null) => `products:biz_${bizId}:brn_${brn || 'all'}:list`,
@@ -80,7 +80,8 @@ function roundMoney(n: number): number {
 
 /**
  * Completes a POS checkout:
- * 1. Deducts stock for all items
+ * 1. Deducts stock for all items (stock may go negative if sold while out of stock;
+ *    restocking adds units back and fills those sales automatically)
  * 2. Records the sale + line items + payment lines (split tender)
  * 3. Optional: posts customer balance (credit) when amount paid &lt; total
  * All in a single atomic transaction.
@@ -125,15 +126,15 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
         normalizedLines.length > 1 ? "split" : normalizedLines[0].paymentMethod;
 
     const result = await db.transaction(async (tx) => {
-        // 1. Deduct stock (must not exceed sellable = stock − reserved)
+        // 1. Deduct stock. Out-of-stock sales are allowed (stock may go negative).
+        // Restocking adds units back and automatically fills those oversold quantities.
         for (const line of input.lines) {
             if (line.quantity <= 0) continue;
 
             if (line.variationId) {
                 const [vr] = await tx
                     .select({
-                        stock: productVariations.stock,
-                        stockReserved: productVariations.stockReserved,
+                        id: productVariations.id,
                     })
                     .from(productVariations)
                     .where(eq(productVariations.id, line.variationId))
@@ -141,27 +142,38 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
                 if (!vr) {
                     throw new Error("Invalid product variation");
                 }
-                const avail = sellableUnits(
-                    Number(vr.stock),
-                    Number(vr.stockReserved ?? 0),
-                );
-                if (avail < line.quantity) {
-                    throw new Error(
-                        `Insufficient available stock for ${line.productName}`,
-                    );
+                const siblingVars = await tx
+                    .select({ stock: productVariations.stock })
+                    .from(productVariations)
+                    .where(eq(productVariations.productId, line.productId));
+                // Bulk-imported items often keep qty on the parent while variations are 0.
+                // Decrement the parent in that case so catalog stock actually moves.
+                if (inventoryLivesOnParent(siblingVars.map((v) => v.stock))) {
+                    await tx
+                        .update(products)
+                        .set({
+                            stock: sql`COALESCE(${products.stock}, 0) - ${line.quantity}`,
+                            updatedAt: new Date(),
+                        })
+                        .where(
+                            and(
+                                eq(products.id, line.productId),
+                                eq(products.businessId, businessId),
+                            ),
+                        );
+                } else {
+                    await tx
+                        .update(productVariations)
+                        .set({
+                            stock: sql`COALESCE(${productVariations.stock}, 0) - ${line.quantity}`,
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(productVariations.id, line.variationId));
                 }
-                await tx
-                    .update(productVariations)
-                    .set({
-                        stock: sql`${productVariations.stock} - ${line.quantity}`,
-                        updatedAt: new Date(),
-                    })
-                    .where(eq(productVariations.id, line.variationId));
             } else {
                 const [pr] = await tx
                     .select({
-                        stock: products.stock,
-                        stockReserved: products.stockReserved,
+                        id: products.id,
                     })
                     .from(products)
                     .where(
@@ -174,19 +186,10 @@ export async function completeCheckout(businessId: string, input: CheckoutInput,
                 if (!pr) {
                     throw new Error("Product not found");
                 }
-                const avail = sellableUnits(
-                    Number(pr.stock),
-                    Number(pr.stockReserved ?? 0),
-                );
-                if (avail < line.quantity) {
-                    throw new Error(
-                        `Insufficient available stock for ${line.productName}`,
-                    );
-                }
                 await tx
                     .update(products)
                     .set({
-                        stock: sql`${products.stock} - ${line.quantity}`,
+                        stock: sql`COALESCE(${products.stock}, 0) - ${line.quantity}`,
                         updatedAt: new Date(),
                     })
                     .where(
@@ -496,16 +499,7 @@ async function getTopSellingProductIds(
     );
 }
 
-function productHasSellableStock(p: {
-    stock?: number;
-    stockAvailable?: number;
-    variations?: { stock: number; stockAvailable?: number }[];
-}): boolean {
-    if ((p.stockAvailable ?? p.stock ?? 0) > 0) return true;
-    return Boolean(p.variations?.some((v) => (v.stockAvailable ?? v.stock) > 0));
-}
-
-/** Active in-stock products ordered by recent sales volume, with catalog fallback. */
+/** Active products people have actually bought in the last 30 days. */
 async function resolveQuickSaleProducts(businessId: string, branchId?: string | null) {
     const { getProducts } = await import("../products/product-service");
     const catalog = (await getProducts(businessId, branchId)) as Array<{
@@ -517,27 +511,16 @@ async function resolveQuickSaleProducts(businessId: string, branchId?: string | 
         variations?: { stock: number; stockAvailable?: number }[];
     }>;
 
-    const activeInStock = catalog.filter(
-        (p) => p.status === "active" && productHasSellableStock(p),
-    );
+    const activeCatalog = catalog.filter((p) => p.status === "active");
 
-    const topIds = await getTopSellingProductIds(businessId, branchId);
+    const topIds = await getTopSellingProductIds(businessId, branchId, 6);
     const rankById = new Map(topIds.map((t, i) => [t.productId, i]));
+    const qtyById = new Map(topIds.map((t) => [t.productId, t.qtySold]));
 
-    const ranked = activeInStock
+    return activeCatalog
         .filter((p) => rankById.has(p.id))
-        .sort((a, b) => (rankById.get(a.id) ?? 999) - (rankById.get(b.id) ?? 999));
-
-    if (ranked.length >= 6) {
-        return ranked.slice(0, QUICK_SALE_LIMIT);
-    }
-
-    const rankedIds = new Set(ranked.map((p) => p.id));
-    const fillers = activeInStock
-        .filter((p) => !rankedIds.has(p.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-    return [...ranked, ...fillers].slice(0, QUICK_SALE_LIMIT);
+        .sort((a, b) => (rankById.get(a.id) ?? 999) - (rankById.get(b.id) ?? 999))
+        .map((p) => ({ ...p, qtySold: qtyById.get(p.id) ?? 0 }));
 }
 
 /**
@@ -545,7 +528,7 @@ async function resolveQuickSaleProducts(businessId: string, branchId?: string | 
  * - Today's total sales and transaction count
  * - Comparison with yesterday
  * - 10 most recent transactions
- * - Quick-sale carousel products (best sellers, last 30 days)
+ * - Products customers have been buying (last 30 days)
  */
 export async function getDashboardHomeData(businessId: string, branchId?: string | null) {
     const cacheKey = CACHE_KEYS.DASHBOARD_HOME(businessId, branchId);
@@ -558,12 +541,15 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+    const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     // Fetch in parallel
     const [
         [todayTotals],
         [yesterdayTotals],
+        [weekTotals],
         recentSales,
+        topCustomers,
         quickSaleProducts,
         readyForPickupCount,
     ] = await Promise.all([
@@ -593,7 +579,19 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
                 inArray(sales.status, REVENUE_SALE_STATUSES),
             )),
 
-        // 3. Recent activity (last 10)
+        // 3. Last 7 days
+        db.select({
+            totalRevenue: sql<string>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
+        })
+            .from(sales)
+            .where(and(
+                eq(sales.businessId, businessId),
+                branchFilter(branchId),
+                gte(sales.createdAt, weekStart),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
+            )),
+
+        // 4. Recent activity (last 10)
         db.select({
             id: sales.id,
             invoiceId: sales.invoiceId,
@@ -605,15 +603,35 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
             .orderBy(desc(sales.createdAt))
             .limit(10),
 
-        // 4. Quick-sale carousel (best sellers in last 30 days)
+        // 5. Regular customers by spend
+        db.select({
+            id: customers.id,
+            name: customers.name,
+            orderCount: sql<number>`COUNT(*)::int`,
+            spentGhs: sql<string>`COALESCE(SUM(${sales.totalGhs}::numeric), 0)`,
+        })
+            .from(sales)
+            .innerJoin(customers, eq(sales.customerId, customers.id))
+            .where(and(
+                eq(sales.businessId, businessId),
+                branchFilter(branchId),
+                isNotNull(sales.customerId),
+                inArray(sales.status, REVENUE_SALE_STATUSES),
+            ))
+            .groupBy(customers.id, customers.name)
+            .orderBy(desc(sql`SUM(${sales.totalGhs}::numeric)`))
+            .limit(5),
+
+        // 6. Products customers have bought in the last 30 days
         resolveQuickSaleProducts(businessId, branchId),
 
-        // 5. Layaway orders awaiting pickup
+        // 7. Layaway orders awaiting pickup
         countReadyForPickupOrders(businessId, branchId),
     ]);
 
     const todayRev = Number(todayTotals.totalRevenue);
     const yesterdayRev = Number(yesterdayTotals.totalRevenue);
+    const weekRev = Number(weekTotals.totalRevenue);
     const vsYesterdayDiffGhs = todayRev - yesterdayRev;
 
     let vsYesterdayPercent = 0;
@@ -629,11 +647,18 @@ export async function getDashboardHomeData(businessId: string, branchId?: string
         transactionCount: todayTotals.totalTransactions,
         vsYesterdayDiffGhs,
         vsYesterdayPercent,
+        thisWeekSalesGhs: weekRev,
         recentSales: recentSales.map(s => ({
             id: s.id,
             invoiceId: s.invoiceId,
             totalGhs: Number(s.totalGhs),
             createdAt: s.createdAt,
+        })),
+        topCustomers: topCustomers.map((c) => ({
+            id: c.id,
+            name: c.name,
+            orderCount: Number(c.orderCount),
+            spentGhs: Number(c.spentGhs),
         })),
         quickSaleProducts,
         readyForPickupCount,

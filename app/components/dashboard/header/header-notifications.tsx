@@ -1,8 +1,10 @@
 "use client";
 
 import { Bell, Package, Receipt, Settings, X, Info, AlertTriangle, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useId, useState } from "react";
-import { useNotifications } from "./notifications-data-hooks";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { useNotifications, isOnlineCustomerAlert } from "./notifications-data-hooks";
 import type { NotificationIcon } from "./notifications-data-hooks";
 
 function formatTimeAgo(dateInput: string) {
@@ -29,25 +31,38 @@ function IconFor({ icon }: { icon: NotificationIcon }) {
 
 export function HeaderNotifications() {
   const [open, setOpen] = useState(false);
+  const [panelTop, setPanelTop] = useState(72);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
   const { notifications, mutate, isLoading, isError } = useNotifications();
   const panelId = useId();
   const unread = notifications.filter((i) => !i.isRead).length;
+
+  const placePanel = useCallback(() => {
+    const header = bellRef.current?.closest("header");
+    const rect = header?.getBoundingClientRect() ?? bellRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPanelTop(Math.round(rect.bottom));
+  }, []);
 
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
     if (!open) return;
+    placePanel();
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") close();
     }
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", placePanel);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", placePanel);
       document.body.style.overflow = prev;
     };
-  }, [open, close]);
+  }, [open, close, placePanel]);
 
   const markAllRead = useCallback(async () => {
     mutate(notifications.map((n) => ({ ...n, isRead: true })), false);
@@ -70,9 +85,13 @@ export function HeaderNotifications() {
   return (
     <>
       <button
+        ref={bellRef}
         type="button"
-        onClick={() => setOpen(true)}
-        className="tap-target relative flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground sm:size-10 dark:hover:bg-[#1a1a1a]"
+        onClick={() => {
+          placePanel();
+          setOpen(true);
+        }}
+        className="tap-target relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground sm:size-10 sm:rounded-xl dark:hover:bg-[#1a1a1a]"
         aria-label="Open notifications"
         aria-expanded={open}
         aria-controls={panelId}
@@ -85,17 +104,15 @@ export function HeaderNotifications() {
         )}
       </button>
 
-      <div
-        className={`fixed inset-0 z-[100] transition-[opacity,visibility] duration-300 ease-out ${
-          open
-            ? "visible opacity-100"
-            : "invisible pointer-events-none opacity-0"
-        }`}
-        aria-hidden={!open}
-      >
+      {open
+        ? createPortal(
+            <div
+              className="fixed inset-x-0 bottom-0 z-[80]"
+              style={{ top: panelTop + 10 }}
+            >
         <button
           type="button"
-          className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+          className="absolute inset-0 bg-[#0b1a14]/30 dark:bg-black/45"
           aria-label="Close notifications"
           onClick={close}
         />
@@ -105,11 +122,12 @@ export function HeaderNotifications() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="notifications-drawer-title"
-          className={`absolute inset-y-0 right-0 flex h-full w-full max-w-sm flex-col border-l border-[#bfc9c3]/20 bg-surface-card shadow-[0_0_0_1px_rgba(0,0,0,0.03),-24px_0_48px_-12px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] dark:border-white/[0.08] dark:bg-[#0a0a0a] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),-24px_0_48px_-12px_rgba(0,0,0,0.5)] ${
-            open ? "translate-x-0" : "translate-x-full"
-          }`}
+          style={{
+            maxHeight: `min(26rem, calc(100dvh - ${panelTop + 10}px - 0.75rem - env(safe-area-inset-bottom)))`,
+          }}
+          className="relative mx-3 flex flex-col overflow-hidden rounded-2xl border border-[#d7e0db] bg-surface-card shadow-[0_16px_40px_-18px_rgba(0,30,20,0.4)] dark:border-white/[0.1] dark:bg-[#111] sm:ml-auto sm:mr-4 sm:w-[22.5rem]"
         >
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#bfc9c3]/15 px-4 py-4 dark:border-white/[0.08]">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#bfc9c3]/15 px-4 py-3.5 dark:border-white/[0.08]">
             <div>
               <h2
                 id="notifications-drawer-title"
@@ -172,7 +190,13 @@ export function HeaderNotifications() {
                   <li key={n.id}>
                     <button
                       type="button"
-                      onClick={() => markRead(n.id)}
+                      onClick={() => {
+                        void markRead(n.id);
+                        if (isOnlineCustomerAlert(n.title)) {
+                          close();
+                          router.push("/dashboard/ecommerce");
+                        }
+                      }}
                       className={`flex w-full gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface-elevated/80 dark:hover:bg-[#141414]/90 ${
                         !n.isRead ? "bg-[#006c49]/[0.04] dark:bg-[#6ffbbe]/[0.04]" : ""
                       }`}
@@ -208,20 +232,11 @@ export function HeaderNotifications() {
               </ul>
             )}
           </div>
-
-          <div className="shrink-0 border-t border-[#bfc9c3]/15 px-4 py-3 dark:border-white/[0.08]">
-            <button
-              type="button"
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#bfc9c3]/20 py-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-[#006c49]/30 hover:bg-[#006c49]/08 hover:text-[#006c49] dark:border-white/[0.1] dark:hover:border-[#6ffbbe]/25 dark:hover:bg-[#6ffbbe]/08 dark:hover:text-[#6ffbbe]"
-              disabled
-              title="Coming soon"
-            >
-              <Settings className="size-4" strokeWidth={2} aria-hidden />
-              Notification settings
-            </button>
-          </div>
         </div>
-      </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

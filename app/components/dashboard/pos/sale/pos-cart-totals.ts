@@ -3,7 +3,7 @@ import type { Discount } from "../../marketing/discounts-data-hooks";
 
 export type CartLine = { productId: string; qty: number; variationId?: string };
 
-function lineUnitPrice(line: CartLine, productById: Map<string, ProductRow>): number {
+export function lineUnitPrice(line: CartLine, productById: Map<string, ProductRow>): number {
   const p = productById.get(line.productId);
   if (!p) return 0;
 

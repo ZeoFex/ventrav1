@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
     Activity,
     Building2,
+    ChevronRight,
+    ContactRound,
     Loader2,
     MapPin,
     Percent,
@@ -14,7 +16,8 @@ import { BRANCH_ADDON_PRICE_MONTHLY_GHS } from "@/config/plans";
 import { BUSINESS_TYPES } from "@/config/business-types";
 import { cn } from "@/lib/utils";
 import type { CatalogShop } from "./catalog-admin-types";
-import { authHeaders, formatWhen } from "./catalog-admin-utils";
+import { CatalogActivityDetailPanel } from "./catalog-activity-detail-panel";
+import { authHeaders, formatWhen, readResponseJson } from "./catalog-admin-utils";
 
 type Branch = {
     id: string;
@@ -38,8 +41,13 @@ type Discount = {
 
 type AuditLog = {
     id: string;
-    action: string;
-    resource: string;
+    actionLabel: string;
+    resourceLabel: string;
+    detail: string | null;
+    actorName: string | null;
+    actorEmail?: string | null;
+    shopName?: string | null;
+    source?: "platform" | "shop";
     createdAt: string;
 };
 
@@ -88,6 +96,7 @@ export function CatalogShopInsightsPanel({
     const [adding, setAdding] = useState(false);
     const [addError, setAddError] = useState<string | null>(null);
     const [addSuccess, setAddSuccess] = useState<string | null>(null);
+    const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -98,18 +107,23 @@ export function CatalogShopInsightsPanel({
                 fetch(`/api/platform/overview?businessId=${shop.id}`, { headers }),
                 fetch(`/api/platform/branches?${q}`, { headers }),
                 fetch(`/api/platform/discounts?${q}`, { headers }),
-                fetch(`/api/platform/audit-logs?${q}`, { headers }),
+                fetch(
+                    `/api/platform/activity-logs?businessId=${shop.id}&source=shops&limit=30&offset=0`,
+                    { headers },
+                ),
             ]);
             const [overview, branchData, discountData, auditData] = await Promise.all([
-                overviewRes.json(),
-                branchesRes.json(),
-                discountsRes.json(),
-                auditRes.json(),
+                readResponseJson<{ counts?: Record<string, number> }>(overviewRes).catch(
+                    () => null,
+                ),
+                readResponseJson<{ items?: Branch[] }>(branchesRes).catch(() => null),
+                readResponseJson<{ items?: Discount[] }>(discountsRes).catch(() => null),
+                readResponseJson<{ items?: AuditLog[] }>(auditRes).catch(() => null),
             ]);
-            if (overviewRes.ok) setStats({ counts: overview.counts });
-            if (branchesRes.ok) setBranches(branchData.items ?? []);
-            if (discountsRes.ok) setDiscounts(discountData.items ?? []);
-            if (auditRes.ok) setAuditLogs(auditData.items ?? []);
+            if (overviewRes.ok && overview) setStats({ counts: overview.counts ?? {} });
+            if (branchesRes.ok && branchData) setBranches(branchData.items ?? []);
+            if (discountsRes.ok && discountData) setDiscounts(discountData.items ?? []);
+            if (auditRes.ok && auditData) setAuditLogs(auditData.items ?? []);
         } finally {
             setLoading(false);
         }
@@ -121,6 +135,7 @@ export function CatalogShopInsightsPanel({
 
     const monthlyAddon =
         (shop.paidExtraBranches ?? 0) * BRANCH_ADDON_PRICE_MONTHLY_GHS;
+    const selectedLog = auditLogs.find((log) => log.id === selectedLogId) ?? null;
 
     const handleAddBranch = async () => {
         if (!addName.trim()) {
@@ -177,11 +192,12 @@ export function CatalogShopInsightsPanel({
 
     return (
         <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <InsightCard icon={Users} label="Team" value={c.users ?? 0} />
                 <InsightCard icon={Building2} label="Branches" value={shop.branchCount} />
-                <InsightCard icon={Percent} label="Promotions" value={c.discounts ?? 0} />
+                <InsightCard icon={ContactRound} label="Customers" value={c.customers ?? 0} />
                 <InsightCard icon={Activity} label="Sales" value={c.sales ?? 0} />
+                <InsightCard icon={Percent} label="Promotions" value={c.discounts ?? 0} />
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -359,28 +375,77 @@ export function CatalogShopInsightsPanel({
             <section className="rounded-xl border border-border bg-card p-5">
                 <h3 className="flex items-center gap-2 font-semibold text-foreground">
                     <Activity className="h-4 w-4" />
-                    Recent activity
+                    Recent shop activity
                 </h3>
+                {selectedLogId ? (
+                    <div className="mt-4">
+                        <CatalogActivityDetailPanel
+                            token={token}
+                            entryId={selectedLogId}
+                            fallback={
+                                selectedLog
+                                    ? {
+                                          actionLabel: selectedLog.actionLabel,
+                                          resourceLabel: selectedLog.resourceLabel,
+                                          detail: selectedLog.detail,
+                                          shopName: selectedLog.shopName,
+                                          actorName: selectedLog.actorName,
+                                          actorEmail: selectedLog.actorEmail,
+                                          createdAt: selectedLog.createdAt,
+                                          source: selectedLog.source,
+                                      }
+                                    : null
+                            }
+                            onClose={() => setSelectedLogId(null)}
+                        />
+                    </div>
+                ) : null}
                 {auditLogs.length === 0 ? (
-                    <p className="mt-4 text-sm text-muted-foreground">No audit logs yet.</p>
+                    <p className="mt-4 text-sm text-muted-foreground">
+                        No sales, customers, products, or staff activity yet for this shop.
+                    </p>
                 ) : (
                     <ul className="mt-4 divide-y divide-border">
-                        {auditLogs.map((log) => (
-                            <li
-                                key={log.id}
-                                className="flex flex-col gap-0.5 py-3 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                                <div>
-                                    <p className="text-sm font-medium text-foreground">
-                                        {log.action}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">{log.resource}</p>
-                                </div>
-                                <time className="text-xs text-muted-foreground">
-                                    {formatWhen(log.createdAt)}
-                                </time>
-                            </li>
-                        ))}
+                        {auditLogs.map((log) => {
+                            const isOpen = selectedLogId === log.id;
+                            return (
+                                <li key={log.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setSelectedLogId(isOpen ? null : log.id)
+                                        }
+                                        className={cn(
+                                            "-mx-2 flex w-[calc(100%+1rem)] flex-col gap-0.5 rounded-lg px-2 py-3 text-left transition sm:flex-row sm:items-center sm:justify-between",
+                                            isOpen
+                                                ? "bg-primary/5"
+                                                : "hover:bg-muted/40",
+                                        )}
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-foreground">
+                                                {log.actionLabel}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {[
+                                                    log.resourceLabel,
+                                                    log.detail,
+                                                    log.actorName,
+                                                ]
+                                                    .filter(Boolean)
+                                                    .join(" · ")}
+                                            </p>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <time className="text-xs text-muted-foreground">
+                                                {formatWhen(log.createdAt)}
+                                            </time>
+                                            <ChevronRight className="hidden size-4 text-muted-foreground sm:block" />
+                                        </div>
+                                    </button>
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
             </section>

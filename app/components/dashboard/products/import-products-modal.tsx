@@ -1,7 +1,21 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { X, Upload, FileType, Check, AlertCircle, Loader2, Table, CheckCircle2, DownloadCloud } from "lucide-react";
-import Papa from "papaparse";
-import * as XLSX from "xlsx";
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    AlertCircle,
+    CheckCircle2,
+    DownloadCloud,
+    ImageIcon,
+    Loader2,
+    Plus,
+    Trash2,
+    X,
+} from "lucide-react";
+import { parseAmountInput, formatAmountGrouping } from "@/app/lib/parse-amount";
+import { PRODUCT_UNITS } from "@/app/lib/product-units";
+import { useCategories, useTags } from "./products-data-hooks";
+import { useSession } from "@/app/components/auth/use-session";
+import { useUploadThing } from "@/app/lib/uploadthing";
 
 type ImportProductsModalProps = {
     isOpen: boolean;
@@ -9,441 +23,924 @@ type ImportProductsModalProps = {
     onImport: () => void;
 };
 
-type Step = "upload" | "mapping" | "preview" | "importing" | "success";
+type Step = "sheet" | "importing" | "success";
+
+type VariationGroup = {
+    type: string;
+    values: string;
+};
+
+type SheetRow = {
+    id: string;
+    name: string;
+    priceGhs: string;
+    costPriceGhs: string;
+    stock: string;
+    unit: string;
+    barcode: string;
+    categoryId: string;
+    description: string;
+    reorderAt: string;
+    status: "active" | "archived";
+    imageFile: File | null;
+    imagePreview: string | null;
+    imageSrc: string;
+    variationGroups: VariationGroup[];
+    tagIds: string[];
+};
+
+const COLUMNS = [
+    { key: "name", label: "Product name", required: true, width: "min-w-[180px]" },
+    { key: "priceGhs", label: "Price (GHS)", required: true, width: "min-w-[120px]" },
+    { key: "costPriceGhs", label: "Cost (GHS)", required: false, width: "min-w-[120px]" },
+    { key: "stock", label: "Stock", required: false, width: "min-w-[88px]" },
+    { key: "unit", label: "Unit", required: false, width: "min-w-[120px]" },
+    { key: "image", label: "Image", required: false, width: "min-w-[88px]" },
+    { key: "barcode", label: "Barcode", required: false, width: "min-w-[140px]" },
+    { key: "variations", label: "Variations", required: false, width: "min-w-[200px]" },
+    { key: "description", label: "Description", required: false, width: "min-w-[180px]" },
+    { key: "categoryId", label: "Category", required: false, width: "min-w-[140px]" },
+    { key: "status", label: "Status", required: false, width: "min-w-[110px]" },
+    { key: "reorderAt", label: "Reorder at", required: false, width: "min-w-[100px]" },
+    { key: "tagIds", label: "Tags", required: false, width: "min-w-[160px]" },
+] as const;
+
+type ColumnKey = (typeof COLUMNS)[number]["key"];
+type TextColumnKey = Exclude<ColumnKey, "image" | "variations" | "tagIds">;
+
+const EMPTY_STARTER_ROWS = 8;
+
+function variationTypeOptions(businessType?: string | null): string[] {
+    const bType = businessType || "general_retail_store";
+    if (bType === "boutique_fashion" || bType === "boutique") return ["Size", "Color"];
+    if (bType === "agrochemical_shop" || bType === "agro_chemicals")
+        return ["Pack size", "Volume / weight", "Concentration"];
+    if (bType === "pharmacy") return ["Dosage", "Pack Size"];
+    if (bType === "electronics_store" || bType === "electronics")
+        return ["Storage", "Color", "Model"];
+    if (bType === "cold_store") return ["Cut", "Weight", "Pack Size"];
+    return ["Size", "Color", "Material", "Style"];
+}
+
+function parseVariationValues(raw: string): string[] {
+    return raw
+        .split(/[,|/]+/)
+        .map((v) => v.trim())
+        .filter(Boolean);
+}
+
+function expandVariationGroups(
+    groups: VariationGroup[],
+    fallbackPrice: string,
+): { type: string; name: string; priceGhs: string; stock: number }[] {
+    return groups.flatMap((group) =>
+        parseVariationValues(group.values).map((name) => ({
+            type: group.type,
+            name,
+            priceGhs: fallbackPrice,
+            stock: 0,
+        })),
+    );
+}
+
+function newRow(): SheetRow {
+    return {
+        id: `row_${Math.random().toString(36).slice(2, 10)}`,
+        name: "",
+        priceGhs: "",
+        costPriceGhs: "",
+        stock: "",
+        unit: "piece",
+        barcode: "",
+        categoryId: "",
+        description: "",
+        reorderAt: "",
+        status: "active",
+        imageFile: null,
+        imagePreview: null,
+        imageSrc: "",
+        variationGroups: [],
+        tagIds: [],
+    };
+}
+
+function isRowBlank(row: SheetRow): boolean {
+    return (
+        !row.name.trim() &&
+        !row.priceGhs.trim() &&
+        !row.costPriceGhs.trim() &&
+        !row.stock.trim() &&
+        !row.barcode.trim() &&
+        !row.description.trim() &&
+        !row.categoryId &&
+        !row.reorderAt.trim() &&
+        !row.imageFile &&
+        !row.imageSrc.trim() &&
+        row.variationGroups.length === 0 &&
+        row.tagIds.length === 0 &&
+        row.status === "active"
+    );
+}
+
+function ImageCell({
+    row,
+    onFile,
+    onClear,
+}: {
+    row: SheetRow;
+    onFile: (file: File) => void;
+    onClear: () => void;
+}) {
+    return (
+        <div className="flex h-10 items-center gap-1 px-1.5">
+            <label className="flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-[#e5e7eb] bg-muted/40 dark:border-white/[0.12]">
+                {row.imagePreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={row.imagePreview} alt="" className="size-full object-cover" />
+                ) : (
+                    <ImageIcon className="size-3.5 opacity-40" />
+                )}
+                <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) onFile(file);
+                        e.target.value = "";
+                    }}
+                />
+            </label>
+            {row.imagePreview ? (
+                <button
+                    type="button"
+                    onClick={onClear}
+                    className="rounded p-0.5 text-muted-foreground hover:text-red-600"
+                    aria-label="Remove image"
+                >
+                    <X className="size-3" />
+                </button>
+            ) : (
+                <span className="truncate text-[11px] text-muted-foreground">Add</span>
+            )}
+        </div>
+    );
+}
+
+function TagsCell({
+    selectedIds,
+    tags,
+    onChange,
+}: {
+    selectedIds: string[];
+    tags: { id: string; name: string }[];
+    onChange: (ids: string[]) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => {
+            if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        return () => document.removeEventListener("mousedown", onDown);
+    }, [open]);
+
+    const names = tags.filter((t) => selectedIds.includes(t.id)).map((t) => t.name);
+    const summary = names.length > 0 ? names.join(", ") : "Choose…";
+
+    return (
+        <div ref={rootRef} className="relative px-1 py-1">
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="h-8 w-full truncate rounded-md px-2 text-left text-[12px] hover:bg-[#006c49]/8"
+            >
+                {summary}
+            </button>
+            {open ? (
+                <div className="absolute left-0 top-full z-50 mt-1 max-h-48 w-52 overflow-auto rounded-xl border border-[#e5e7eb] bg-white p-2 shadow-xl dark:border-white/[0.12] dark:bg-[#141414]">
+                    {tags.length === 0 ? (
+                        <p className="px-2 py-1.5 text-[12px] text-muted-foreground">No tags yet</p>
+                    ) : (
+                        tags.map((t) => {
+                            const on = selectedIds.includes(t.id);
+                            return (
+                                <label
+                                    key={t.id}
+                                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] hover:bg-muted"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={on}
+                                        onChange={() =>
+                                            onChange(
+                                                on
+                                                    ? selectedIds.filter((id) => id !== t.id)
+                                                    : [...selectedIds, t.id],
+                                            )
+                                        }
+                                    />
+                                    {t.name}
+                                </label>
+                            );
+                        })
+                    )}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+function VariationCell({
+    groups,
+    typeOptions,
+    onChange,
+}: {
+    groups: VariationGroup[];
+    typeOptions: string[];
+    onChange: (groups: VariationGroup[]) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [customType, setCustomType] = useState("");
+    const rootRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => {
+            if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        return () => document.removeEventListener("mousedown", onDown);
+    }, [open]);
+
+    const toggleType = (type: string) => {
+        if (groups.some((g) => g.type === type)) {
+            onChange(groups.filter((g) => g.type !== type));
+        } else {
+            onChange([...groups, { type, values: "" }]);
+        }
+    };
+
+    const filled = groups.filter((g) => parseVariationValues(g.values).length > 0);
+    const summary =
+        filled.length > 0
+            ? filled.map((g) => `${g.type} (${parseVariationValues(g.values).length})`).join(", ")
+            : groups.length > 0
+              ? groups.map((g) => g.type).join(", ")
+              : "Choose types…";
+
+    return (
+        <div ref={rootRef} className="relative px-1 py-1">
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="h-8 w-full truncate rounded-md px-2 text-left text-[12px] text-foreground hover:bg-[#006c49]/8"
+            >
+                {summary}
+            </button>
+            {open ? (
+                <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-xl border border-[#e5e7eb] bg-white p-3 shadow-xl dark:border-white/[0.12] dark:bg-[#141414]">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Variation types
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                        {typeOptions.map((t) => {
+                            const on = groups.some((g) => g.type === t);
+                            return (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => toggleType(t)}
+                                    className={`rounded-lg px-2 py-1 text-[11px] font-semibold ${
+                                        on
+                                            ? "bg-[#006c49] text-white dark:bg-[#6ffbbe] dark:text-[#003527]"
+                                            : "border border-[#e5e7eb] hover:bg-muted dark:border-white/[0.12]"
+                                    }`}
+                                >
+                                    {t}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-2 flex gap-1.5">
+                        <input
+                            value={customType}
+                            onChange={(e) => setCustomType(e.target.value)}
+                            placeholder="Custom type"
+                            className="h-8 min-w-0 flex-1 rounded-lg border border-[#e5e7eb] px-2 text-[12px] dark:border-white/[0.12] dark:bg-transparent"
+                            onKeyDown={(e) => {
+                                if (e.key !== "Enter") return;
+                                e.preventDefault();
+                                const t = customType.trim();
+                                if (!t) return;
+                                toggleType(t);
+                                setCustomType("");
+                            }}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const t = customType.trim();
+                                if (!t) return;
+                                toggleType(t);
+                                setCustomType("");
+                            }}
+                            className="rounded-lg border border-[#e5e7eb] px-2 text-[11px] font-semibold dark:border-white/[0.12]"
+                        >
+                            Add
+                        </button>
+                    </div>
+                    {groups.map((g) => (
+                        <label key={g.type} className="mt-2 block">
+                            <span className="text-[11px] font-semibold text-foreground">{g.type} options</span>
+                            <input
+                                value={g.values}
+                                placeholder="e.g. S, M, L"
+                                onChange={(e) =>
+                                    onChange(
+                                        groups.map((x) =>
+                                            x.type === g.type ? { ...x, values: e.target.value } : x,
+                                        ),
+                                    )
+                                }
+                                className="mt-0.5 h-8 w-full rounded-lg border border-[#e5e7eb] px-2 text-[12px] dark:border-white/[0.12] dark:bg-transparent"
+                            />
+                        </label>
+                    ))}
+                    <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                        SKU and barcode for each option are generated automatically.
+                    </p>
+                </div>
+            ) : null}
+        </div>
+    );
+}
 
 export function ImportProductsModal({ isOpen, onClose, onImport }: ImportProductsModalProps) {
-    const [step, setStep] = useState<Step>("upload");
-    const [file, setFile] = useState<File | null>(null);
-    const [parsedData, setParsedData] = useState<any[]>([]);
-    const [headers, setHeaders] = useState<string[]>([]);
-    const [mapping, setMapping] = useState<Record<string, string>>({});
-    const [isParsing, setIsParsing] = useState(false);
+    const { categories = [] } = useCategories();
+    const { tags = [] } = useTags();
+    const { user } = useSession();
+    const { startUpload } = useUploadThing("productImage");
+    const typeOptions = useMemo(() => variationTypeOptions(user?.businessType), [user?.businessType]);
+    const [step, setStep] = useState<Step>("sheet");
+    const [rows, setRows] = useState<SheetRow[]>(() =>
+        Array.from({ length: EMPTY_STARTER_ROWS }, () => newRow()),
+    );
     const [error, setError] = useState<string | null>(null);
-
-    // Progress states
+    const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
     const [importProgress, setImportProgress] = useState(0);
     const [visualProgress, setVisualProgress] = useState(0);
     const [totalRows, setTotalRows] = useState(0);
     const [processedRows, setProcessedRows] = useState(0);
+    const cellRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
+    const pendingFocusRef = useRef<{ rowIndex: number; col: ColumnKey } | null>(null);
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    // Smooth visual progress counter
     useEffect(() => {
-        if (step === "importing") {
-            const timer = setInterval(() => {
-                setVisualProgress(prev => {
-                    // Creep towards the next 5% mark even if no chunk has finished yet
-                    // to give visual feedback that something is happening.
-                    const target = Math.max(importProgress, 2); 
-                    if (prev < target) {
-                        return prev + 0.5; // Small increment for smoothness
-                    }
-                    if (prev < 99 && importProgress > 0) {
-                        return prev + 0.1; // Slow creep while waiting for next chunk
-                    }
-                    return prev;
-                });
-            }, 50);
-            return () => clearInterval(timer);
-        } else if (step === "success") {
+        const pending = pendingFocusRef.current;
+        if (!pending) return;
+        pendingFocusRef.current = null;
+        const row = rows[pending.rowIndex];
+        if (!row) return;
+        cellRefs.current[`${row.id}:${pending.col}`]?.focus();
+    }, [rows]);
+
+    useEffect(() => {
+        if (step !== "importing") return;
+        const timer = setInterval(() => {
+            setVisualProgress((prev) => {
+                const target = Math.max(importProgress, 2);
+                if (prev < target) return prev + 0.5;
+                if (prev < 99 && importProgress > 0) return prev + 0.1;
+                return prev;
+            });
+        }, 50);
+        return () => clearInterval(timer);
+    }, [step, importProgress]);
+
+    useEffect(() => {
+        if (step === "success") {
             setVisualProgress(100);
             setImportProgress(100);
         }
-    }, [step, importProgress]);
+    }, [step]);
 
     const reset = useCallback(() => {
-        setStep("upload");
-        setFile(null);
-        setParsedData([]);
-        setHeaders([]);
-        setMapping({});
+        setStep("sheet");
+        setRows(Array.from({ length: EMPTY_STARTER_ROWS }, () => newRow()));
         setError(null);
-        setIsParsing(false);
+        setRowErrors({});
         setImportProgress(0);
         setVisualProgress(0);
         setProcessedRows(0);
+        setTotalRows(0);
     }, []);
 
-    if (!isOpen) return null;
+    const filledCount = useMemo(() => rows.filter((r) => !isRowBlank(r)).length, [rows]);
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            processFile(selectedFile);
-        }
-    };
-
-    const processFile = async (selectedFile: File) => {
-        setIsParsing(true);
-        setError(null);
-        setFile(selectedFile);
-
-        const extension = selectedFile.name.split(".").pop()?.toLowerCase();
-
-        try {
-            if (extension === "csv") {
-                Papa.parse(selectedFile, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: (results) => {
-                        if (results.data && results.data.length > 0) {
-                            setParsedData(results.data);
-                            setHeaders(Object.keys(results.data[0] as object));
-                            autoMapHeaders(Object.keys(results.data[0] as object));
-                            setStep("mapping");
-                        } else {
-                            setError("The CSV file seems to be empty or invalid.");
-                        }
-                        setIsParsing(false);
-                    },
-                    error: (err) => {
-                        setError(`Error parsing CSV: ${err.message}`);
-                        setIsParsing(false);
-                    },
-                });
-            } else if (extension === "xlsx" || extension === "xls") {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = e.target?.result;
-                        const workbook = XLSX.read(data, { type: "binary" });
-                        const sheetName = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[sheetName];
-                        const json = XLSX.utils.sheet_to_json(worksheet);
-
-                        if (json && json.length > 0) {
-                            setParsedData(json);
-                            setHeaders(Object.keys(json[0] as object));
-                            autoMapHeaders(Object.keys(json[0] as object));
-                            setStep("mapping");
-                        } else {
-                            setError("The Excel file seems to be empty or invalid.");
-                        }
-                    } catch (err) {
-                        setError("Failed to parse Excel file.");
-                    }
-                    setIsParsing(false);
-                };
-                reader.readAsBinaryString(selectedFile);
-            } else {
-                setError("Unsupported file format. Please upload a CSV or Excel file.");
-                setIsParsing(false);
-            }
-        } catch (err) {
-            setError("An unexpected error occurred while processing the file.");
-            setIsParsing(false);
-        }
-    };
-
-    const productFields = [
-        { key: "name", label: "Product Name", required: true },
-        { key: "sku", label: "SKU", required: true },
-        { key: "priceGhs", label: "Price (GHS)", required: true },
-        { key: "stock", label: "Stock Level", required: false },
-        { key: "unit", label: "Unit (kg, g, lb, piece…)", required: false },
-        { key: "reorderAt", label: "Reorder Alert Level", required: false },
-        { key: "categoryId", label: "Category ID", required: false },
-        { key: "description", label: "Description", required: false },
-    ];
-
-    const autoMapHeaders = (fileHeaders: string[]) => {
-        const newMapping: Record<string, string> = {};
-        productFields.forEach((field) => {
-            const match = fileHeaders.find(
-                (h) =>
-                    h.toLowerCase().includes(field.key.toLowerCase()) ||
-                    h.toLowerCase().includes(field.label.toLowerCase())
-            );
-            if (match) {
-                newMapping[field.key] = match;
-            }
+    const updateRow = useCallback((id: string, key: TextColumnKey, value: string) => {
+        setRows((prev) => {
+            const next = prev.map((row) => (row.id === id ? { ...row, [key]: value } : row));
+            const last = next[next.length - 1];
+            if (last && !isRowBlank(last)) next.push(newRow());
+            return next;
         });
-        setMapping(newMapping);
+        setRowErrors((prev) => {
+            if (!prev[id]) return prev;
+            const copy = { ...prev };
+            delete copy[id];
+            return copy;
+        });
+    }, []);
+
+    const patchRow = useCallback((id: string, patch: Partial<SheetRow>) => {
+        setRows((prev) => {
+            const next = prev.map((row) => (row.id === id ? { ...row, ...patch } : row));
+            const last = next[next.length - 1];
+            if (last && !isRowBlank(last)) next.push(newRow());
+            return next;
+        });
+        setRowErrors((prev) => {
+            if (!prev[id]) return prev;
+            const copy = { ...prev };
+            delete copy[id];
+            return copy;
+        });
+    }, []);
+
+    const handleSheetKeyDown = (
+        e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+        rowIndex: number,
+    ) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            void handleImport();
+            return;
+        }
+        if (e.key !== "Enter" || e.shiftKey) return;
+        e.preventDefault();
+        const nextIndex = rowIndex + 1;
+        pendingFocusRef.current = { rowIndex: nextIndex, col: "name" };
+        setRows((prev) => {
+            const next = [...prev];
+            while (next.length <= nextIndex) next.push(newRow());
+            return next;
+        });
     };
 
-    const handleMappingChange = (fieldKey: string, headerName: string) => {
-        setMapping((prev) => ({ ...prev, [fieldKey]: headerName }));
+    const removeRow = (id: string) => {
+        setRows((prev) => {
+            const next = prev.filter((r) => r.id !== id);
+            return next.length >= 1 ? next : [newRow()];
+        });
     };
 
     const handleImport = async () => {
+        const filled = rows.filter((r) => !isRowBlank(r));
+        if (filled.length === 0) {
+            setError("Enter at least one product. Name and price are required.");
+            return;
+        }
+
+        const nextErrors: Record<string, string> = {};
+        const drafts: {
+            row: SheetRow;
+            price: number;
+            cost: number | null;
+            stockNum: number;
+            reorderNum: number;
+        }[] = [];
+
+        for (const row of filled) {
+            if (!row.name.trim()) {
+                nextErrors[row.id] = "Product name is required.";
+                continue;
+            }
+            const price = parseAmountInput(row.priceGhs);
+            if (!Number.isFinite(price) || price < 0) {
+                nextErrors[row.id] = "Enter a valid selling price.";
+                continue;
+            }
+            const costTrim = row.costPriceGhs.trim();
+            const cost = costTrim === "" ? null : parseAmountInput(costTrim);
+            if (costTrim && (!Number.isFinite(cost) || (cost as number) < 0)) {
+                nextErrors[row.id] = "Cost must be a valid amount, or left blank.";
+                continue;
+            }
+            const stockNum =
+                row.stock.trim() === ""
+                    ? 0
+                    : Math.max(0, Math.round(parseAmountInput(row.stock)));
+            if (row.stock.trim() && !Number.isFinite(stockNum)) {
+                nextErrors[row.id] = "Stock must be a whole number, or left blank.";
+                continue;
+            }
+            const reorderNum =
+                row.reorderAt.trim() === "" ? 0 : Math.max(0, Math.round(Number(row.reorderAt)));
+            if (row.reorderAt.trim() && !Number.isFinite(reorderNum)) {
+                nextErrors[row.id] = "Reorder level must be a whole number, or left blank.";
+                continue;
+            }
+            drafts.push({ row, price, cost, stockNum, reorderNum });
+        }
+
+        setRowErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) {
+            setError("Fix the highlighted rows. Name and price are required; other fields can stay empty.");
+            return;
+        }
+
         setStep("importing");
         setError(null);
-        setImportProgress(2); // Initial jump to show life
+        setImportProgress(2);
+        setTotalRows(drafts.length);
 
-        const mappedData = parsedData.map((row) => {
-            const item: any = {};
-            productFields.forEach((field) => {
-                const fileHeader = mapping[field.key];
-                if (fileHeader) {
-                    item[field.key] = row[fileHeader];
+        const items: Record<string, unknown>[] = [];
+        for (const draft of drafts) {
+            const { row, price, cost, stockNum, reorderNum } = draft;
+            let imageSrc = row.imageSrc.trim() || null;
+            if (row.imageFile) {
+                try {
+                    const uploaded = await startUpload([row.imageFile]);
+                    if (uploaded?.[0]?.url) imageSrc = uploaded[0].url;
+                } catch {
+                    setError("Image upload failed. Try a smaller photo or skip the image.");
+                    setStep("sheet");
+                    return;
                 }
+            }
+            items.push({
+                name: row.name.trim(),
+                priceGhs: String(price),
+                ...(cost != null ? { costPriceGhs: String(cost) } : {}),
+                stock: stockNum,
+                reorderAt: reorderNum,
+                unit: row.unit.trim() || "piece",
+                barcode: row.barcode.trim() || null,
+                description: row.description.trim() || "",
+                categoryId: row.categoryId || null,
+                status: row.status,
+                imageSrc,
+                tagIds: row.tagIds,
+                variations: expandVariationGroups(row.variationGroups, String(price)),
             });
-            return item;
-        });
-
-        const total = mappedData.length;
-        setTotalRows(total);
+        }
         const chunkSize = 500;
         let processed = 0;
 
         try {
-            for (let i = 0; i < total; i += chunkSize) {
-                const chunk = mappedData.slice(i, i + chunkSize);
-                
+            for (let i = 0; i < items.length; i += chunkSize) {
+                const chunk = items.slice(i, i + chunkSize);
                 const res = await fetch("/api/products/bulk", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ items: chunk }),
                 });
-
                 if (!res.ok) {
-                    const data = await res.json();
-                    throw new Error(data.error || "Bulk import failed at chunk " + (Math.floor(i / chunkSize) + 1));
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(
+                        typeof data.error === "string"
+                            ? data.error
+                            : `Bulk import failed at chunk ${Math.floor(i / chunkSize) + 1}`,
+                    );
                 }
-
                 processed += chunk.length;
                 setProcessedRows(processed);
-                setImportProgress(Math.min(Math.round((processed / total) * 100), 100));
+                setImportProgress(Math.min(Math.round((processed / items.length) * 100), 100));
             }
-
             setStep("success");
             onImport();
-            
             setTimeout(() => {
                 onClose();
                 reset();
             }, 2500);
-
-        } catch (err: any) {
-            setError(err.message);
-            setStep("mapping"); // Go back so they can fix mapping if needed
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Bulk import failed");
+            setStep("sheet");
         }
     };
 
+    if (!isOpen) return null;
+
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-2xl animate-in fade-in zoom-in duration-200 rounded-[2rem] border border-[#eef0f2] bg-white shadow-2xl dark:border-white/[0.08] dark:bg-[#111] overflow-hidden">
-                <div className="px-8 py-6 border-b border-[#f0f2f4] dark:border-white/[0.06] flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold tracking-tight text-foreground font-[family-name:var(--font-display)]">
-                            Import Products
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm sm:p-4">
+            <div className="flex max-h-[92vh] w-full max-w-[1240px] animate-in fade-in zoom-in duration-200 flex-col overflow-hidden rounded-[1.5rem] border border-[#eef0f2] bg-white shadow-2xl dark:border-white/[0.08] dark:bg-[#111]">
+                <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#f0f2f4] px-5 py-4 dark:border-white/[0.06] sm:px-6">
+                    <div className="min-w-0">
+                        <h2 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-foreground">
+                            Import products
                         </h2>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {step === "upload" && "Upload a CSV or Excel file to import products."}
-                            {step === "mapping" && "Map your file columns to product fields."}
-                            {step === "preview" && "Review the data before final import."}
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                            {step === "sheet" &&
+                                "Fill the spreadsheet. Name and price are required. SKU, slug, and variation codes are generated automatically."}
                             {step === "importing" && "Adding products to your catalog..."}
                             {step === "success" && "Products successfully imported."}
                         </p>
                     </div>
-                    {step !== "importing" && (
+                    {step !== "importing" ? (
                         <button
+                            type="button"
                             onClick={() => {
                                 onClose();
                                 reset();
                             }}
-                            className="rounded-full p-2 hover:bg-[#f4f5f7] dark:hover:bg-white/5 transition-colors"
+                            className="rounded-full p-2 transition-colors hover:bg-[#f4f5f7] dark:hover:bg-white/5"
+                            aria-label="Close"
                         >
                             <X className="size-5" />
                         </button>
-                    )}
+                    ) : null}
                 </div>
 
-                <div className="p-8">
-                    {error && (
-                        <div className="mb-6 flex items-start gap-3 rounded-2xl bg-red-50 p-4 text-red-800 dark:bg-red-900/20 dark:text-red-400 border border-red-100 dark:border-red-900/30">
+                <div className="min-h-0 flex-1 overflow-hidden p-4 sm:p-5">
+                    {error ? (
+                        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-3 text-red-800 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400">
                             <AlertCircle className="mt-0.5 size-4 shrink-0" />
                             <p className="text-[13px] leading-relaxed">{error}</p>
                         </div>
-                    )}
+                    ) : null}
 
-                    {step === "upload" && (
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => {
-                                e.preventDefault();
-                                const droppedFile = e.dataTransfer.files[0];
-                                if (droppedFile) processFile(droppedFile);
-                            }}
-                            className="group relative flex flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-[#e5e7eb] bg-[#fafafa] py-16 px-6 text-center transition-all hover:border-[#006c49]/40 hover:bg-[#006c49]/5 dark:border-white/[0.08] dark:bg-white/[0.02] dark:hover:border-[#6ffbbe]/40 dark:hover:bg-[#6ffbbe]/5 cursor-pointer"
-                        >
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".csv, .xlsx, .xls"
-                                onChange={handleFileSelect}
-                                className="hidden"
-                            />
-                            <div className="mb-6 flex size-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-[#e5e7eb] group-hover:scale-110 transition-transform dark:bg-[#1a1a1a] dark:ring-white/[0.08]">
-                                {isParsing ? (
-                                    <Loader2 className="size-8 animate-spin text-[#006c49] dark:text-[#6ffbbe]" />
-                                ) : (
-                                    <Upload className="size-8 text-muted-foreground" strokeWidth={1.5} />
-                                )}
-                            </div>
-                            <p className="text-[17px] font-semibold text-foreground">
-                                {isParsing ? "Reading file..." : "Click or drag file to upload"}
-                            </p>
-                            <p className="mt-2 text-[14px] text-muted-foreground">
-                                Support .csv, .xlsx, .xls (max 10MB)
-                            </p>
-                            <div className="mt-8 flex items-center justify-center gap-4">
-                                <div className="flex items-center gap-2 rounded-xl bg-[#f0f2f4] px-4 py-1.5 text-[12px] font-bold text-muted-foreground dark:bg-white/5">
-                                    <FileType className="size-4" />
-                                    CSV
-                                </div>
-                                <div className="flex items-center gap-2 rounded-xl bg-[#f0f2f4] px-4 py-1.5 text-[12px] font-bold text-muted-foreground dark:bg-white/5">
-                                    <Table className="size-4" />
-                                    EXCEL
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {step === "mapping" && (
-                        <div className="space-y-6">
-                            <div className="rounded-2xl border border-[#e5e7eb] bg-[#fafafa] p-6 dark:border-white/[0.08] dark:bg-white/[0.02]">
-                                <p className="text-[14px] font-medium text-muted-foreground mb-4 flex items-center gap-2">
-                                    <Check className="size-4 text-[#006c49] dark:text-[#6ffbbe]" />
-                                    Successfully loaded <strong>{parsedData.length}</strong> rows
+                    {step === "sheet" ? (
+                        <div className="flex h-full min-h-0 flex-col gap-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-[12px] text-muted-foreground">
+                                    <span className="font-semibold text-foreground">{filledCount}</span> product
+                                    {filledCount === 1 ? "" : "s"} entered
+                                    <span className="mx-2 text-[#d1d5db]">·</span>
+                                    Press Enter for the next row · Ctrl/⌘ + Enter to import
                                 </p>
-                                <div className="grid gap-5 sm:grid-cols-2">
-                                    {productFields.map((field) => (
-                                        <div key={field.key} className="space-y-2">
-                                            <label className="text-[12px] font-bold text-muted-foreground uppercase tracking-widest">
-                                                {field.label} {field.required && <span className="text-red-500">*</span>}
-                                            </label>
-                                            <select
-                                                value={mapping[field.key] || ""}
-                                                onChange={(e) => handleMappingChange(field.key, e.target.value)}
-                                                className="w-full rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 text-[15px] outline-none focus:border-[#006c49]/40 focus:ring-4 focus:ring-[#006c49]/5 dark:border-white/[0.12] dark:bg-[#141414] transition-all"
-                                            >
-                                                <option value="">-- Don't Map --</option>
-                                                {headers.map((h) => (
-                                                    <option key={h} value={h}>
-                                                        {h}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    ))}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRows((prev) => [...prev, newRow()])}
+                                        className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] px-3 py-1.5 text-[12px] font-semibold hover:bg-[#f4f5f7] dark:border-white/[0.12] dark:hover:bg-white/5"
+                                    >
+                                        <Plus className="size-3.5" />
+                                        Add row
+                                    </button>
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => setStep("preview")}
-                                disabled={!mapping.name || !mapping.sku || !mapping.priceGhs}
-                                className="w-full py-4 rounded-2xl bg-[#003527] bg-gradient-to-br from-[#003527] to-[#064e3b] text-white font-bold text-[16px] shadow-xl shadow-[#003527]/10 hover:brightness-110 transition-all disabled:opacity-50"
-                            >
-                                Preview Data
-                            </button>
-                        </div>
-                    )}
-
-                    {step === "preview" && (
-                        <div className="space-y-6">
-                            <div className="overflow-hidden rounded-2xl border border-[#eef0f2] dark:border-white/[0.08] shadow-sm">
-                                <div className="max-h-[340px] overflow-y-auto">
-                                    <table className="w-full text-left text-[13px]">
-                                        <thead className="sticky top-0 bg-[#fafafa] dark:bg-[#1a1a1a] border-b border-[#f0f2f4] dark:border-white/[0.06] z-10">
-                                            <tr>
-                                                {productFields.map(field => mapping[field.key] && (
-                                                    <th key={field.key} className="px-4 py-3 font-bold text-muted-foreground uppercase tracking-wider text-[11px]">
-                                                        {field.label}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-[#f0f2f4] dark:divide-white/[0.06]">
-                                            {parsedData.slice(0, 10).map((row, i) => (
-                                                <tr key={i} className="hover:bg-[#fafafa] dark:hover:bg-white/[0.02] transition-colors">
-                                                    {productFields.map(field => mapping[field.key] && (
-                                                        <td key={field.key} className="px-4 py-3 text-foreground truncate max-w-[180px]">
-                                                            {row[mapping[field.key]]}
+                            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-[#d1d5db] bg-white shadow-inner dark:border-white/[0.1] dark:bg-[#0c0c0c]">
+                                <table className="w-max min-w-full border-collapse text-[13px]">
+                                    <thead className="sticky top-0 z-10">
+                                        <tr className="bg-[#e8f5f0] dark:bg-[#0d2a22]">
+                                            <th className="sticky left-0 z-20 w-10 border-b border-r border-[#c5ddd4] bg-[#dceee8] px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-muted-foreground dark:border-[#1a4a3c] dark:bg-[#0a241d]">
+                                                #
+                                            </th>
+                                            {COLUMNS.map((col) => (
+                                                <th
+                                                    key={col.key}
+                                                    className={`border-b border-r border-[#c5ddd4] px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-[#0f3d32] dark:border-[#1a4a3c] dark:text-[#6ffbbe] ${col.width}`}
+                                                >
+                                                    {col.label}
+                                                    {col.required ? (
+                                                        <span className="ml-0.5 text-red-500">*</span>
+                                                    ) : (
+                                                        <span className="ml-1 font-medium normal-case tracking-normal text-muted-foreground">
+                                                            optional
+                                                        </span>
+                                                    )}
+                                                </th>
+                                            ))}
+                                            <th className="w-10 border-b border-[#c5ddd4] bg-[#dceee8] dark:border-[#1a4a3c] dark:bg-[#0a241d]" />
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.map((row, rowIndex) => {
+                                            const invalid = rowErrors[row.id];
+                                            return (
+                                                <tr
+                                                    key={row.id}
+                                                    className={
+                                                        invalid
+                                                            ? "bg-red-50 dark:bg-red-950/30"
+                                                            : rowIndex % 2 === 0
+                                                              ? "bg-white dark:bg-[#111]"
+                                                              : "bg-[#f8faf9] dark:bg-[#141414]"
+                                                    }
+                                                >
+                                                    <td className="sticky left-0 z-10 border-b border-r border-[#e5e7eb] bg-inherit px-2 py-0 text-center font-mono text-[11px] text-muted-foreground dark:border-white/[0.08]">
+                                                        {rowIndex + 1}
+                                                    </td>
+                                                    {COLUMNS.map((col) => (
+                                                        <td
+                                                            key={col.key}
+                                                            className="border-b border-r border-[#e5e7eb] p-0 dark:border-white/[0.08]"
+                                                        >
+                                                            {col.key === "image" ? (
+                                                                <ImageCell
+                                                                    row={row}
+                                                                    onFile={(file) =>
+                                                                        patchRow(row.id, {
+                                                                            imageFile: file,
+                                                                            imagePreview: URL.createObjectURL(file),
+                                                                        })
+                                                                    }
+                                                                    onClear={() =>
+                                                                        patchRow(row.id, {
+                                                                            imageFile: null,
+                                                                            imagePreview: null,
+                                                                            imageSrc: "",
+                                                                        })
+                                                                    }
+                                                                />
+                                                            ) : col.key === "variations" ? (
+                                                                <VariationCell
+                                                                    groups={row.variationGroups}
+                                                                    typeOptions={typeOptions}
+                                                                    onChange={(variationGroups) =>
+                                                                        patchRow(row.id, { variationGroups })
+                                                                    }
+                                                                />
+                                                            ) : col.key === "tagIds" ? (
+                                                                <TagsCell
+                                                                    selectedIds={row.tagIds}
+                                                                    tags={tags as { id: string; name: string }[]}
+                                                                    onChange={(tagIds) => patchRow(row.id, { tagIds })}
+                                                                />
+                                                            ) : col.key === "status" ? (
+                                                                <select
+                                                                    ref={(el) => {
+                                                                        cellRefs.current[`${row.id}:${col.key}`] = el;
+                                                                    }}
+                                                                    value={row.status}
+                                                                    onChange={(e) =>
+                                                                        updateRow(
+                                                                            row.id,
+                                                                            "status",
+                                                                            e.target.value as "active" | "archived",
+                                                                        )
+                                                                    }
+                                                                    onKeyDown={(e) => handleSheetKeyDown(e, rowIndex)}
+                                                                    className="h-10 w-full bg-background px-2 text-foreground outline-none focus:bg-[#006c49]/8 focus:ring-2 focus:ring-inset focus:ring-[#006c49]/30 dark:bg-[#141414] dark:focus:bg-[#6ffbbe]/10"
+                                                                >
+                                                                    <option value="active">Active</option>
+                                                                    <option value="archived">Archived</option>
+                                                                </select>
+                                                            ) : col.key === "unit" ? (
+                                                                <select
+                                                                    ref={(el) => {
+                                                                        cellRefs.current[`${row.id}:${col.key}`] = el;
+                                                                    }}
+                                                                    value={row.unit}
+                                                                    onChange={(e) =>
+                                                                        updateRow(row.id, "unit", e.target.value)
+                                                                    }
+                                                                    onKeyDown={(e) => handleSheetKeyDown(e, rowIndex)}
+                                                                    className="h-10 w-full bg-background px-2 text-foreground outline-none focus:bg-[#006c49]/8 focus:ring-2 focus:ring-inset focus:ring-[#006c49]/30 dark:bg-[#141414] dark:focus:bg-[#6ffbbe]/10"
+                                                                >
+                                                                    {PRODUCT_UNITS.map((u) => (
+                                                                        <option key={u.value} value={u.value}>
+                                                                            {u.label}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            ) : col.key === "categoryId" ? (
+                                                                <select
+                                                                    ref={(el) => {
+                                                                        cellRefs.current[`${row.id}:${col.key}`] = el;
+                                                                    }}
+                                                                    value={row.categoryId}
+                                                                    onChange={(e) =>
+                                                                        updateRow(row.id, "categoryId", e.target.value)
+                                                                    }
+                                                                    onKeyDown={(e) => handleSheetKeyDown(e, rowIndex)}
+                                                                    className="h-10 w-full bg-background px-2 text-foreground outline-none focus:bg-[#006c49]/8 focus:ring-2 focus:ring-inset focus:ring-[#006c49]/30 dark:bg-[#141414] dark:focus:bg-[#6ffbbe]/10"
+                                                                >
+                                                                    <option value="">—</option>
+                                                                    {categories.map((c: { id: string; name: string }) => (
+                                                                        <option key={c.id} value={c.id}>
+                                                                            {c.name}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            ) : (
+                                                                <input
+                                                                    ref={(el) => {
+                                                                        cellRefs.current[`${row.id}:${col.key}`] = el;
+                                                                    }}
+                                                                    value={row[col.key]}
+                                                                    onChange={(e) => {
+                                                                        const raw = e.target.value;
+                                                                        const next =
+                                                                            col.key === "priceGhs" ||
+                                                                            col.key === "costPriceGhs"
+                                                                                ? formatAmountGrouping(raw)
+                                                                                : raw;
+                                                                        updateRow(row.id, col.key, next);
+                                                                    }}
+                                                                    onKeyDown={(e) => handleSheetKeyDown(e, rowIndex)}
+                                                                    inputMode={
+                                                                        col.key === "priceGhs" ||
+                                                                        col.key === "costPriceGhs" ||
+                                                                        col.key === "stock" ||
+                                                                        col.key === "reorderAt"
+                                                                            ? "decimal"
+                                                                            : "text"
+                                                                    }
+                                                                    placeholder={col.required ? "Required" : ""}
+                                                                    className="h-10 w-full bg-transparent px-2 outline-none placeholder:text-muted-foreground/40 focus:bg-[#006c49]/8 focus:ring-2 focus:ring-inset focus:ring-[#006c49]/30 dark:focus:bg-[#6ffbbe]/10"
+                                                                    aria-invalid={Boolean(invalid)}
+                                                                />
+                                                            )}
                                                         </td>
                                                     ))}
-                                                </tr>
-                                            ))}
-                                            {parsedData.length > 10 && (
-                                                <tr className="bg-[#fafafa] dark:bg-white/[0.01]">
-                                                    <td colSpan={productFields.filter(f => mapping[f.key]).length} className="px-4 py-4 text-center text-muted-foreground font-medium italic">
-                                                        ... and {parsedData.length - 10} more items ...
+                                                    <td className="border-b border-[#e5e7eb] px-1 dark:border-white/[0.08]">
+                                                        {!isRowBlank(row) ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeRow(row.id)}
+                                                                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+                                                                aria-label={`Remove row ${rowIndex + 1}`}
+                                                            >
+                                                                <Trash2 className="size-3.5" />
+                                                            </button>
+                                                        ) : null}
                                                     </td>
                                                 </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
-
-                            <div className="flex gap-4">
-                                <button
-                                    onClick={() => setStep("mapping")}
-                                    className="flex-1 rounded-2xl border border-[#e5e7eb] py-4 text-[15px] font-bold transition-all hover:bg-[#f4f5f7] dark:border-white/[0.12] dark:hover:bg-white/5 active:scale-[0.98]"
-                                >
-                                    Back to Mapping
-                                </button>
-                                <button
-                                    onClick={handleImport}
-                                    className="flex-[2] py-4 rounded-2xl bg-[#003527] bg-gradient-to-br from-[#003527] to-[#064e3b] text-white font-bold text-[16px] shadow-xl shadow-[#003527]/10 hover:brightness-110 active:scale-[0.98] transition-all"
-                                >
-                                    Start Bulk Import
-                                </button>
-                            </div>
+                            {Object.keys(rowErrors).length > 0 ? (
+                                <p className="text-[12px] text-red-600 dark:text-red-400">
+                                    Highlighted rows need a product name and a valid price.
+                                </p>
+                            ) : null}
                         </div>
-                    )}
-
-                    {(step === "importing" || step === "success") && (
-                        <div className="py-10 text-center flex flex-col items-center">
+                    ) : (
+                        <div className="flex flex-col items-center py-10 text-center">
                             {step === "success" ? (
-                                <div className="mb-8 relative">
-                                    <div className="absolute inset-0 bg-[#006c49]/10 rounded-full blur-2xl animate-pulse" />
-                                    <div className="relative size-20 rounded-3xl bg-[#006c49]/10 text-[#006c49] flex items-center justify-center animate-in zoom-in duration-500">
+                                <div className="relative mb-8">
+                                    <div className="absolute inset-0 animate-pulse rounded-full bg-[#006c49]/10 blur-2xl" />
+                                    <div className="relative flex size-20 items-center justify-center rounded-3xl bg-[#006c49]/10 text-[#006c49] animate-in zoom-in duration-500">
                                         <CheckCircle2 className="size-10" />
                                     </div>
                                 </div>
                             ) : (
-                                <div className="mb-8 relative">
-                                    <div className="absolute inset-0 bg-[#003527]/5 rounded-full blur-2xl animate-pulse" />
-                                    <div className="relative size-20 rounded-3xl bg-[#003527]/5 text-[#003527] dark:bg-white/5 dark:text-white flex items-center justify-center ring-1 ring-black/5 dark:ring-white/10 shadow-sm">
+                                <div className="relative mb-8">
+                                    <div className="absolute inset-0 animate-pulse rounded-full bg-[#003527]/5 blur-2xl" />
+                                    <div className="relative flex size-20 items-center justify-center rounded-3xl bg-[#003527]/5 text-[#003527] shadow-sm ring-1 ring-black/5 dark:bg-white/5 dark:text-white dark:ring-white/10">
                                         <DownloadCloud className="size-10 animate-bounce" />
                                     </div>
                                 </div>
                             )}
-
-                            <h3 className="text-2xl font-bold tracking-tight mb-2">
-                                {step === "success" ? "Import Complete!" : "Importing Products"}
+                            <h3 className="mb-2 text-2xl font-bold tracking-tight">
+                                {step === "success" ? "Import complete" : "Importing products"}
                             </h3>
-                            <p className="text-muted-foreground font-medium mb-10">
-                                {step === "success" 
-                                    ? `Successfully added ${totalRows} items to your catalog.` 
-                                    : `Adding ${totalRows} items. Keep this window open...`
-                                }
+                            <p className="mb-10 font-medium text-muted-foreground">
+                                {step === "success"
+                                    ? `Successfully added ${totalRows} items to your catalog.`
+                                    : `Adding ${totalRows} items. Keep this window open...`}
                             </p>
-
                             <div className="w-full max-w-sm space-y-4">
-                                <div className="relative h-4 w-full bg-[#f0f2f4] dark:bg-white/5 rounded-full overflow-hidden shadow-inner">
+                                <div className="relative h-4 w-full overflow-hidden rounded-full bg-[#f0f2f4] shadow-inner dark:bg-white/5">
                                     <div
-                                        className="h-full bg-gradient-to-r from-[#003527] to-[#006c49] dark:from-[#006c49] dark:to-[#6ffbbe] rounded-full transition-all duration-300 ease-out shadow-lg"
+                                        className="h-full rounded-full bg-gradient-to-r from-[#003527] to-[#006c49] shadow-lg transition-all duration-300 ease-out dark:from-[#006c49] dark:to-[#6ffbbe]"
                                         style={{ width: `${visualProgress}%` }}
                                     />
                                 </div>
-                                <div className="flex justify-between items-center text-[13px] font-bold text-muted-foreground px-1">
+                                <div className="flex items-center justify-between px-1 text-[13px] font-bold text-muted-foreground">
                                     <span className="flex items-center gap-1.5">
                                         <span className="tabular-nums text-foreground">{processedRows}</span>
                                         <span>/</span>
                                         <span>{totalRows}</span>
                                     </span>
-                                    <span className="px-2 py-0.5 bg-muted rounded-lg text-[11px] tabular-nums font-mono">
-                                        {visualProgress}%
+                                    <span className="rounded-lg bg-muted px-2 py-0.5 font-mono text-[11px] tabular-nums">
+                                        {Math.round(visualProgress)}%
                                     </span>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
+
+                {step === "sheet" ? (
+                    <div className="flex shrink-0 items-center justify-end gap-3 border-t border-[#f0f2f4] px-5 py-4 dark:border-white/[0.06] sm:px-6">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onClose();
+                                reset();
+                            }}
+                            className="rounded-2xl border border-[#e5e7eb] px-5 py-3 text-[14px] font-bold hover:bg-[#f4f5f7] dark:border-white/[0.12] dark:hover:bg-white/5"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void handleImport()}
+                            disabled={filledCount === 0}
+                            className="rounded-2xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-6 py-3 text-[14px] font-bold text-white shadow-lg shadow-[#003527]/10 transition-all hover:brightness-110 disabled:opacity-50"
+                        >
+                            Import {filledCount > 0 ? `${filledCount} product${filledCount === 1 ? "" : "s"}` : "products"}
+                        </button>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

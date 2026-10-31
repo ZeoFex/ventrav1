@@ -31,9 +31,11 @@ export function printReceiptPlainText(plainText: string): void {
   w.document.write(
     `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Receipt</title>
     <style>
-      @page { size: 58mm auto; margin: 4mm; }
-      body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; line-height: 1.35; color: #111; margin: 0; padding: 12px; max-width: 58mm; }
-      pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
+      @page { size: 58mm auto; margin: 2mm; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html, body { width: 58mm; max-width: 58mm; }
+      body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.35; color: #000; margin: 0; padding: 2mm; background: #fff; }
+      pre { white-space: pre-wrap; word-break: break-word; margin: 0; color: #000; font-weight: 700; }
     </style></head><body><pre>${safe}</pre></body></html>`,
   );
   w.document.close();
@@ -41,14 +43,44 @@ export function printReceiptPlainText(plainText: string): void {
   w.print();
 }
 
+function printHtmlDocument(html: string): void {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "Print receipt");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:58mm;height:1px;border:0;opacity:0;pointer-events:none;";
+  document.body.appendChild(iframe);
+  const win = iframe.contentWindow;
+  const doc = win?.document;
+  if (!doc || !win) {
+    iframe.remove();
+    const fallback = window.open("", "_blank", "noopener,noreferrer,width=320,height=640");
+    if (!fallback) return;
+    fallback.document.write(html);
+    fallback.document.close();
+    fallback.focus();
+    setTimeout(() => fallback.print(), 250);
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  const runPrint = () => {
+    try {
+      win.focus();
+      win.print();
+    } finally {
+      window.setTimeout(() => iframe.remove(), 1500);
+    }
+  };
+  window.setTimeout(runPrint, 300);
+}
+
 /**
- * Prints a structured thermal receipt by rendering HTML to a new window.
- * Content is aligned with PosSaleReceiptThermal + buildReceiptPlainText (header, footer, payments).
+ * Prints the classic thermal receipt layout (invoice box, order details, QR).
+ * TOKEN label removed; all text forced black for printer visibility.
  */
 export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
-  const w = window.open("", "_blank", "width=400,height=600");
-  if (!w) return;
-
   let verifyQrHtml = "";
   const sid = data.saleId?.trim();
   if (sid) {
@@ -56,12 +88,12 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
       const QRCode = (await import("qrcode")).default;
       const verifyUrl = buildReceiptVerificationUrl(sid);
       const dataUrl = await QRCode.toDataURL(verifyUrl, {
-        width: 100,
-        margin: 1,
-        errorCorrectionLevel: "M",
+        width: 220,
+        margin: 2,
+        errorCorrectionLevel: "H",
         color: { dark: "#000000", light: "#ffffff" },
       });
-      verifyQrHtml = `<div style="margin-top: 14px; text-align: center;"><img src="${dataUrl}" width="100" height="100" alt="" /></div>`;
+      verifyQrHtml = `<div style="margin-top: 10px; text-align: center;"><img class="qr" src="${dataUrl}" width="220" height="220" alt="Verify receipt" /></div>`;
     } catch {
       verifyQrHtml = "";
     }
@@ -83,122 +115,38 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
   const linesHtml = data.lines
     .map(
       (l) => `
-    <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+    <div class="flex-between" style="margin: 2px 0;">
       <span style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${e(l.name)} x${l.qty}</span>
-      <span style="font-weight: bold;">${e(formatCurrency(l.lineTotalGhs, sym))}</span>
+      <span class="bold">${e(formatCurrency(l.lineTotalGhs, sym))}</span>
     </div>
   `,
     )
     .join("");
 
   const headerExtra = data.receiptHeader
-    ? `<div style="font-size: 11px; font-weight: 600; margin-bottom: 6px; white-space: pre-wrap; max-width: 100%;">${e(data.receiptHeader)}</div>`
+    ? `<div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; white-space: pre-wrap; max-width: 100%; color: #000;">${e(data.receiptHeader)}</div>`
     : "";
 
-  const branchBlock = `<div style="font-size: 12px; font-weight: bold; margin-bottom: 2px;">${e(data.branchName)}</div>`;
+  const branchBlock = `<div style="font-size: 13px; font-weight: 800; margin-bottom: 2px; color: #000;">${e(data.branchName)}</div>`;
 
   const locationBlock = data.branchLocation
-    ? `<div style="font-size: 10px; line-height: 1.35; margin-bottom: 8px; white-space: pre-wrap; opacity: 0.85; text-align: center;">${e(data.branchLocation)}</div>`
+    ? `<div style="font-size: 12px; font-weight: 700; line-height: 1.35; margin-bottom: 8px; white-space: pre-wrap; text-align: center; color: #000;">${e(data.branchLocation)}</div>`
     : `<div style="margin-bottom: 8px;"></div>`;
 
   const footerBlock = data.receiptFooter
-    ? `<div style="margin-top: 16px; font-size: 10px; font-weight: bold; line-height: 1.4; white-space: pre-wrap; opacity: 0.75; text-align: center;">${e(data.receiptFooter)}</div>`
+    ? `<div style="margin-top: 14px; font-size: 12px; font-weight: 800; line-height: 1.4; white-space: pre-wrap; text-align: center; color: #000;">${e(data.receiptFooter)}</div>`
     : "";
 
   const op = e(data.operatorName || "SYSTEM");
-  const orderIdPart = data.invoiceId.split("-")[1] || data.invoiceId;
 
-  w.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8"/>
-      <title>Receipt ${e(data.invoiceId)}</title>
-      <style>
-        @page { size: 58mm auto; margin: 0; }
-        body { 
-          font-family: 'Courier New', Courier, monospace; 
-          font-size: 12px; 
-          line-height: 1.2; 
-          color: #000; 
-          margin: 0; 
-          padding: 8mm 4mm;
-          width: 58mm;
-          box-sizing: border-box;
-          text-align: center;
-          background: #fff;
-        }
-        .bold { font-weight: bold; }
-        .divider { border-top: 1px dashed #000; margin: 8px 0; }
-        .token-box { 
-          border: 2px dashed #000; 
-          padding: 10px 5px; 
-          margin: 15px 0; 
-          position: relative; 
-        }
-        .token-label { 
-          position: absolute; 
-          top: -10px; 
-          left: 50%; 
-          transform: translateX(-50%); 
-          background: #fff; 
-          padding: 0 5px; 
-          font-size: 11px; 
-          font-weight: bold;
-          text-transform: uppercase;
-        }
-        .flex-between { display: flex; justify-content: space-between; }
-        .total-row { font-size: 14px; font-weight: 900; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
-      </style>
-    </head>
-    <body>
-      <div style="font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px;">${e(data.storeName)}</div>
-      ${headerExtra}
-      ${branchBlock}
-      ${locationBlock}
-      <div style="font-size: 11px; margin-bottom: 10px;">${e(dateStr)}</div>
-
-      <div class="token-box">
-        <span class="token-label">Token</span>
-        <div style="font-size: 14px; font-weight: bold; letter-spacing: 1px; word-break: break-all;">${e(data.invoiceId)}</div>
-      </div>
-
-      <div class="flex-between" style="font-size: 11px;">
-        <span>Customer Name</span>
-        <span class="bold">${e(data.customerName || "Walk-in")}</span>
-      </div>
-      <div class="divider"></div>
-      <div class="flex-between" style="font-size: 11px;">
-        <span>Order ID</span>
-        <span class="bold">${e(orderIdPart)}</span>
-      </div>
-      <div class="divider"></div>
-
-      <div style="text-align: left; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 5px;">
-        <div class="flex-between"><span>Item</span><span>Total</span></div>
-      </div>
-      ${linesHtml}
-      
-      <div class="divider"></div>
-
-      <div class="flex-between"><span>Amount</span><span class="bold">${e(formatCurrency(data.subtotal, sym))}</span></div>
-      <div class="flex-between"><span>Tax</span><span class="bold">${e(formatCurrency(data.tax, sym))}</span></div>
-      <div class="flex-between"><span>Discount</span><span class="bold">-${e(formatCurrency(data.discount, sym))}</span></div>
-      
-      <div class="flex-between total-row">
-        <span>TOTAL</span>
-        <span>${e(formatCurrency(data.total, sym))}</span>
-      </div>
-
-      <div class="divider"></div>
-
-          ${data.paymentLines && data.paymentLines.length > 0
-            ? `
-          <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px;">Payments</div>
+  const paymentHtml =
+    data.paymentLines && data.paymentLines.length > 0
+      ? `
+          <div style="font-size: 12px; font-weight: 800; margin-bottom: 4px; text-align: left;">Payments</div>
           ${data.paymentLines
             .map(
               (pl) => `
-            <div class="flex-between" style="font-size: 11px;">
+            <div class="flex-between" style="font-size: 12px;">
               <span>${e(pl.label)}</span>
               <span class="bold">${e(formatCurrency(pl.amountGhs, sym))}</span>
             </div>`,
@@ -206,35 +154,127 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
             .join("")}
           ${
             data.balanceDueGhs != null && data.balanceDueGhs > 0.01
-              ? `<div class="flex-between" style="font-size: 11px; margin-top: 4px;">
+              ? `<div class="flex-between" style="font-size: 12px; margin-top: 4px;">
             <span>Balance due</span>
             <span class="bold">${e(formatCurrency(data.balanceDueGhs, sym))}</span>
           </div>`
               : ""
           }
-          <div class="flex-between" style="font-size: 11px; margin-top: 6px;">
+          <div class="flex-between" style="font-size: 12px; margin-top: 6px;">
             <span>Total collected</span>
             <span class="bold">${e(formatCurrency(data.amountTenderedGhs, sym))}</span>
           </div>
           `
-            : `
-          <div class="flex-between" style="font-size: 11px;">
+      : `
+          <div class="flex-between" style="font-size: 12px;">
             <span>Payment</span>
             <span class="bold">${e(data.paymentMethodLabel)}</span>
           </div>
-          <div class="flex-between" style="font-size: 11px;">
+          <div class="flex-between" style="font-size: 12px;">
             <span>Amount paid</span>
             <span class="bold">${e(formatCurrency(data.amountTenderedGhs, sym))}</span>
           </div>
-          <div class="flex-between" style="font-size: 11px;">
+          <div class="flex-between" style="font-size: 12px;">
             <span>Change</span>
             <span class="bold">${e(formatCurrency(data.changeGhs, sym))}</span>
           </div>
-          `}
+          `;
+
+  printHtmlDocument(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8"/>
+      <meta name="viewport" content="width=58mm"/>
+      <title>Receipt ${e(data.invoiceId)}</title>
+      <style>
+        @page { size: 58mm auto; margin: 0; }
+        * {
+          box-sizing: border-box;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color: #000 !important;
+        }
+        html, body {
+          width: 58mm;
+          max-width: 58mm;
+          margin: 0;
+        }
+        body {
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 11px;
+          line-height: 1.28;
+          color: #000;
+          padding: 3mm 2.5mm 8mm;
+          text-align: center;
+          background: #fff;
+          font-weight: 700;
+        }
+        img.qr {
+          width: 28mm;
+          height: 28mm;
+          image-rendering: pixelated;
+          border: 1.5px solid #000;
+          padding: 1mm;
+          background: #fff;
+        }
+        .bold { font-weight: 800; }
+        .divider { border-top: 1.5px dashed #000; margin: 6px 0; }
+        .invoice-box {
+          border: 2px dashed #000;
+          padding: 6px 4px;
+          margin: 8px 0 10px;
+        }
+        .flex-between { display: flex; justify-content: space-between; gap: 4px; text-align: left; }
+        .total-row {
+          font-size: 13px;
+          font-weight: 900;
+          border-top: 1.5px solid #000;
+          padding-top: 4px;
+          margin-top: 4px;
+        }
+      </style>
+    </head>
+    <body>
+      <div style="font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px;">${e(data.storeName)}</div>
+      ${headerExtra}
+      ${branchBlock}
+      ${locationBlock}
+      <div style="font-size: 12px; font-weight: 700; margin-bottom: 10px;">${e(dateStr)}</div>
+
+      <div class="invoice-box">
+        <div style="font-size: 14px; font-weight: 900; letter-spacing: 0.12em; word-break: break-all;">${e(data.invoiceId)}</div>
+      </div>
+
+      <div class="flex-between" style="font-size: 12px;">
+        <span>Customer Name</span>
+        <span class="bold">${e(data.customerName || "Walk-in")}</span>
+      </div>
+      <div class="divider"></div>
+
+      <div style="text-align: left; font-weight: 900; border-bottom: 1.5px solid #000; padding-bottom: 2px; margin-bottom: 5px;">
+        <div class="flex-between"><span>Item</span><span>Total</span></div>
+      </div>
+      ${linesHtml}
 
       <div class="divider"></div>
 
-      <div class="flex-between" style="font-size: 11px;">
+      <div class="flex-between"><span>Amount</span><span class="bold">${e(formatCurrency(data.subtotal, sym))}</span></div>
+      <div class="flex-between"><span>Tax</span><span class="bold">${e(formatCurrency(data.tax, sym))}</span></div>
+      <div class="flex-between"><span>Discount</span><span class="bold">-${e(formatCurrency(data.discount, sym))}</span></div>
+
+      <div class="flex-between total-row">
+        <span>TOTAL</span>
+        <span>${e(formatCurrency(data.total, sym))}</span>
+      </div>
+
+      <div class="divider"></div>
+
+      ${paymentHtml}
+
+      <div class="divider"></div>
+
+      <div class="flex-between" style="font-size: 12px;">
         <span>Operator</span>
         <span class="bold">${op}</span>
       </div>
@@ -242,17 +282,7 @@ export async function printReceiptHtml(data: PosReceiptData): Promise<void> {
       ${footerBlock}
 
       ${verifyQrHtml}
-
-      <div style="margin-top: 20px; font-size: 24px; font-weight: 900; font-style: italic; letter-spacing: -1px;">VENTRA</div>
-      <div style="font-size: 9px; font-weight: bold; letter-spacing: 3px; opacity: 0.6;">POS SYSTEM</div>
     </body>
     </html>
   `);
-
-  w.document.close();
-  w.focus();
-
-  setTimeout(() => {
-    w.print();
-  }, 250);
 }

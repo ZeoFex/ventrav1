@@ -1,6 +1,6 @@
-import { COPILOT_DEFAULT_GEMINI_MODEL } from "@/app/lib/copilot/config";
+import { getCopilotGroqModelId } from "@/app/lib/copilot/config";
 
-/** Gemini model for Zuri (Help chat; default model matches in-dashboard Zuri). */
-export function getZuriGeminiModelId(): string {
-    return process.env.ZURI_GEMINI_MODEL?.trim() || COPILOT_DEFAULT_GEMINI_MODEL;
+/** Groq model for Zuri help chat. Uses GROQ_MODEL, same as in-dashboard Zuri. */
+export function getZuriGroqModelId(): string {
+    return getCopilotGroqModelId();
 }

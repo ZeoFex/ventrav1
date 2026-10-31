@@ -28,6 +28,7 @@ export type DashboardNavIconId =
   | "branches"
   | "reports"
   | "marketing"
+  | "ecommerce"
   | "settings";
 
 export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
@@ -61,7 +62,18 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
         label: "Held sales",
         href: "/dashboard/pos/held",
       },
+      {
+        id: "reprint-receipts",
+        label: "Reprint receipts",
+        href: "/dashboard/pos/receipts",
+      },
     ],
+  },
+  {
+    id: "ecommerce-orders",
+    label: "Ecommerce orders",
+    href: "/dashboard/ecommerce",
+    icon: "ecommerce",
   },
   {
     id: "sales",
@@ -128,7 +140,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   },
   {
     id: "customers",
-    label: "Contacts",
+    label: "Vendors",
     href: "/dashboard/customers",
     icon: "contacts",
     collapsibleOnly: true,
@@ -263,6 +275,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     icon: "settings",
     collapsibleOnly: true,
     children: [
+      {
+        id: "settings-account",
+        label: "Account & login",
+        href: "/dashboard/settings/account",
+      },
       {
         id: "settings-profile",
         label: "Business profile",
