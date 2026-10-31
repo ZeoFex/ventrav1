@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useBranchContext } from "../branch-context";
 import { useBranches } from "../branches/branches-data-hooks";
 import { resolveBranchReceiptMeta } from "./sale/pos-receipt-data";
@@ -30,9 +30,12 @@ function newInvoiceId(): string {
 export function QuickCheckoutDrawer({
   isOpen,
   onClose,
+  startAt = "cart",
 }: {
   isOpen: boolean;
   onClose: () => void;
+  /** Where to land when the drawer opens. Payment only if the cart has lines. */
+  startAt?: "cart" | "payment";
 }) {
   const { lines, setLines, increment, decrement, remove, resetCart, selectedCustomer, selectCustomer, finishActiveCustomerCart } = useGlobalCart();
   const { products = [], mutate: mutateProducts } = useProducts(isOpen || lines.length > 0);
@@ -66,6 +69,14 @@ export function QuickCheckoutDrawer({
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      setFlow(startAt === "payment" && lines.length > 0 ? "payment" : "cart");
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen, startAt, lines.length]);
 
   const productById = useMemo(() => {
     const m = new Map<string, ProductRow>();

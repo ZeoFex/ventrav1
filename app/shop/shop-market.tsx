@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Minus, Plus, Search, ShoppingBag, SlidersHorizontal, Store, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Minus, Plus, Search, ShoppingBag, SlidersHorizontal, Store, Trash2, X } from "lucide-react";
 import { CatalogProductImage } from "@/app/components/dashboard/products/catalog-product-image";
 import { SiteFooter } from "@/app/components/landing/site-footer";
 import { MarketNav } from "@/app/components/shop/market-nav";
@@ -133,6 +133,7 @@ export function ShopMarket() {
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [pickQty, setPickQty] = useState(1);
   const [pickNote, setPickNote] = useState("");
+  const [addedFlash, setAddedFlash] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("browse");
   const [shopper, setShopper] = useState<Shopper | null>(null);
   const [payment, setPayment] = useState<"momo" | "delivery">("delivery");
@@ -153,6 +154,12 @@ export function ShopMarket() {
     document.addEventListener("pointerdown", onPointer);
     return () => document.removeEventListener("pointerdown", onPointer);
   }, [menu]);
+
+  useEffect(() => {
+    if (!addedFlash) return;
+    const timer = window.setTimeout(() => setAddedFlash(null), 900);
+    return () => window.clearTimeout(timer);
+  }, [addedFlash]);
 
   useEffect(() => {
     const page = document.querySelector("main")?.parentElement;
@@ -307,7 +314,23 @@ export function ShopMarket() {
     return Math.max(1, Math.min(...caps));
   }
 
+  function simpleCartLine(productId: string) {
+    return cart.find((line) => line.id === productId && line.choices.length === 0) ?? null;
+  }
+
+  function productCartQty(productId: string) {
+    return cart.filter((line) => line.id === productId).reduce((sum, line) => sum + line.qty, 0);
+  }
+
   function startAdd(product: Listing) {
+    if (preferenceGroups(product).length === 0) {
+      const existing = simpleCartLine(product.id);
+      if (existing) return;
+      commitAdd(product, [], 1);
+      setAddedFlash(product.id);
+      setError("");
+      return;
+    }
     setPicking(product);
     setPicked({});
     setPickQty(1);
@@ -342,7 +365,9 @@ export function ShopMarket() {
     });
     const note = pickNote.trim().slice(0, 180);
     if (note) choices.push({ group: "Note", label: note });
+    const addedId = picking.id;
     commitAdd(picking, choices, pickQty);
+    setAddedFlash(addedId);
     setPicking(null);
   }
 
@@ -434,7 +459,7 @@ export function ShopMarket() {
   }
 
   return (
-    <div className={`shop-paper mx-auto flex w-full max-w-[90rem] flex-col px-3 pb-32 text-[#1c1917] sm:px-6 lg:min-h-0 lg:flex-1 lg:px-8 dark:bg-transparent dark:text-zinc-100 ${step === "browse" ? "lg:overflow-hidden lg:pb-0" : "lg:overflow-y-auto lg:pb-8"}`}>
+    <div className={`shop-paper mx-auto flex w-full max-w-[90rem] flex-col px-3 text-[#1c1917] sm:px-6 lg:min-h-0 lg:flex-1 lg:px-8 dark:bg-transparent dark:text-zinc-100 ${picking ? "pb-[min(56dvh,32rem)]" : "pb-32"} ${step === "browse" ? "lg:overflow-hidden lg:pb-0" : "lg:overflow-y-auto lg:pb-8"}`}>
       <MarketNav current="shop" signedIn={Boolean(shopper)} />
       {shopper ? <CustomerLiveAlerts /> : null}
 
@@ -703,12 +728,24 @@ export function ShopMarket() {
               </div>
             ) : (
               <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
-                {pageItems.map((product) => (
+                {pageItems.map((product) => {
+                  const needsOptions = preferenceGroups(product).length > 0;
+                  const simpleLine = simpleCartLine(product.id);
+                  const inBagQty = productCartQty(product.id);
+                  const isPicking = picking?.id === product.id;
+                  const justAdded = addedFlash === product.id;
+                  return (
                   <li key={product.id}>
                     <article
                       role="button"
                       tabIndex={0}
-                      aria-label={`Add ${product.name} to cart`}
+                      aria-label={
+                        needsOptions
+                          ? `Choose options for ${product.name}`
+                          : simpleLine
+                            ? `${product.name}, ${simpleLine.qty} in cart`
+                            : `Add ${product.name} to cart`
+                      }
                       onClick={() => startAdd(product)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
@@ -716,7 +753,13 @@ export function ShopMarket() {
                           startAdd(product);
                         }
                       }}
-                      className="shop-paper flex h-full cursor-pointer flex-col rounded-3xl border border-[#e7e0d4] p-2.5 text-left active:scale-[0.98] dark:border-white/10 dark:bg-[#141414] sm:p-3"
+                      className={`shop-paper flex h-full cursor-pointer flex-col rounded-3xl border p-2.5 text-left active:scale-[0.98] dark:bg-[#141414] sm:p-3 ${
+                        isPicking
+                          ? "border-[#1f3d32] ring-2 ring-[#1f3d32]/25 dark:border-[#6ffbbe] dark:ring-[#6ffbbe]/30"
+                          : justAdded
+                            ? "border-[#006c49] dark:border-[#6ffbbe]"
+                            : "border-[#e7e0d4] dark:border-white/10"
+                      }`}
                     >
                       <div className="shop-paper relative aspect-[4/3] overflow-hidden rounded-[0.875rem] dark:bg-[#1a1a1a]">
                         {product.imageSrc ? (
@@ -730,6 +773,11 @@ export function ShopMarket() {
                             <Store className="size-6 sm:size-8" />
                           </div>
                         )}
+                        {inBagQty > 0 ? (
+                          <span className="absolute right-2 top-2 rounded-full bg-[#1f3d32] px-2 py-0.5 text-[11px] font-bold text-white tabular-nums dark:bg-[#6ffbbe] dark:text-[#003527]">
+                            {inBagQty}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-2 truncate text-[11px] text-[#8a8478]">
                         {product.shopName} · {product.place || product.region}
@@ -744,13 +792,50 @@ export function ShopMarket() {
                           </p>
                           <p className="mt-1 text-[11px] text-[#8a8478]">{product.sellable} in stock</p>
                         </div>
-                        <span className="shrink-0 rounded-full bg-[#1f3d32] px-3 py-1.5 text-[12px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003527]">
-                          Add
-                        </span>
+                        {!needsOptions && simpleLine ? (
+                          <div
+                            className="flex shrink-0 items-center rounded-full border border-[#e7e0d4] bg-white dark:border-white/10 dark:bg-[#1a1a1a]"
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              aria-label={`Decrease ${product.name}`}
+                              onClick={() => setQty(simpleLine.lineKey, simpleLine.qty - 1)}
+                              className="flex size-8 items-center justify-center"
+                            >
+                              <Minus className="size-3.5" />
+                            </button>
+                            <span className="w-5 text-center text-[12px] font-semibold tabular-nums">{simpleLine.qty}</span>
+                            <button
+                              type="button"
+                              aria-label={`Increase ${product.name}`}
+                              disabled={simpleLine.qty >= simpleLine.sellable}
+                              onClick={() => setQty(simpleLine.lineKey, Math.min(simpleLine.qty + 1, simpleLine.sellable))}
+                              className="flex size-8 items-center justify-center disabled:opacity-30"
+                            >
+                              <Plus className="size-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-semibold ${
+                              justAdded
+                                ? "bg-[#006c49] text-white dark:bg-[#6ffbbe] dark:text-[#003527]"
+                                : isPicking
+                                  ? "bg-[#1f3d32] text-white dark:bg-[#6ffbbe] dark:text-[#003527]"
+                                  : "bg-[#1f3d32] text-white dark:bg-[#6ffbbe] dark:text-[#003527]"
+                            }`}
+                          >
+                            {justAdded ? <Check className="size-3.5" /> : null}
+                            {justAdded ? "Added" : isPicking ? "Choosing" : "Add"}
+                          </span>
+                        )}
                       </div>
                     </article>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
             <div className="hidden lg:block">
@@ -945,7 +1030,7 @@ export function ShopMarket() {
         </section>
       ) : null}
 
-      {step === "browse" && itemCount > 0 && !picking ? (
+      {step === "browse" && itemCount > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-[70] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex w-full max-w-lg items-center gap-3 rounded-full bg-[#1f3d32] py-2 pl-2 pr-2 text-white shadow-[0_16px_40px_-16px_rgba(0,0,0,0.55)] dark:bg-[#6ffbbe] dark:text-[#003527]">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/15 text-base font-bold tabular-nums dark:bg-black/10">
@@ -960,7 +1045,10 @@ export function ShopMarket() {
             </span>
             <button
               type="button"
-              onClick={() => setStep("cart")}
+              onClick={() => {
+                setPicking(null);
+                setStep("cart");
+              }}
               className="shrink-0 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-[#1f3d32]"
             >
               Checkout
@@ -970,34 +1058,50 @@ export function ShopMarket() {
       ) : null}
 
       {picking ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-3 sm:items-center">
+        <div
+          className={`fixed inset-x-0 z-[80] flex justify-center lg:inset-0 lg:items-center lg:bg-black/45 lg:p-3 ${
+            itemCount > 0
+              ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-0"
+              : "bottom-[max(0.5rem,env(safe-area-inset-bottom))] lg:bottom-0"
+          }`}
+        >
           <button
             type="button"
             aria-label="Close options"
-            className="absolute inset-0"
+            className="absolute inset-0 hidden lg:block"
             onClick={() => setPicking(null)}
           />
           <div
             role="dialog"
-            aria-modal="true"
+            aria-modal="false"
             aria-labelledby="preference-title"
-            className="relative flex max-h-[min(85dvh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white text-[#1c1917] shadow-2xl dark:bg-[#141414] dark:text-zinc-100"
+            className="relative flex max-h-[min(48dvh,26rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] border border-[#e7e0d4] bg-white text-[#1c1917] shadow-[0_-18px_40px_-18px_rgba(0,0,0,0.45)] dark:border-white/10 dark:bg-[#141414] dark:text-zinc-100 sm:rounded-[1.75rem] lg:max-h-[min(85dvh,40rem)] lg:rounded-3xl lg:shadow-2xl"
           >
-            <div className="border-b border-[#e7e0d4] px-5 py-4 dark:border-white/10">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b8f7c]">Choose options</p>
-              <h2 id="preference-title" className="mt-1 text-lg font-semibold">
-                {picking.name}
-              </h2>
-              <p className="text-sm text-[#8a8478]">
-                {picking.shopName} · {picking.region}
-              </p>
+            <div className="flex justify-center pt-2 lg:hidden">
+              <span className="h-1 w-10 rounded-full bg-[#d9d2c5] dark:bg-white/20" />
             </div>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-              {pickingGroups.length === 0 ? (
-                <p className="text-sm text-[#8a8478]">
-                  Choose how many you want, and add a size or any other detail below.
+            <div className="flex items-start gap-3 border-b border-[#e7e0d4] px-4 py-3 dark:border-white/10 sm:px-5 sm:py-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b8f7c]">
+                  Choose options · keep shopping above
                 </p>
-              ) : null}
+                <h2 id="preference-title" className="mt-1 truncate text-base font-semibold sm:text-lg">
+                  {picking.name}
+                </h2>
+                <p className="truncate text-sm text-[#8a8478]">
+                  {picking.shopName} · {picking.region}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close options"
+                onClick={() => setPicking(null)}
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f4f1ea] dark:bg-white/10"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-5 sm:py-4">
               {pickingGroups.map((group) => (
                 <fieldset key={group.label}>
                   <legend className="mb-2 text-sm font-semibold">{group.label}</legend>
@@ -1040,7 +1144,7 @@ export function ShopMarket() {
                 />
               </label>
             </div>
-            <div className="flex items-center gap-2 border-t border-[#e7e0d4] px-5 py-4 dark:border-white/10">
+            <div className="flex items-center gap-2 border-t border-[#e7e0d4] px-4 py-3 sm:px-5 sm:py-4 dark:border-white/10">
               <div className="flex items-center rounded-full border border-[#e7e0d4] dark:border-white/10">
                 <button
                   type="button"
@@ -1064,18 +1168,11 @@ export function ShopMarket() {
               </div>
               <button
                 type="button"
-                onClick={() => setPicking(null)}
-                className="rounded-full px-3 py-2.5 text-sm font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
                 disabled={!pickingReady}
                 onClick={confirmPick}
                 className="ml-auto rounded-full bg-[#1f3d32] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40 dark:bg-[#6ffbbe] dark:text-[#003527]"
               >
-                Add to cart
+                Add · keep shopping
               </button>
             </div>
           </div>
