@@ -20,7 +20,7 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center px-3 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 sm:pt-[max(0.75rem,env(safe-area-inset-top))]">
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -28,7 +28,7 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
         className="pointer-events-auto w-full max-w-[min(100%,42rem)] md:max-w-4xl"
       >
         <nav
-          className="relative flex min-h-[3.25rem] items-center gap-1 rounded-full border border-[#bfc9c3]/20 bg-[rgba(255,255,255,0.82)] px-2 py-1.5 shadow-[0_12px_40px_-8px_rgba(0,53,39,0.06),0_0_0_1px_rgba(255,255,255,0.7)_inset] backdrop-blur-xl backdrop-saturate-150 dark:border-white/[0.1] dark:bg-[rgba(10,10,10,0.85)] dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)_inset] md:gap-2 md:px-3"
+          className="relative flex min-h-12 items-center gap-0.5 rounded-full border border-[#bfc9c3]/20 bg-[rgba(255,255,255,0.82)] px-1.5 py-1 shadow-[0_12px_40px_-8px_rgba(0,53,39,0.06),0_0_0_1px_rgba(255,255,255,0.7)_inset] backdrop-blur-xl backdrop-saturate-150 dark:border-white/[0.1] dark:bg-[rgba(10,10,10,0.85)] dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)_inset] sm:min-h-[3.25rem] sm:gap-1 sm:px-2 sm:py-1.5 md:gap-2 md:px-3"
           aria-label="Main navigation"
         >
           <div
@@ -37,9 +37,9 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
           />
 
           <BrandLockup
-            className="relative z-10 shrink-0 rounded-full py-1 pl-1 pr-2.5"
+            className="relative z-10 min-w-0 shrink rounded-full py-1 pl-0.5 pr-1 sm:pl-1 sm:pr-2.5"
             size={30}
-            wordClassName="text-[15px]"
+            wordClassName="hidden text-[15px] min-[400px]:inline"
           />
 
           <span
@@ -68,17 +68,17 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
                 >
                   Sign in
                 </Link>
-                <ThemeToggle />
+                <ThemeToggle compact />
                 <Link
                   href="/pricing"
-                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_4px_20px_rgba(0,53,39,0.2)] transition-[filter] hover:brightness-105 dark:shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
+                  className="hidden items-center justify-center rounded-full bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_4px_20px_rgba(0,53,39,0.2)] transition-[filter] hover:brightness-105 sm:inline-flex dark:shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
                 >
                   Get started
                 </Link>
               </>
             ) : (
               <>
-                <ThemeToggle />
+                <ThemeToggle compact />
                 <div className="ml-1.5 flex items-center gap-1.5 md:gap-2">
                   <Link
                     href="/dashboard"
@@ -93,7 +93,7 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
 
             <button
               type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-elevated sm:hidden"
+              className="inline-flex size-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-elevated sm:hidden"
               aria-expanded={menuOpen}
               aria-controls="mobile-nav"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -149,13 +149,22 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
                   </Link>
                 ))}
                 {!isAuthenticated ? (
-                  <Link
-                    href="/login"
-                    className="rounded-xl px-4 py-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Sign in
-                  </Link>
+                  <>
+                    <Link
+                      href="/login"
+                      className="rounded-xl px-4 py-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      href="/pricing"
+                      className="mt-1 inline-flex items-center justify-center rounded-xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-3 text-[15px] font-semibold text-white"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Get started
+                    </Link>
+                  </>
                 ) : (
                   <Link
                     href="/dashboard"

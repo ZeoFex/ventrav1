@@ -3,7 +3,7 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
-export function ThemeToggle() {
+export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -12,7 +12,7 @@ export function ThemeToggle() {
   if (!mounted) {
     return (
       <span
-        className="inline-flex size-10 shrink-0 items-center justify-center rounded-full"
+        className={`inline-flex shrink-0 items-center justify-center rounded-full ${compact ? "size-9" : "size-10"}`}
         aria-hidden
       />
     );
@@ -24,7 +24,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-elevated dark:hover:bg-white/[0.08]"
+      className={`inline-flex shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-elevated dark:hover:bg-white/[0.08] ${compact ? "size-9" : "size-10"}`}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       {isDark ? (
