@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ThemeToggle } from "../theme-toggle";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -19,7 +19,22 @@ import { BrandLockup } from "../brand-mark";
 export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?: boolean; displayName?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
   return (
+    <>
     <header className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center px-3 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 sm:pt-[max(0.75rem,env(safe-area-inset-top))]">
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -126,59 +141,67 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
             </button>
           </div>
         </nav>
-
-        <AnimatePresence>
-          {menuOpen && (
-            <motion.div
-              id="mobile-nav"
-              initial={{ height: 0, opacity: 0, y: -10 }}
-              animate={{ height: "auto", opacity: 1, y: 0 }}
-              exit={{ height: 0, opacity: 0, y: -10 }}
-              transition={{ duration: 0.3, ease: [0.21, 0.47, 0.32, 0.98] }}
-              className="mt-2 overflow-hidden rounded-[1.35rem] border border-[#bfc9c3]/20 bg-[rgba(255,255,255,0.92)] shadow-[0_16px_40px_-12px_rgba(0,53,39,0.08)] backdrop-blur-xl dark:border-white/[0.1] dark:bg-[rgba(12,12,12,0.96)] dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.55)] sm:hidden"
-            >
-              <div className="flex flex-col gap-0.5 p-2">
-                {NAV.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-xl px-4 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-surface-elevated"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-                {!isAuthenticated ? (
-                  <>
-                    <Link
-                      href="/login"
-                      className="rounded-xl px-4 py-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Sign in
-                    </Link>
-                    <Link
-                      href="/pricing"
-                      className="mt-1 inline-flex items-center justify-center rounded-xl bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-3 text-[15px] font-semibold text-white"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Get started
-                    </Link>
-                  </>
-                ) : (
-                  <Link
-                    href="/dashboard"
-                    className="rounded-xl px-4 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-surface-elevated"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Dashboard
-                  </Link>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
     </header>
+
+    <AnimatePresence>
+      {menuOpen && (
+        <motion.div
+          id="mobile-nav"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.22, ease: [0.21, 0.47, 0.32, 0.98] }}
+          className="fixed inset-0 z-[90] overflow-y-auto bg-[#f6f4ef] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+5.25rem)] sm:hidden dark:bg-[#0a0a0a]"
+        >
+          <div className="flex min-h-full flex-col">
+            <div className="flex flex-col">
+              {NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="border-b border-[#e4ddd2] py-4 text-[1.35rem] font-semibold tracking-tight text-[#10241c] dark:border-white/10 dark:text-white"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-auto flex flex-col gap-3 pt-8">
+              {!isAuthenticated ? (
+                <>
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center justify-center rounded-full border border-[#d7e0db] bg-white px-4 py-3.5 text-[15px] font-semibold text-[#10241c] dark:border-white/15 dark:bg-white/5 dark:text-white"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    href="/pricing"
+                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-3.5 text-[15px] font-semibold text-white"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Get started
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-br from-[#003527] to-[#064e3b] px-4 py-3.5 text-[15px] font-semibold text-white"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

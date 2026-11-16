@@ -200,7 +200,7 @@ export function RegisterOpenView() {
                             </li>
                             <li className="flex gap-3">
                                 <div className="mt-1 flex size-1.5 shrink-0 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" />
-                                Use the "Hold Sale" feature for customers still shopping.
+                                Use the &quot;Hold Sale&quot; feature for customers still shopping.
                             </li>
                             <li className="flex gap-3">
                                 <div className="mt-1 flex size-1.5 shrink-0 rounded-full bg-[#006c49] dark:bg-[#6ffbbe]" />

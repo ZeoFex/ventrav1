@@ -246,7 +246,7 @@ export function SidebarNav({
                     <SidebarFlyout 
                       label={item.label} 
                       active={isCollapsed} 
-                      children={item.children || []} 
+                      items={item.children || []} 
                       pathname={pathname}
                       onNavigate={onNavigate}
                       trigger={content}
