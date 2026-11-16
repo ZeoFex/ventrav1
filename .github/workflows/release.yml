@@ -11,8 +11,9 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    # Only release if CI passed
-    if: github.event.head_commit.message != 'chore: release'
+    # Skip the commit this job creates. startsWith avoids a startup failure when
+    # the push message is a multiline merge commit.
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore: release') }}
 
     steps:
       - uses: actions/checkout@v4
