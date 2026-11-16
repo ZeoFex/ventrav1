@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import { motion } from "motion/react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { PrivacyPolicyContent, TermsOfServiceContent } from "./legal-content";
+import { BrandLockup } from "../brand-mark";
 
 const footerLinks = {
     product: [
@@ -80,9 +81,11 @@ export function SiteFooter() {
                 >
                     {/* Brand Column */}
                     <motion.div variants={itemVariants} className="flex flex-col lg:col-span-2">
-                        <Link href="/" className="mb-6 inline-block font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-tight text-foreground">
-                            VentraPOS
-                        </Link>
+                        <BrandLockup
+                            className="mb-6 w-fit"
+                            size={36}
+                            wordClassName="text-2xl font-extrabold"
+                        />
                         <p className="mb-8 max-w-xs text-sm leading-relaxed text-muted-foreground">
                             The cloud-based POS dashboard app designed to help businesses efficiently manage sales, inventory, customers, and reporting in real-time.
                         </p>

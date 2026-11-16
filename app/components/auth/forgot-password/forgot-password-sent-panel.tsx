@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AuthBrand } from "@/app/components/brand-mark";
 
 type ForgotPasswordSentPanelProps = {
   email: string;
@@ -19,12 +20,7 @@ export function ForgotPasswordSentPanel({
     <div className="flex flex-1 flex-col justify-center bg-background px-6 pb-12 pt-8 sm:px-10 lg:justify-start lg:px-16 lg:pb-16 lg:pt-14 xl:px-24">
       <div className="mx-auto w-full max-w-[420px]">
         {/* Mobile Brand Header */}
-        <div className="mb-10 flex flex-col lg:hidden">
-          <div className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-foreground">
-            VentraPOS
-          </div>
-          <div className="mt-1.5 h-1 w-8 rounded-full bg-gradient-to-r from-[#006c49] to-[#059669]" />
-        </div>
+        <AuthBrand linked={false} />
 
         <p className="text-[13px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           Check your inbox

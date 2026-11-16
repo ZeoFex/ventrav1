@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { IconEnvelope } from "@/app/components/auth/auth-icons";
 import { inputBase } from "@/app/components/auth/auth-input-classes";
+import { AuthBrand } from "@/app/components/brand-mark";
 
 type ForgotPasswordRequestFormProps = {
   email: string;
@@ -21,15 +22,7 @@ export function ForgotPasswordRequestForm({
     <div className="flex flex-1 flex-col justify-center bg-background px-6 pb-12 pt-8 sm:px-10 lg:justify-start lg:px-16 lg:pb-16 lg:pt-14 xl:px-24">
       <div className="mx-auto w-full max-w-[420px]">
         {/* Mobile Brand Header */}
-        <div className="mb-10 flex flex-col lg:hidden">
-          <Link
-            href="/"
-            className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-foreground"
-          >
-            VentraPOS
-          </Link>
-          <div className="mt-1.5 h-1 w-8 rounded-full bg-gradient-to-r from-[#006c49] to-[#059669]" />
-        </div>
+        <AuthBrand />
 
         <p className="text-[13px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           Account recovery

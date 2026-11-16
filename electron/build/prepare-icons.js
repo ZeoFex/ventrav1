@@ -1,7 +1,7 @@
 /**
  * Icon preparation for the VentraPOS desktop build.
  *
- * Reads the single source of truth (public/logo.jpg) and emits every
+ * Reads the single source of truth (public/brand-logo.png) and emits every
  * derived asset the Windows desktop build needs, so we keep one logo
  * in the repo and never hand-roll multi-resolution files.
  *
@@ -17,7 +17,7 @@ const fs = require("fs");
 const sharp = require("sharp");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const SOURCE = path.join(ROOT, "public", "logo.jpg");
+const SOURCE = path.join(ROOT, "public", "brand-logo.png");
 const OUT_DIR = __dirname;
 
 const ICON_PNG = path.join(OUT_DIR, "icon.png");
@@ -27,7 +27,7 @@ const SPLASH_PNG = path.join(OUT_DIR, "splash-logo.png");
 /** Multi-resolution set baked into the Windows .ico. */
 const ICO_SIZES = [16, 32, 48, 64, 128, 256];
 
-async function fitSquare(sourcePath, size, background = { r: 255, g: 255, b: 255, alpha: 1 }) {
+async function fitSquare(sourcePath, size, background = { r: 0, g: 0, b: 0, alpha: 0 }) {
     return sharp(sourcePath)
         .resize(size, size, {
             fit: "contain",

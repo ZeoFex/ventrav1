@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { ThemeToggle } from "@/app/components/theme-toggle";
+import { BrandLockup } from "@/app/components/brand-mark";
 
 const actionClass =
   "inline-flex h-9 items-center rounded-full bg-gradient-to-br from-[#003527] to-[#064e3b] px-3.5 text-[13px] font-semibold text-white shadow-[0_8px_24px_-12px_rgba(0,53,39,0.8)] dark:from-[#6ffbbe] dark:to-[#b6f5d8] dark:text-[#003527] dark:shadow-none";
@@ -40,12 +41,11 @@ export function MarketNav({
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(120%_180%_at_0%_-40%,rgba(0,108,73,0.12),transparent_55%)] dark:bg-[radial-gradient(120%_180%_at_0%_-40%,rgba(111,251,190,0.08),transparent_55%)]"
         />
-        <Link
-          href="/"
-          className="relative z-10 shrink-0 rounded-full px-2.5 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold tracking-tight text-[#003527] sm:px-3 dark:text-[#6ffbbe]"
-        >
-          VentraPOS
-        </Link>
+        <BrandLockup
+          className="relative z-10 shrink-0 rounded-full py-1 pl-1 pr-2"
+          size={30}
+          wordClassName="text-[15px] text-[#003527] dark:text-[#6ffbbe]"
+        />
         <span aria-hidden className="relative z-10 hidden h-6 w-px shrink-0 bg-[#bfc9c3]/50 sm:block dark:bg-white/15" />
         <div className="relative z-10 flex min-w-0 items-center">
           {current === "shop" ? (

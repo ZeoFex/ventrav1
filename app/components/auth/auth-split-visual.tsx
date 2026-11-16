@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { BrandLockup } from "@/app/components/brand-mark";
 
 export function AuthSplitVisual({
   lightSrc,
@@ -15,12 +15,7 @@ export function AuthSplitVisual({
   return (
     <aside className="relative hidden flex-shrink-0 flex-col bg-surface-elevated dark:bg-black lg:flex lg:min-h-screen lg:w-[46%] lg:max-w-[560px]">
       <div className="flex flex-1 flex-col px-8 pb-10 pt-10 lg:px-12 lg:pb-14 lg:pt-14">
-        <Link
-          href="/"
-          className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-foreground dark:text-white"
-        >
-          VentraPOS
-        </Link>
+        <BrandLockup size={32} wordClassName="text-lg dark:text-white" />
         <p className="mt-3 max-w-[14rem] text-[13px] leading-snug text-muted-foreground dark:text-white/45">
           {subtitle}
         </p>

@@ -14,6 +14,7 @@ const NAV = [
 ] as const;
 
 import { HeaderUserMenu } from "../dashboard/header/header-user-menu";
+import { BrandLockup } from "../brand-mark";
 
 export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?: boolean; displayName?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,12 +36,11 @@ export function SiteHeader({ isAuthenticated, displayName }: { isAuthenticated?:
             className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(120%_180%_at_50%_-30%,rgba(0,108,73,0.07),transparent_55%)] dark:bg-[radial-gradient(120%_180%_at_50%_-30%,rgba(255,255,255,0.05),transparent_55%)]"
           />
 
-          <Link
-            href="/"
-            className="relative z-10 shrink-0 rounded-full px-3 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold tracking-tight text-foreground"
-          >
-            VentraPOS
-          </Link>
+          <BrandLockup
+            className="relative z-10 shrink-0 rounded-full py-1 pl-1 pr-2.5"
+            size={30}
+            wordClassName="text-[15px]"
+          />
 
           <span
             aria-hidden

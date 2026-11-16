@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { TABS, type TabId } from "./catalog-admin-types";
+import { BrandMark } from "@/app/components/brand-mark";
 
 const VENTRA_ACCENT = "text-[#006c49] dark:text-[#6ffbbe]";
 const VENTRA_ACTIVE_BG = "bg-[#003527]/10 dark:bg-[#6ffbbe]/10";
@@ -24,9 +25,7 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             className="flex w-full min-w-0 items-center gap-3 px-1 py-1 text-left transition-opacity hover:opacity-90"
         >
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#006c49] text-white shadow-sm dark:bg-[#6ffbbe] dark:text-[#003527]">
-                <span className="text-[17px] font-black italic tracking-tighter">V</span>
-            </div>
+            <BrandMark size={36} />
             <div className="min-w-0">
                 <p className="truncate font-[family-name:var(--font-display)] text-[17px] font-bold tracking-tight text-foreground">
                     VentraPOS
