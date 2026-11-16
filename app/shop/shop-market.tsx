@@ -718,7 +718,19 @@ export function ShopMarket() {
             </div>
 
             {loading ? (
-              <p className="py-16 text-center text-sm text-[#8a8478]">Loading the market…</p>
+              <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4" aria-hidden>
+                {Array.from({ length: 6 }, (_, index) => (
+                  <li
+                    key={index}
+                    className="rounded-3xl border border-[#e7e0d4] p-2.5 dark:border-white/10 sm:p-3"
+                  >
+                    <div className="aspect-[4/3] animate-pulse rounded-[0.875rem] bg-[#efeae0] dark:bg-white/10" />
+                    <div className="mt-2 h-3 w-2/3 animate-pulse rounded-full bg-[#efeae0] dark:bg-white/10" />
+                    <div className="mt-2 h-4 w-full animate-pulse rounded-full bg-[#efeae0] dark:bg-white/10" />
+                    <div className="mt-3 h-4 w-1/3 animate-pulse rounded-full bg-[#efeae0] dark:bg-white/10" />
+                  </li>
+                ))}
+              </ul>
             ) : pageItems.length === 0 ? (
               <div className="rounded-[2rem] border border-dashed border-[#e7e0d4] px-6 py-20 text-center dark:border-white/10">
                 <Store className="mx-auto mb-3 size-8 opacity-40" />

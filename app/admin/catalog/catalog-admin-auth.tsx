@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/app/components/theme-toggle";
+import { BrandMark } from "@/app/components/brand-mark";
 
 type SetupState = {
     configured: boolean;
@@ -117,8 +118,8 @@ export function CatalogAdminAuth({ onAuthenticated }: Props) {
 
             <main className="relative mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-16">
                 <div className="mb-8 text-center">
-                    <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl bg-[#006c49] text-white shadow-lg shadow-[#006c49]/20 dark:bg-[#6ffbbe] dark:text-[#003527] dark:shadow-[#6ffbbe]/10">
-                        <span className="text-2xl font-black italic tracking-tighter">V</span>
+                    <div className="mb-5 flex justify-center">
+                        <BrandMark size={56} />
                     </div>
                     <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-foreground">
                         Platform Admin
