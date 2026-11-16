@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "@/app/components/auth/use-session";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Lock } from "lucide-react";
 
@@ -16,7 +17,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
         user.subscriptionStatus === "past_due" ||
         (user.plan !== "starter" &&
             user.currentPeriodEnd &&
-            new Date(user.currentPeriodEnd).getTime() < Date.now());
+            new Date(user.currentPeriodEnd).getTime() < Date.now()); // eslint-disable-line react-hooks/purity -- live expiry check
 
     // Allow access to Home and Billing Settings
     if (pathname === "/dashboard" || pathname.startsWith("/dashboard/settings/billing")) {
@@ -34,12 +35,12 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
                 <p className="text-muted-foreground max-w-md mb-6">
                     Your free trial or subscription has ended. Please renew your plan to unlock all features and continue managing your business.
                 </p>
-                <a
+                <Link
                     href="/dashboard/settings/billing"
                     className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-8"
                 >
                     Renew Plan
-                </a>
+                </Link>
             </div>
         );
     }

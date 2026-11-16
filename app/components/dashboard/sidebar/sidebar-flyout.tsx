@@ -14,7 +14,7 @@ interface FlyoutChild {
 interface SidebarFlyoutProps {
   label: string;
   active: boolean;
-  children: FlyoutChild[];
+  items: FlyoutChild[];
   pathname: string;
   onNavigate?: () => void;
   trigger: React.ReactNode;
@@ -25,7 +25,7 @@ interface SidebarFlyoutProps {
 export function SidebarFlyout({ 
   label, 
   active, 
-  children, 
+  items, 
   pathname, 
   onNavigate,
   trigger,
@@ -70,7 +70,7 @@ export function SidebarFlyout({
 
           {/* List */}
           <div className="p-1.5 space-y-0.5">
-            {children.map((child) => {
+            {items.map((child) => {
               const isActive = pathname === child.href;
               const hasAccess = plan
                 ? !subscriptionPastDue && canAccess(plan, child.id)

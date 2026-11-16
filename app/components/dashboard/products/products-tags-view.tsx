@@ -110,7 +110,7 @@ export function ProductsTagsView() {
         <div className="flex flex-col items-center py-20 text-center border-2 border-dashed rounded-3xl">
           <Tag className="size-12 text-muted-foreground mb-4 opacity-20" />
           <h3 className="text-lg font-semibold">No tags yet</h3>
-          <p className="text-muted-foreground max-w-sm mx-auto">Create labels like "New", "On Sale", or "Expiring Soon" to quickly organize and find items on the POS.</p>
+          <p className="text-muted-foreground max-w-sm mx-auto">Create labels like &quot;New&quot;, &quot;On Sale&quot;, or &quot;Expiring Soon&quot; to quickly organize and find items on the POS.</p>
           <button onClick={() => setOpen(true)} className="mt-6 bg-[#003527] text-white px-6 py-2 rounded-xl">Create Tag</button>
         </div>
       ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
@@ -211,28 +212,28 @@ function BarcodeListRow({
           </button>
         </div>
         {showCatalogActions && !row.productId ? (
-          <a
+          <Link
             href="/dashboard/products/new"
             className="rounded-xl border border-border px-3 py-2 text-[13px] font-semibold hover:bg-muted dark:border-white/10"
           >
             Add product
-          </a>
+          </Link>
         ) : null}
         {!showCatalogActions && row.productId ? (
-          <a
+          <Link
             href={`/dashboard/products/${row.productId}/edit`}
             className="rounded-xl border border-border px-3 py-2 text-[13px] font-semibold hover:bg-muted dark:border-white/10"
           >
             View product
-          </a>
+          </Link>
         ) : null}
         {!showCatalogActions && !row.productId ? (
-          <a
+          <Link
             href="/dashboard/products/new"
             className="rounded-xl border border-border px-3 py-2 text-[13px] font-semibold hover:bg-muted dark:border-white/10"
           >
             Add product
-          </a>
+          </Link>
         ) : null}
         <button
           type="button"

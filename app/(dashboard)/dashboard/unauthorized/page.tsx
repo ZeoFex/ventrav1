@@ -67,7 +67,7 @@ export default function UnauthorizedPage() {
         transition={{ delay: 0.5, duration: 1 }}
         className="mt-16 text-[13px] text-muted-foreground/60"
       >
-        Ref ID: {Math.random().toString(36).substring(2, 10).toUpperCase()}
+        Ref ID: VENTRA-SUPPORT
       </motion.div>
     </div>
   );
