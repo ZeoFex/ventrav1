@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hasMinRole, requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { createSupplyOrder, getSupplyOrderDetail } from "@/server/suppliers/supply-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 import { z } from "zod";
 
 const lineSchema = z.object({
@@ -87,6 +88,15 @@ export async function POST(req: Request) {
                 expiryDate: l.expiryDate ?? null,
                 notes: l.notes ?? null,
             })),
+        });
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.supply.recorded",
+            resource: "supply",
+            resourceId: result.orderId,
+            detail: b.reference,
         });
         return NextResponse.json({
             success: true,

@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Key, Smartphone, AlertTriangle } from "lucide-react";
+import { Key, Smartphone, AlertTriangle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { PasswordRequirements } from "@/app/components/auth/password-requirements";
 import { isPasswordValid } from "@/lib/password-requirements";
 
-export function SecuritySettingsView() {
+export function ChangePasswordCard() {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
 
     const newPasswordValid = useMemo(() => isPasswordValid(newPassword), [newPassword]);
     const passwordsMatch =
@@ -16,11 +18,34 @@ export function SecuritySettingsView() {
     const canUpdate =
         currentPassword.length > 0 &&
         newPasswordValid &&
-        passwordsMatch;
+        passwordsMatch &&
+        !isSaving;
+
+    async function handleUpdate() {
+        setIsSaving(true);
+        try {
+            const res = await fetch("/api/auth/password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ currentPassword, newPassword }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(typeof data.error === "string" ? data.error : "Could not update password.");
+            }
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+            toast.success("Password updated. Use it the next time you sign in.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Could not update password.");
+        } finally {
+            setIsSaving(false);
+        }
+    }
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto">
-            <div className="rounded-[2rem] border border-[#eef0f2] bg-white p-8 shadow-sm dark:border-white/[0.08] dark:bg-[#111]">
+            <div className="rounded-[2rem] border border-[#eef0f2] bg-white p-6 shadow-sm sm:p-8 dark:border-white/[0.08] dark:bg-[#111]">
                 <div className="flex items-center gap-3 mb-8">
                     <div className="rounded-2xl bg-[#006c49]/5 p-3 dark:bg-[#6ffbbe]/5">
                         <Key className="size-5 text-[#006c49] dark:text-[#6ffbbe]" />
@@ -77,12 +102,21 @@ export function SecuritySettingsView() {
                     <button
                         type="button"
                         disabled={!canUpdate}
+                        onClick={handleUpdate}
                         className="flex items-center gap-2 rounded-xl bg-[#006c49] px-6 py-3 text-[14px] font-bold text-white shadow-xl shadow-[#006c49]/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        Update Password
+                        {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                        {isSaving ? "Updating..." : "Update Password"}
                     </button>
                 </div>
             </div>
+    );
+}
+
+export function SecuritySettingsView() {
+    return (
+        <div className="space-y-6 max-w-4xl mx-auto">
+            <ChangePasswordCard />
 
             <div className="rounded-[2rem] border border-[#eef0f2] bg-white p-8 shadow-sm dark:border-white/[0.08] dark:bg-[#111]">
                 <div className="flex items-start justify-between gap-4">

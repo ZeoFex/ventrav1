@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { shouldStartNewWedgeBuffer } from "@/app/lib/pos/barcode-scanner/wedge";
 
 /** Matches the POS layout breakpoint used for desktop scanner / phone relay split. */
 export function useIsDesktopLayout(): boolean {
@@ -20,7 +21,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
     return true;
   }
-  if (target instanceof HTMLSelectElement) return true;
+  if (target instanceof HTMLSelectElement || target instanceof HTMLButtonElement) return true;
   return target.isContentEditable;
 }
 
@@ -34,12 +35,14 @@ export function usePosKeyboardWedge(opts: {
 }) {
   const { enabled, onBarcode } = opts;
   const bufferRef = useRef("");
+  const lastKeyAtRef = useRef<number | null>(null);
   const onBarcodeRef = useRef(onBarcode);
   onBarcodeRef.current = onBarcode;
 
   useEffect(() => {
     if (!enabled) {
       bufferRef.current = "";
+      lastKeyAtRef.current = null;
       return;
     }
 
@@ -47,13 +50,20 @@ export function usePosKeyboardWedge(opts: {
       if (isTypingTarget(e.target)) return;
 
       if (e.key === "Enter") {
-        e.preventDefault();
         const raw = bufferRef.current;
         bufferRef.current = "";
-        if (raw.trim()) onBarcodeRef.current(raw);
+        lastKeyAtRef.current = null;
+        if (!raw.trim()) return;
+        e.preventDefault();
+        onBarcodeRef.current(raw);
         return;
       }
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const now = Date.now();
+        if (shouldStartNewWedgeBuffer(lastKeyAtRef.current, now)) {
+          bufferRef.current = "";
+        }
+        lastKeyAtRef.current = now;
         bufferRef.current += e.key;
       }
     };

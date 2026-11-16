@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { AuthSplitVisual } from "@/app/components/auth/auth-split-visual";
-import { LoginForm, type LoginType } from "./login-form";
+import { LoginForm, type CustomerAccountMode, type LoginType } from "./login-form";
 import { StaffLoginOtpForm } from "./staff-login-otp-form";
 import { toast } from "sonner";
 
@@ -13,9 +13,22 @@ const SPLIT_IMAGE_DARK = "/landing/order-pos.png";
 
 type StaffStep = "credentials" | "otp";
 
-export function LoginView() {
+export function LoginView({
+  initialType = "owner",
+  startCreating = false,
+  nextPath = "",
+}: {
+  initialType?: LoginType;
+  startCreating?: boolean;
+  nextPath?: string;
+}) {
   const router = useRouter();
-  const [loginType, setLoginType] = useState<LoginType>("owner");
+  const [loginType, setLoginType] = useState<LoginType>(initialType);
+  const [accountMode, setAccountMode] = useState<CustomerAccountMode>(
+    startCreating ? "create" : "signin",
+  );
+  const [region, setRegion] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [staffStep, setStaffStep] = useState<StaffStep>("credentials");
 
   const [email, setEmail] = useState("");
@@ -44,9 +57,77 @@ export function LoginView() {
 
   function handleLoginTypeChange(type: LoginType) {
     setLoginType(type);
+    setAccountMode("signin");
     setStaffStep("credentials");
     setApiError(null);
     setOtp(Array(6).fill(""));
+  }
+
+  function customerDestination() {
+    return nextPath === "/shop" ? "/shop" : "/customer";
+  }
+
+  async function handleCustomerSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!phone.trim() || !password || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setApiError(null);
+
+    try {
+      const res = await fetch("/api/shop/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim(), password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setApiError(typeof data.error === "string" ? data.error : "Login failed. Please check your credentials.");
+        return;
+      }
+      toast.success("Welcome back!", { description: "Signed in as a customer" });
+      router.push(customerDestination());
+    } catch {
+      setApiError("Network error. Please check your connection.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCustomerCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!phone.trim() || !password || !region || isSubmitting) return;
+    if (password !== confirmPassword) {
+      setApiError("Passwords do not match");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setApiError(null);
+
+    try {
+      const res = await fetch("/api/shop/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: phone.trim(),
+          region,
+          password,
+          confirmPassword,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setApiError(typeof data.error === "string" ? data.error : "Could not create the account.");
+        return;
+      }
+      toast.success("Account created", { description: "You are signed in as a customer" });
+      router.push(customerDestination());
+    } catch {
+      setApiError("Network error. Please check your connection.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function handleOwnerSubmit(e: React.FormEvent) {
@@ -287,9 +368,23 @@ export function LoginView() {
             setShowPassword={setShowPassword}
             rememberDevice={rememberDevice}
             setRememberDevice={setRememberDevice}
+            accountMode={accountMode}
+            onAccountModeChange={setAccountMode}
+            region={region}
+            setRegion={setRegion}
+            confirmPassword={confirmPassword}
+            setConfirmPassword={setConfirmPassword}
             isSubmitting={isSubmitting}
             apiError={apiError}
-            onSubmit={loginType === "owner" ? handleOwnerSubmit : handleStaffCredentialsSubmit}
+            onSubmit={
+              loginType === "owner"
+                ? handleOwnerSubmit
+                : loginType === "customer"
+                  ? accountMode === "create"
+                    ? handleCustomerCreate
+                    : handleCustomerSubmit
+                  : handleStaffCredentialsSubmit
+            }
           />
         )}
       </div>

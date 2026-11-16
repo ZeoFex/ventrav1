@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, ImageIcon, Loader2, RefreshCw, X, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { PosBarcodeCamera } from "../pos/sale/pos-barcode-camera";
+import { ProductItemPhotoCapture } from "./product-item-photo-capture";
 import { generateProductSku } from "./product-catalog-codes";
 import { ProductsPageShell } from "./products-page-shell";
 import { useCategories, useTags } from "./products-data-hooks";
@@ -25,6 +26,8 @@ import {
   getUnit,
   isDecimalUnit,
 } from "@/app/lib/product-units";
+import { parseAmountInput, formatAmountGrouping } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
 
 export type ProductFormInitialValues = {
   name: string;
@@ -55,7 +58,32 @@ type ProductFormProps = {
   initial: ProductFormInitialValues;
   title: string;
   shellDescription: string;
+  /** Open the item camera when a scanned barcode was not found in any catalog. */
+  promptItemPhoto?: boolean;
+  /** Category label from a barcode lookup, matched to an existing category when possible. */
+  suggestedCategoryName?: string | null;
 };
+
+type ScanFieldPatch = {
+  name?: string | null;
+  description?: string | null;
+  brand?: string | null;
+  category?: string | null;
+  imageUrl?: string | null;
+  unit?: string | null;
+};
+
+function matchKnownUnit(raw: string | null | undefined): string | null {
+  const value = raw?.trim().toLowerCase();
+  if (!value) return null;
+  const hit = PRODUCT_UNITS.find(
+    (unit) =>
+      unit.value === value ||
+      unit.short.toLowerCase() === value ||
+      unit.label.toLowerCase() === value,
+  );
+  return hit?.value ?? null;
+}
 
 export function ProductForm({
   mode,
@@ -63,6 +91,8 @@ export function ProductForm({
   initial,
   title,
   shellDescription,
+  promptItemPhoto = false,
+  suggestedCategoryName = null,
 }: ProductFormProps) {
   const router = useRouter();
   const { mutate: revalidateProductCaches } = useSWRConfig();
@@ -72,11 +102,13 @@ export function ProductForm({
   const [sku, setSku] = useState(initial.sku);
   const [barcode, setBarcode] = useState(initial.barcode ?? "");
   const [description, setDescription] = useState(initial.description);
-  const [price, setPrice] = useState<number | "">(initial.price);
-  const [costPrice, setCostPrice] = useState<number | "">(
+  const [price, setPrice] = useState(
+    initial.price === "" ? "" : formatAmountGrouping(String(initial.price)),
+  );
+  const [costPrice, setCostPrice] = useState(
     initial.costPrice === undefined || initial.costPrice === null || initial.costPrice === ""
       ? ""
-      : Number(initial.costPrice),
+      : formatAmountGrouping(String(initial.costPrice)),
   );
   const [stock, setStock] = useState<number | "">(
     initial.stock === 0 ? "" : initial.stock,
@@ -110,6 +142,8 @@ export function ProductForm({
   const needsSmallerUnitTip = isDecimalUnit(unit);
   const [isScanningMode, setIsScanningMode] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [pendingCategoryName, setPendingCategoryName] = useState<string | null>(null);
 
   const { user } = useSession();
 
@@ -146,6 +180,23 @@ export function ProductForm({
   const [imagePreview, setImagePreview] = useState<string | null>(initial.imageSrc);
 
   const { categories, mutate: mutateCategories } = useCategories(categorySearch);
+
+  useEffect(() => {
+    if (mode === "new" && promptItemPhoto) setPhotoOpen(true);
+  }, [mode, promptItemPhoto]);
+
+  useEffect(() => {
+    if (suggestedCategoryName) setPendingCategoryName(suggestedCategoryName);
+  }, [suggestedCategoryName]);
+
+  useEffect(() => {
+    if (!pendingCategoryName || categoryId) return;
+    const match = (Array.isArray(categories) ? categories : []).find(
+      (category: { id: string; name: string }) =>
+        category.name.trim().toLowerCase() === pendingCategoryName.trim().toLowerCase(),
+    );
+    if (match) setCategoryId(match.id);
+  }, [pendingCategoryName, categories, categoryId]);
   const { tags = [] } = useTags();
 
   const categoryOptions: ComboboxOption[] = useMemo(
@@ -198,13 +249,51 @@ export function ProductForm({
   }, [name, searchProductNames]);
   const { startUpload, isUploading } = useUploadThing("productImage");
 
+  const attachItemPhoto = (file: File) => {
+    setSelectedFile(file);
+    setImagePreview((current) => {
+      if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+    setPhotoOpen(false);
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
+    if (file) attachItemPhoto(file);
   };
+
+  const applyScanFields = useCallback((patch: ScanFieldPatch, replace = false): boolean => {
+    const nextName = patch.name?.trim();
+    if (nextName) {
+      setName((current) => (replace || !current.trim() ? nextName : current));
+    }
+
+    const brand = patch.brand?.trim() ?? "";
+    const notes = patch.description?.trim() ?? "";
+    const nextDescription =
+      notes && brand && !notes.toLowerCase().includes(brand.toLowerCase())
+        ? `${brand} · ${notes}`
+        : notes || (brand ? `Brand: ${brand}` : "");
+    if (nextDescription) {
+      setDescription((current) => (replace || !current.trim() ? nextDescription : current));
+    }
+
+    const knownUnit = matchKnownUnit(patch.unit);
+    if (knownUnit) {
+      setUnitSelect((current) => (current === DEFAULT_PRODUCT_UNIT ? knownUnit : current));
+    }
+
+    if (patch.category?.trim()) setPendingCategoryName(patch.category.trim());
+
+    const imageUrl = patch.imageUrl?.trim();
+    if (imageUrl) {
+      setImagePreview((current) => (replace || !current ? imageUrl : current));
+      if (replace) setSelectedFile(null);
+      return true;
+    }
+    return false;
+  }, []);
 
   const clearImage = () => {
     setSelectedFile(null);
@@ -240,13 +329,15 @@ export function ProductForm({
         const ventraResult = await ventraRes.json();
 
         if (ventraRes.ok && ventraResult.found) {
-          setName(ventraResult.data.name);
-          setDescription(ventraResult.data.description || "");
-          if (ventraResult.data.imageUrl) {
-            setImagePreview(ventraResult.data.imageUrl);
-            setSelectedFile(null);
-          }
-          toast.success("Details loaded from your barcode label.");
+          applyScanFields(
+            {
+              name: ventraResult.data.name,
+              description: ventraResult.data.description,
+              imageUrl: ventraResult.data.imageUrl,
+            },
+            true,
+          );
+          toast.success("Details loaded from your barcode label. Set your prices and save.");
           return;
         }
 
@@ -256,14 +347,16 @@ export function ProductForm({
         if (globalRes.ok) {
           const global = await globalRes.json();
           if (global.found && global.productName) {
-            setName(global.productName);
-            setDescription(global.description || "");
-            if (global.imageSrc) {
-              setImagePreview(global.imageSrc);
-              setSelectedFile(null);
-            }
-            if (global.unit) setUnitSelect(global.unit.toLowerCase());
-            toast.success("Loaded from Ventra shared catalog. Set your prices.");
+            applyScanFields(
+              {
+                name: global.productName,
+                description: global.description,
+                imageUrl: global.imageSrc,
+                unit: global.unit,
+              },
+              true,
+            );
+            toast.success("Loaded from Ventra shared catalog. Set your prices and save.");
             return;
           }
         }
@@ -272,25 +365,39 @@ export function ProductForm({
           `/api/products/lookup?barcode=${encodeURIComponent(code)}`,
         );
         const result = await res.json();
+        const data = result.data ?? {};
+        const hasImage = applyScanFields(
+          {
+            name: data.name,
+            description: data.description,
+            brand: data.brand,
+            category: data.category,
+            imageUrl: data.imageUrl,
+            unit: data.unit,
+          },
+          Boolean(result.found),
+        );
 
         if (res.ok && result.found) {
-          setName(result.data.name);
-          setDescription(result.data.description || "");
-          if (result.data.imageUrl) {
-            setImagePreview(result.data.imageUrl);
-            setSelectedFile(null);
-          }
-          toast.success("Product details found!");
-        } else {
-          toast.info("Barcode captured. Enter product details and save.");
+          toast.success(
+            hasImage
+              ? "Product details found. Review them and save."
+              : "Product details found. Add a photo, then save.",
+          );
+          if (!hasImage) setPhotoOpen(true);
+          return;
         }
+
+        toast.info("Not in any catalog. Take a photo of the item, then complete the details and save.");
+        setPhotoOpen(true);
       } catch {
-        toast.error("Lookup failed. Barcode captured — enter details manually.");
+        toast.error("Lookup failed. Take a photo, then enter the details and save.");
+        setPhotoOpen(true);
       } finally {
         setIsLookingUp(false);
       }
     },
-    [mode],
+    [mode, applyScanFields],
   );
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -298,23 +405,30 @@ export function ProductForm({
     if (isSaving || isUploading) return;
     setIsSaving(true);
 
+    const priceNum = parseAmountInput(price);
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      alert("Enter a valid price.");
+      setIsSaving(false);
+      return;
+    }
     const stockNum = stock === "" ? 0 : Math.max(0, Math.round(Number(stock)));
     const cleanUnit = unit && unit.length > 0 ? unit : DEFAULT_PRODUCT_UNIT;
-    if (costPrice !== "" && Number(costPrice) < 0) {
+    if (costPrice !== "" && parseAmountInput(costPrice) < 0) {
       alert("Cost price cannot be negative.");
       setIsSaving(false);
       return;
     }
+    const costParsed = costPrice === "" ? NaN : parseAmountInput(costPrice);
     const costStr =
-      costPrice === "" || costPrice === undefined
+      costPrice === "" || !Number.isFinite(costParsed)
         ? null
-        : String(Math.max(0, Number(costPrice)));
+        : String(Math.max(0, costParsed));
     const productData = {
       name,
       sku,
       barcode: barcode.trim() || null,
       description,
-      priceGhs: price.toString(),
+      priceGhs: String(priceNum),
       costPriceGhs: costStr,
       stock: stockNum,
       reorderAt: Number(reorderAt) || 0,
@@ -327,6 +441,10 @@ export function ProductForm({
       variations: variations.map((v) => ({
         ...v,
         stock: v.stock === "" || v.stock === undefined ? 0 : Number(v.stock),
+        priceGhs:
+          v.priceGhs == null || v.priceGhs === ""
+            ? v.priceGhs
+            : String(parseAmountInput(v.priceGhs)),
       })),
     };
 
@@ -420,34 +538,6 @@ export function ProductForm({
         className="space-y-8 rounded-3xl border border-border bg-white p-6 dark:bg-[#111]"
       >
         <section className="space-y-4">
-          <h2 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Photo</h2>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="relative size-32 mx-auto sm:mx-0 rounded-2xl bg-muted border overflow-hidden flex items-center justify-center dark:border-white/10 shadow-inner">
-              {imagePreview ? (
-                <>
-                  <img src={imagePreview} alt="" className="size-full object-cover" />
-                  <button type="button" onClick={clearImage} className="absolute top-2 right-2 bg-black/50 text-white rounded-lg p-1 hover:bg-black transition-colors">
-                    <X className="size-4" />
-                  </button>
-                </>
-              ) : (
-                <ImageIcon className="size-8 opacity-20" />
-              )}
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <label className="block w-full sm:w-auto px-4 py-2 rounded-xl border border-dashed border-border hover:border-[#006c49] hover:bg-muted/50 transition-all cursor-pointer text-[14px] font-medium text-muted-foreground">
-                <span className="flex items-center justify-center gap-2">
-                  <ImageIcon className="size-4" />
-                  Select Image
-                </span>
-                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-              </label>
-              <p className="text-[12px] text-muted-foreground mt-3">Upload a high-quality photo. Max 4MB.</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4 border-t pt-8 dark:border-white/5">
           <div className="grid sm:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Product Name *</label>
@@ -498,39 +588,21 @@ export function ProductForm({
               </div>
             </div>
           </div>
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">Retail barcode</label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value.replace(/\s+/g, ""))}
-                  className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
-                  placeholder="EAN / UPC / Code 128"
-                />
-                <button type="button" onClick={() => setIsScanningMode(true)} className="flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20 h-[50px]" title="Scan Barcode">
-                  {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-                  <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
-                </button>
-              </div>
-              <p className="ml-1 text-[12px] text-muted-foreground">
-                Scanned retail barcode — stored separately from your internal SKU.
-              </p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold ml-1">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent h-32 text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Describe your product..." />
-          </div>
         </section>
 
         <section className="space-y-4 border-t pt-8 dark:border-white/5">
+          <h2 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Pricing & stock</h2>
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Price (GHS) *</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₵</span>
-                <input type="number" required step="0.01" value={price} onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))} className="w-full p-3 pl-8 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" />
+                <AmountInput
+                  required
+                  value={price}
+                  onChange={setPrice}
+                  className="w-full p-3 pl-8 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                />
                 {unitMeta && unitSelect !== DEFAULT_PRODUCT_UNIT && (
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
                     per {unitMeta.short}
@@ -542,14 +614,9 @@ export function ProductForm({
               <label className="text-sm font-semibold ml-1">Cost price (GHS)</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₵</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
+                <AmountInput
                   value={costPrice}
-                  onChange={(e) =>
-                    setCostPrice(e.target.value === "" ? "" : Number(e.target.value))
-                  }
+                  onChange={setCostPrice}
                   className="w-full p-3 pl-8 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
                   placeholder="Optional — for COGS"
                 />
@@ -600,7 +667,7 @@ export function ProductForm({
                     setUnitSelect(e.target.value);
                     if (e.target.value !== "other") setUnitCustom("");
                   }}
-                  className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 appearance-none"
+                  className="w-full p-3 rounded-2xl border border-border bg-background text-[15px] text-foreground outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 dark:bg-[#141414] appearance-none"
                 >
                   <optgroup label="Count">
                     {PRODUCT_UNITS.filter((u) => u.group === "count").map((u) => (
@@ -643,6 +710,73 @@ export function ProductForm({
                 Ideal for cold stores, bakeries and markets — sell by weight, volume or pack.
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t pt-8 dark:border-white/5">
+          <h2 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Photo</h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="relative size-32 mx-auto sm:mx-0 rounded-2xl bg-muted border overflow-hidden flex items-center justify-center dark:border-white/10 shadow-inner">
+              {imagePreview ? (
+                <>
+                  <img src={imagePreview} alt="" className="size-full object-cover" />
+                  <button type="button" onClick={clearImage} className="absolute top-2 right-2 bg-black/50 text-white rounded-lg p-1 hover:bg-black transition-colors">
+                    <X className="size-4" />
+                  </button>
+                </>
+              ) : (
+                <ImageIcon className="size-8 opacity-20" />
+              )}
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-start">
+                <button
+                  type="button"
+                  onClick={() => setPhotoOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#006c49]/10 px-4 py-2 text-[14px] font-medium text-[#006c49] hover:bg-[#006c49]/20 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                >
+                  <Camera className="size-4" />
+                  Take photo
+                </button>
+                <label className="block w-full sm:w-auto px-4 py-2 rounded-xl border border-dashed border-border hover:border-[#006c49] hover:bg-muted/50 transition-all cursor-pointer text-[14px] font-medium text-muted-foreground">
+                  <span className="flex items-center justify-center gap-2">
+                    <ImageIcon className="size-4" />
+                    Upload photo
+                  </span>
+                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                </label>
+              </div>
+              <p className="text-[12px] text-muted-foreground mt-3">
+                Photograph the item or upload a photo. Max 4MB. It is saved with the product.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t pt-8 dark:border-white/5">
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Retail barcode</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value.replace(/\s+/g, ""))}
+                  className="flex-1 w-full p-3 rounded-2xl border border-border bg-transparent font-mono text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10"
+                  placeholder="EAN / UPC / Code 128"
+                />
+                <button type="button" onClick={() => setIsScanningMode(true)} className="flex items-center justify-center gap-1.5 px-6 bg-[#006c49]/10 text-[#006c49] font-medium border border-[#006c49]/20 rounded-2xl hover:bg-[#006c49]/20 transition-colors dark:text-[#6ffbbe] dark:bg-[#6ffbbe]/10 dark:border-[#6ffbbe]/20 h-[50px]" title="Scan Barcode">
+                  {isLookingUp ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+                  <span>{isLookingUp ? "Fetching..." : "Scan"}</span>
+                </button>
+              </div>
+              <p className="ml-1 text-[12px] text-muted-foreground">
+                Scanned retail barcode — stored separately from your internal SKU.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold ml-1">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent h-32 text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10" placeholder="Describe your product..." />
           </div>
         </section>
 
@@ -725,11 +859,9 @@ export function ProductForm({
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Price Override</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground">₵</span>
-                      <input 
-                        type="number"
-                        step="0.01"
-                        value={v.priceGhs} 
-                        onChange={(e) => updateVariation(v.id, { priceGhs: e.target.value })}
+                      <AmountInput 
+                        value={v.priceGhs ?? ""}
+                        onChange={(next) => updateVariation(v.id, { priceGhs: next })}
                         className="w-full pl-6 pr-3 py-2 rounded-xl border border-border bg-transparent text-[13px] outline-none focus:border-[#006c49]/40 transition-all dark:border-white/10"
                       />
                     </div>
@@ -794,7 +926,7 @@ export function ProductForm({
             />
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-transparent text-[15px] outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 appearance-none">
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3 rounded-2xl border border-border bg-background text-[15px] text-foreground outline-none focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 transition-all dark:border-white/10 dark:bg-[#141414] appearance-none">
                 <option value="active">Active</option>
                 <option value="archived">Archived</option>
               </select>
@@ -812,6 +944,12 @@ export function ProductForm({
           </button>
         </div>
       </form>
+
+      <ProductItemPhotoCapture
+        open={photoOpen}
+        onClose={() => setPhotoOpen(false)}
+        onCapture={attachItemPhoto}
+      />
 
       {isScanningMode && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">

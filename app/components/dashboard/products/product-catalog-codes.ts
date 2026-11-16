@@ -29,6 +29,14 @@ export function generateProductSku(): string {
   return `VTR-${ts}-${rand}`;
 }
 
+/**
+ * Short numeric code for printed labels.
+ * Six digits keeps the Code 128 symbol short enough for a phone or handheld scanner.
+ */
+export function generateBarcodeNumber(): string {
+  return String(Math.floor(100_000 + Math.random() * 900_000));
+}
+
 export function buildProductBarcodePayload(input: {
   id: string;
   sku: string;

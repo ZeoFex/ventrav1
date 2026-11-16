@@ -6,14 +6,19 @@ import { useBranches } from "../branches/branches-data-hooks";
 import { useBranchContext } from "../branch-context";
 import { useSession } from "../../auth/use-session";
 
-const fieldClass =
-  "tap-target h-9 w-full min-w-0 max-w-full cursor-pointer appearance-none rounded-xl border border-[#bfc9c3]/25 bg-background py-2 pl-9 pr-9 text-[13px] font-medium text-foreground outline-none transition-[box-shadow,border-color] focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/15 sm:h-10 sm:min-w-[12rem] sm:max-w-[14rem] sm:text-[14px] dark:border-white/[0.1] dark:bg-[#141414] dark:focus:border-[#6ffbbe]/35 dark:focus:ring-[#6ffbbe]/10";
-
-export function HeaderBranchSelector() {
+export function HeaderBranchSelector({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const id = useId();
   const { branches, isLoading: branchesLoading } = useBranches();
   const { branchId, setBranchId } = useBranchContext();
   const { user, isLoading: sessionLoading } = useSession();
+
+  const fieldClass = compact
+    ? "h-8 w-full min-w-0 max-w-full cursor-pointer appearance-none rounded-full border border-[#d7ddd9] bg-white py-1 pl-7 pr-7 text-[11px] font-semibold text-foreground outline-none dark:border-white/15 dark:bg-[#141414]"
+    : "tap-target h-9 w-full min-w-0 max-w-full cursor-pointer appearance-none rounded-xl border border-[#bfc9c3]/25 bg-background py-2 pl-9 pr-9 text-[13px] font-medium text-foreground outline-none transition-[box-shadow,border-color] focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/15 sm:h-10 sm:min-w-[12rem] sm:max-w-[14rem] sm:text-[14px] dark:border-white/[0.1] dark:bg-[#141414] dark:focus:border-[#6ffbbe]/35 dark:focus:ring-[#6ffbbe]/10";
 
   const isLoading = branchesLoading || sessionLoading;
   const isLocked = Boolean(user?.branchId);
@@ -43,9 +48,11 @@ export function HeaderBranchSelector() {
   }, [branchList, branchId, setBranchId, isLocked, user?.branchId, isLoading]);
 
   return (
-    <div className={`relative w-full min-w-0 shrink-0 sm:w-auto sm:max-w-[14rem] ${isLocked ? "opacity-80" : ""}`}>
+    <div className={`relative w-full min-w-0 shrink-0 ${compact ? "" : "sm:w-auto sm:max-w-[14rem]"} ${isLocked ? "opacity-80" : ""}`}>
       <Building2
-        className="pointer-events-none absolute left-3 top-1/2 size-[1.125rem] -translate-y-1/2 text-muted-foreground"
+        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground ${
+          compact ? "left-2 size-3.5" : "left-3 size-[1.125rem]"
+        }`}
         strokeWidth={1.75}
         aria-hidden
       />
@@ -81,7 +88,9 @@ export function HeaderBranchSelector() {
           </select>
           {!isLocked && (
             <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground ${
+                compact ? "right-2 size-3.5" : "right-3 size-4"
+              }`}
               strokeWidth={2}
               aria-hidden
             />

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getCustomers, createCustomer } from "@/server/customers/customer-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 export async function GET() {
     try {
@@ -15,7 +16,6 @@ export async function GET() {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
-
 export async function POST(req: Request) {
     try {
         const auth = await requireUserAuth(req);
@@ -28,6 +28,16 @@ export async function POST(req: Request) {
             phone: body.phone,
             email: body.email,
             status: body.status || "active",
+        });
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.customer.saved",
+            resource: "customer",
+            resourceId: newCustomer.id,
+            detail: [newCustomer.name, newCustomer.phone].filter(Boolean).join(" · "),
         });
 
         return NextResponse.json(newCustomer, { status: 201 });

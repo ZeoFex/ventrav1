@@ -112,8 +112,8 @@ export function SearchableCombobox({
                     window.setTimeout(() => inputRef.current?.focus(), 0);
                 }}
                 className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-2xl border border-border bg-transparent p-3 text-left text-[15px] outline-none transition-all",
-                    "focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 dark:border-white/10",
+                    "flex w-full items-center justify-between gap-2 rounded-2xl border border-border bg-background p-3 text-left text-[15px] text-foreground outline-none transition-all",
+                    "focus:ring-4 focus:ring-[#003527]/5 focus:border-[#006c49]/40 dark:border-white/10 dark:bg-[#141414]",
                     disabled && "opacity-50 cursor-not-allowed",
                 )}
                 aria-expanded={open}
@@ -126,21 +126,21 @@ export function SearchableCombobox({
             </button>
 
             {open && (
-                <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-2xl border border-border bg-white shadow-lg dark:border-white/10 dark:bg-[#111]">
-                    <Command shouldFilter={false} className="flex flex-col">
+                <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-lg dark:border-white/10">
+                    <Command shouldFilter={false} className="flex flex-col bg-popover text-popover-foreground">
                         <div className="flex items-center border-b border-border px-3 dark:border-white/10">
                             <Command.Input
                                 ref={inputRef}
                                 value={query}
                                 onValueChange={setQuery}
                                 placeholder={placeholder}
-                                className="flex h-11 w-full bg-transparent py-3 text-[14px] outline-none placeholder:text-muted-foreground"
+                                className="flex h-11 w-full bg-transparent py-3 text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
                             />
                             {isLoading || creating ? (
                                 <Loader2 className="size-4 animate-spin text-muted-foreground" />
                             ) : null}
                         </div>
-                        <Command.List className="max-h-60 overflow-y-auto p-1">
+                        <Command.List className="max-h-60 overflow-y-auto bg-popover p-1 text-foreground">
                             <Command.Empty className="px-3 py-4 text-center text-[13px] text-muted-foreground">
                                 {emptyMessage}
                             </Command.Empty>
@@ -153,7 +153,7 @@ export function SearchableCombobox({
                                         setOpen(false);
                                         setQuery("");
                                     }}
-                                    className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[14px] aria-selected:bg-muted"
+                                    className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[14px] text-foreground data-[selected=true]:bg-muted data-[selected=true]:text-foreground aria-selected:bg-muted"
                                 >
                                     <span className="text-muted-foreground">{clearLabel}</span>
                                 </Command.Item>
@@ -168,7 +168,7 @@ export function SearchableCombobox({
                                         setOpen(false);
                                         setQuery("");
                                     }}
-                                    className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[14px] aria-selected:bg-muted"
+                                    className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[14px] text-foreground data-[selected=true]:bg-muted data-[selected=true]:text-foreground aria-selected:bg-muted"
                                 >
                                     <Check
                                         className={cn(
@@ -184,7 +184,7 @@ export function SearchableCombobox({
                                 <Command.Item
                                     value={`__create__${query}`}
                                     onSelect={handleCreate}
-                                    className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[14px] text-[#006c49] aria-selected:bg-[#006c49]/10 dark:text-[#6ffbbe]"
+                                    className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[14px] text-[#006c49] data-[selected=true]:bg-[#006c49]/10 data-[selected=true]:text-[#006c49] aria-selected:bg-[#006c49]/10 dark:text-[#6ffbbe] dark:data-[selected=true]:text-[#6ffbbe]"
                                 >
                                     <Plus className="size-4 shrink-0" />
                                     {createLabel(query.trim())}

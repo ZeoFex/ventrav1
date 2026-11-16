@@ -20,9 +20,7 @@ export function HomeCatalogCard({
 
   return (
     <article
-      className={`flex flex-col overflow-hidden rounded-2xl border border-[#bfc9c3]/15 bg-surface-card dark:border-white/[0.08] dark:bg-[#111] ${
-        isOutOfStock ? "opacity-60" : ""
-      }`}
+      className="flex flex-col overflow-hidden rounded-2xl border border-[#bfc9c3]/15 bg-surface-card dark:border-white/[0.08] dark:bg-[#111]"
     >
       <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-[#f4f6f5] to-[#e8ecea] dark:from-[#1a1a1a] dark:to-[#141414]">
         {product.imageSrc ? (
@@ -38,20 +36,14 @@ export function HomeCatalogCard({
             </span>
           </div>
         )}
-        {!isOutOfStock ? (
-          <button
-            type="button"
-            onClick={onAdd}
-            aria-label={`Add ${product.name}`}
-            className="absolute bottom-2 right-2 flex size-9 items-center justify-center rounded-full bg-[#006c49] text-white shadow-md active:scale-95 dark:bg-[#6ffbbe] dark:text-[#003527]"
-          >
-            <Plus className="size-4" strokeWidth={2.5} />
-          </button>
-        ) : (
-          <span className="absolute bottom-2 left-2 rounded-full bg-red-500/90 px-2 py-0.5 text-[10px] font-bold text-white">
-            Out of stock
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={onAdd}
+          aria-label={`Add ${product.name}`}
+          className="absolute bottom-2 right-2 flex size-9 items-center justify-center rounded-full bg-[#006c49] text-white shadow-md active:scale-95 dark:bg-[#6ffbbe] dark:text-[#003527]"
+        >
+          <Plus className="size-4" strokeWidth={2.5} />
+        </button>
       </div>
       <div className="flex flex-1 flex-col gap-1 p-2.5">
         <h3 className="line-clamp-2 min-h-[2.5rem] text-[12px] font-semibold leading-snug text-foreground">
@@ -63,8 +55,8 @@ export function HomeCatalogCard({
             <span className="text-[10px] font-medium text-muted-foreground">/{unitLabel}</span>
           ) : null}
         </p>
-        <p className="text-[10px] text-muted-foreground">
-          {isOutOfStock ? "Unavailable" : `${formatQuantity(availableStock, product.unit)} in stock`}
+        <p className={`text-[10px] ${isOutOfStock ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+          {formatQuantity(availableStock, product.unit)} in stock
         </p>
       </div>
     </article>

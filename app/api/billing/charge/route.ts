@@ -37,6 +37,12 @@ export async function POST(req: NextRequest) {
     }
 
     const { plan, cycle, phone, provider, preSignupEmail } = parsed.data;
+    if (plan === "pro") {
+      return NextResponse.json(
+        { error: "Pro is a custom plan. Contact us to hire VentraPOS or request a custom build." },
+        { status: 400 },
+      );
+    }
 
     // Must have either a session email or a pre-signup email
     const email = payload?.email || preSignupEmail;

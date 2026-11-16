@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireUserAuthFromContext } from "@/server/auth/api-request-auth";
-import { searchGlobalBarcodeLabels } from "@/server/products/barcode-label-service";
+import {
+    listRecentGlobalBarcodeLabels,
+    searchGlobalBarcodeLabels,
+} from "@/server/products/barcode-label-service";
 
 export async function GET(req: Request) {
     try {
@@ -10,7 +13,16 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const q = searchParams.get("q")?.trim() ?? "";
+        const recent = searchParams.get("recent") === "1";
         const limit = Number(searchParams.get("limit") ?? 40);
+
+        if (recent) {
+            const labels = await listRecentGlobalBarcodeLabels({
+                limit: Math.min(limit, 24),
+                viewerBusinessId: payload.bid,
+            });
+            return NextResponse.json(labels);
+        }
 
         if (q.length < 2) {
             return NextResponse.json([]);

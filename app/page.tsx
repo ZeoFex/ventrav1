@@ -1,4 +1,5 @@
 import { LandingHero } from "./components/landing/hero";
+import { ShopHere } from "./components/landing/shop-here";
 import { LandingFeatures } from "./components/landing/features";
 import { LandingAnalytics } from "./components/landing/analytics";
 import { LandingOrders } from "./components/landing/orders";
@@ -34,6 +35,7 @@ export default async function Home() {
     <div className="flex min-h-full flex-1 flex-col">
       <SiteHeader isAuthenticated={isAuthenticated} displayName={userFirstName} />
       <LandingHero isAuthenticated={isAuthenticated} />
+      <ShopHere />
       <LandingFeatures />
       <LandingAnalytics />
       <LandingOrders />

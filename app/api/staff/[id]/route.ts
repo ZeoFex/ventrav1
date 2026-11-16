@@ -8,6 +8,7 @@ import { db } from "@/server/db";
 import { users } from "@/server/db/schema/users";
 import { eq, and } from "drizzle-orm";
 import { getStaffById } from "@/server/staff/staff-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 export async function GET(
     req: NextRequest,
@@ -47,6 +48,16 @@ export async function PATCH(
         const { updateStaff } = await import("@/server/staff/staff-service");
         const result = await updateStaff(staffId, payload.bid, body);
 
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.staff.updated",
+            resource: "staff",
+            resourceId: staffId,
+            detail: "Staff account updated",
+        });
+
         return NextResponse.json(result);
     } catch (error) {
         console.error("[PATCH /api/staff/[id]] Error:", error);
@@ -69,6 +80,16 @@ export async function DELETE(
         const { id: staffId } = await params;
 
         await db.delete(users).where(and(eq(users.id, staffId), eq(users.businessId, payload.bid)));
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.staff.removed",
+            resource: "staff",
+            resourceId: staffId,
+            detail: "Staff account removed",
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

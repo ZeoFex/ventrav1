@@ -34,7 +34,7 @@ import {
   useIsDesktopLayout,
   usePosKeyboardWedge,
 } from "./use-pos-keyboard-wedge";
-import { PosProductCard } from "./pos-product-card";
+import { PosProductCard, PosProductTableHeader } from "./pos-product-card";
 import { PosQuickAddProductModal } from "./pos-quick-add-product-modal";
 import { playPosAddProductBeep } from "./pos-add-beep";
 import {
@@ -43,11 +43,13 @@ import {
   removeHeldSale,
 } from "./pos-held-sales-storage";
 import { useGlobalCart } from "../global-cart-context";
+import { usePosProductSearch } from "../pos-product-search-context";
 
 import { useProducts, useCategories } from "../../products/products-data-hooks";
 import { useDiscounts, type Discount } from "../../marketing/discounts-data-hooks";
 import { type ProductRow } from "../../products/types";
 import { type CustomerRow } from "../../customers/customers-mock-data";
+import { applySoldToCatalog, catalogStockIsOnParent, onHandForLine } from "@/app/lib/apply-sold-stock";
 import { usePosConfig } from "./pos-config-hooks";
 import { useBranches } from "../../branches/branches-data-hooks";
 
@@ -69,11 +71,7 @@ function roundMoney2(n: number): number {
 }
 
 function sellableForLine(p: ProductRow, variationId?: string): number {
-  if (variationId && p.variations?.length) {
-    const v = p.variations.find((x) => x.id === variationId);
-    if (v) return v.stockAvailable ?? v.stock;
-  }
-  return p.stockAvailable ?? p.stock;
+  return onHandForLine(p, variationId);
 }
 
 export function buildReceiptData(
@@ -92,8 +90,18 @@ export function buildReceiptData(
   currencySymbol?: string,
   operatorName?: string,
 ): PosReceiptData {
-  const receiptLines: PosReceiptLine[] = lines.map((line) => {
-    const p = productById.get(line.productId)!;
+  const receiptLines: PosReceiptLine[] = lines.flatMap((line) => {
+    const p = productById.get(line.productId);
+    if (!p) {
+      return [
+        {
+          name: "Item",
+          qty: line.qty,
+          unitPriceGhs: 0,
+          lineTotalGhs: 0,
+        },
+      ];
+    }
     let name = p.name;
     let price = Number(p.priceGhs);
 
@@ -182,7 +190,7 @@ export function buildReceiptData(
 
 function PosSaleSkeleton() {
   return (
-    <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a] flex items-center justify-center">
+    <div className="flex h-full min-h-0 items-center justify-center bg-[#F8F9FA] dark:bg-[#0a0a0a]">
       <Loader2 className="size-8 animate-spin text-muted-foreground opacity-20" />
     </div>
   );
@@ -215,9 +223,27 @@ function PosSaleViewInner() {
   const { user } = useSession();
   const { branchId } = useBranchContext();
   const [flow, setFlow] = useState<Flow>("browse");
-  const [categoryId, setCategoryId] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const { lines, setLines } = useGlobalCart();
+  const {
+    searchQuery,
+    setSearchQuery,
+    categoryId,
+    setCategoryId,
+    setShowCatalogChrome,
+    registerOpenScan,
+    registerOpenQuickAdd,
+  } = usePosProductSearch();
+  const {
+    lines,
+    setLines,
+    selectedCustomer,
+    selectCustomer,
+    finishActiveCustomerCart: finishSharedCustomerCart,
+    resetCart: resetActiveCustomerCart,
+    manualDiscountId,
+    setManualDiscountId,
+    customerCartsReady,
+    setLastAdded,
+  } = useGlobalCart();
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   /** Server sale UUID for `/receipt/verify/{id}` — unset for offline-queued checkouts. */
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
@@ -229,8 +255,29 @@ function PosSaleViewInner() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [paymentPurpose, setPaymentPurpose] = useState<"sale" | "customer_order">("sale");
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [selectedVariationProduct, setSelectedVariationProduct] = useState<ProductRow | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const skipEmptyCartCloseRef = useRef(false);
+
+  useEffect(() => {
+    setShowCatalogChrome(flow === "browse");
+    return () => setShowCatalogChrome(false);
+  }, [flow, setShowCatalogChrome]);
+
+  useEffect(() => {
+    if (!customerCartsReady) return;
+    if (lines.length > 0) return;
+    if (skipEmptyCartCloseRef.current) {
+      skipEmptyCartCloseRef.current = false;
+      return;
+    }
+    setCartOpen(false);
+  }, [customerCartsReady, lines.length]);
+
+  useEffect(() => {
+    registerOpenScan(() => setScanOpen(true));
+    return () => registerOpenScan(null);
+  }, [registerOpenScan]);
 
   const { products = [], isLoading: isProductsLoading, mutate: mutateProducts } = useProducts();
   const { categories = [] } = useCategories();
@@ -243,12 +290,19 @@ function PosSaleViewInner() {
     (user?.permissions?.length &&
       user.permissions.includes("product-list"));
 
+  useEffect(() => {
+    if (!canQuickAddProduct) {
+      registerOpenQuickAdd(null);
+      return;
+    }
+    registerOpenQuickAdd(() => setQuickAddOpen(true));
+    return () => registerOpenQuickAdd(null);
+  }, [canQuickAddProduct, registerOpenQuickAdd]);
+
   const branchMeta = useMemo(
     () => resolveBranchReceiptMeta(branches, branchId),
     [branches, branchId],
   );
-
-  const [manualDiscountId, setManualDiscountId] = useState<string | null>(null);
 
   const taxRate = useMemo(() => {
     if (!config) return 0;
@@ -329,40 +383,53 @@ function PosSaleViewInner() {
   ]);
 
   const activeReceipt = customerOrderReceipt ?? receiptData;
+  const isDesktopLayout = useIsDesktopLayout();
 
   const addToCart = useCallback((productId: string, variationId?: string) => {
     const p = productById.get(productId);
     if (!p) return;
 
-    // If product has variations and none selected, open modal
-    if (p.variations && p.variations.length > 0 && !variationId) {
+    const treatAsSimple = catalogStockIsOnParent(p);
+    const lineVariationId = treatAsSimple ? undefined : variationId;
+    const needsVariation =
+      Boolean(p.variations?.length) && !lineVariationId && !treatAsSimple;
+
+    if (needsVariation) {
       setSelectedVariationProduct(p);
       return;
     }
 
-    // Check availability (of specific variation if applicable)
-    const sell = sellableForLine(p, variationId);
-
-    const inCart = lines.find(l => l.productId === productId && l.variationId === variationId)?.qty || 0;
-    if (inCart >= sell) {
-      alert(`Cannot add more. Stock limit reached.`);
-      return;
-    }
-
     playPosAddProductBeep();
+    const variation = lineVariationId
+      ? p.variations?.find((v) => v.id === lineVariationId)
+      : undefined;
+    setLastAdded({
+      name: variation ? `${p.name} (${variation.name})` : p.name,
+      imageSrc: p.imageSrc ?? null,
+    });
     setLines((prev) => {
-      const i = prev.findIndex((l) => l.productId === productId && l.variationId === variationId);
+      const i = prev.findIndex((l) => l.productId === productId && l.variationId === lineVariationId);
       if (i >= 0) {
-        const next = [...prev];
-        next[i] = { ...next[i]!, qty: next[i]!.qty + 1 };
-        return next;
+        const updated = { ...prev[i]!, qty: prev[i]!.qty + 1 };
+        if (i === 0) {
+          const next = [...prev];
+          next[0] = updated;
+          return next;
+        }
+        return [updated, ...prev.slice(0, i), ...prev.slice(i + 1)];
       }
-      return [...prev, { productId, qty: 1, variationId }];
+      return [{ productId, qty: 1, variationId: lineVariationId }, ...prev];
     });
     setSelectedVariationProduct(null);
-  }, [lines, productById, setLines]);
-
-  const isDesktopLayout = useIsDesktopLayout();
+    // Desktop: open the transaction panel so cashiers can keep adding.
+    // Mobile: leave the overlay closed — the bottom dock already shows the sale.
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches
+    ) {
+      setCartOpen(true);
+    }
+  }, [productById, setLines, setLastAdded]);
   const lastWedgeScanRef = useRef<{ raw: string; at: number } | null>(null);
 
   const handleKeyboardWedgeBarcode = useCallback(
@@ -377,7 +444,7 @@ function PosSaleViewInner() {
         toast.error(result.message);
         return;
       }
-      addToCart(result.product.id);
+      addToCart(result.product.id, result.variationId);
     },
     [products, addToCart],
   );
@@ -387,18 +454,13 @@ function PosSaleViewInner() {
     onBarcode: handleKeyboardWedgeBarcode,
   });
 
-  const increment = useCallback((productId: string) => {
+  const increment = useCallback((productId: string, variationId?: string) => {
     const p = productById.get(productId);
     if (!p) return;
 
     setLines((prev) =>
       prev.map((l) => {
-        if (l.productId === productId) {
-          const sell = sellableForLine(p, l.variationId);
-          if (l.qty >= sell) {
-            alert(`Cannot add more of ${p.name}. Stock limit reached.`);
-            return l;
-          }
+        if (l.productId === productId && l.variationId === variationId) {
           return { ...l, qty: l.qty + 1 };
         }
         return l;
@@ -406,32 +468,81 @@ function PosSaleViewInner() {
     );
   }, [productById, setLines]);
 
-  const decrement = useCallback((productId: string) => {
+  const decrement = useCallback((productId: string, variationId?: string) => {
     setLines((prev) =>
       prev
         .map((l) =>
-          l.productId === productId ? { ...l, qty: l.qty - 1 } : l,
+          l.productId === productId && l.variationId === variationId
+            ? { ...l, qty: l.qty - 1 }
+            : l,
         )
         .filter((l) => l.qty > 0),
     );
-  }, []);
+  }, [setLines]);
 
-  const remove = useCallback((productId: string) => {
-    setLines((prev) => prev.filter((l) => l.productId !== productId));
-  }, []);
+  const setQuantity = useCallback(
+    (productId: string, qty: number, variationId?: string) => {
+      const p = productById.get(productId);
+      if (!p) return;
+      const nextQty = Math.floor(qty);
+      if (!Number.isFinite(nextQty) || nextQty <= 0) {
+        setLines((prev) =>
+          prev.filter(
+            (l) => !(l.productId === productId && l.variationId === variationId),
+          ),
+        );
+        return;
+      }
 
-  const resetCart = useCallback(() => setLines([]), []);
+      setLines((prev) =>
+        prev.map((l) => {
+          if (l.productId !== productId || l.variationId !== variationId) return l;
+          return { ...l, qty: nextQty };
+        }),
+      );
+    },
+    [productById, setLines],
+  );
+
+  const remove = useCallback((productId: string, variationId?: string) => {
+    setLines((prev) =>
+      prev.filter(
+        (l) => !(l.productId === productId && l.variationId === variationId),
+      ),
+    );
+  }, [setLines]);
+
+  const handleCustomerSelect = useCallback(
+    (next: CustomerRow | null) => {
+      const { nextLineCount } = selectCustomer(next);
+      skipEmptyCartCloseRef.current = nextLineCount === 0;
+      setCartOpen(true);
+    },
+    [selectCustomer],
+  );
+
+  const finishActiveCustomerCart = useCallback(() => {
+    const { nextLineCount } = finishSharedCustomerCart();
+    skipEmptyCartCloseRef.current = nextLineCount === 0;
+    if (nextLineCount > 0) setCartOpen(true);
+  }, [finishSharedCustomerCart]);
+
+  const resetCart = useCallback(() => {
+    resetActiveCustomerCart();
+    setCartOpen(false);
+  }, [resetActiveCustomerCart]);
 
   const hydrateFromHeldSale = useCallback((next: CartLine[]) => {
     setLines(next.map((l) => ({ ...l })));
-  }, []);
+    if (next.length > 0) setCartOpen(true);
+  }, [setLines]);
 
   const handleHoldSale = useCallback(() => {
     if (lines.length === 0) return;
     addHeldSale(lines);
-    setLines([]);
+    resetActiveCustomerCart();
     router.push("/dashboard/pos/held");
-  }, [lines, router]);
+  }, [lines, resetActiveCustomerCart, router]);
 
   const goToPayment = useCallback(() => {
     if (lines.length === 0) return;
@@ -527,11 +638,14 @@ function PosSaleViewInner() {
         mutateProducts(
           (current: ProductRow[] | undefined) => {
             if (!current) return current;
-            return current.map((p: ProductRow) => {
-              const sold = lines.find((l) => l.productId === p.id);
-              if (!sold) return p;
-              return { ...p, stock: Math.max(0, p.stock - sold.qty) };
-            });
+            return applySoldToCatalog(
+              current,
+              lines.map((l) => ({
+                productId: l.productId,
+                variationId: l.variationId,
+                qty: l.qty,
+              })),
+            );
           },
           { revalidate: navigator.onLine },
         );
@@ -659,16 +773,13 @@ function PosSaleViewInner() {
               currencySymbol: config?.currency || "GHS",
             }),
           );
-          setLines([]);
-          setSelectedCustomer(null);
           setPaymentPurpose("sale");
           setPaymentSnapshot(null);
           setInvoiceId(null);
           setReceiptSaleId(null);
           setFlow("receipt");
         } else {
-          setLines([]);
-          setSelectedCustomer(null);
+          finishActiveCustomerCart();
           setPaymentPurpose("sale");
           setFlow("browse");
         }
@@ -689,36 +800,46 @@ function PosSaleViewInner() {
       branchMeta,
       config,
       user?.name,
+      finishActiveCustomerCart,
     ],
   );
 
   const handleNewSale = useCallback(() => {
-    setLines([]);
-    setSelectedCustomer(null);
+    finishActiveCustomerCart();
     setPaymentSnapshot(null);
     setInvoiceId(null);
     setReceiptSaleId(null);
     setCustomerOrderReceipt(null);
     setPaymentPurpose("sale");
+    setSearchQuery("");
     setFlow("browse");
-  }, [setLines]);
+  }, [finishActiveCustomerCart, setSearchQuery]);
 
   const filteredProducts = useMemo(() => {
     let list = categories.length > 0 && categoryId !== "all"
-      ? products.filter((p: any) => p.categoryId === categoryId)
+      ? products.filter((p: ProductRow) => p.categoryId === categoryId)
       : products;
 
     const q = searchQuery.trim().toLowerCase();
+    const relevance = (p: ProductRow) => {
+      const name = (p.name ?? "").toLowerCase();
+      const sku = (p.sku ?? "").toLowerCase();
+      if (name === q || sku === q) return 0;
+      if (name.startsWith(q) || sku.startsWith(q)) return 1;
+      if (name.includes(q) || sku.includes(q)) return 2;
+      return 3;
+    };
+
     if (q) {
       const tokens = q.split(/\s+/).filter(Boolean);
-      list = list.filter((p: any) => {
+      list = list.filter((p: ProductRow) => {
         const variationText = Array.isArray(p.variations)
           ? p.variations
-              .map((v: any) => `${v?.name ?? ""} ${v?.type ?? ""} ${v?.sku ?? ""}`)
+              .map((v) => `${v?.name ?? ""} ${v?.type ?? ""} ${v?.sku ?? ""}`)
               .join(" ")
           : "";
 
-        const haystack = `${p.name ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""} ${p.categoryName ?? ""} ${p.subcategoryName ?? ""} ${p.description ?? ""} ${variationText}`
+        const haystack = `${p.name ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""} ${(p as any).categoryName ?? ""} ${(p as any).subcategoryName ?? ""} ${p.description ?? ""} ${variationText}`
           .toLowerCase()
           .replace(/\s+/g, " ")
           .trim();
@@ -726,25 +847,21 @@ function PosSaleViewInner() {
         if (haystack.includes(q)) return true;
         return tokens.every((t) => haystack.includes(t));
       });
-
-      list = [...list].sort((a: any, b: any) => {
-        const score = (p: any) => {
-          const name = (p.name ?? "").toLowerCase();
-          const sku = (p.sku ?? "").toLowerCase();
-          if (name === q || sku === q) return 0;
-          if (name.startsWith(q) || sku.startsWith(q)) return 1;
-          if (name.includes(q) || sku.includes(q)) return 2;
-          return 3;
-        };
-        return score(a) - score(b);
-      });
     }
-    return list;
+
+    // Single pass: in-stock first, then search relevance (stable otherwise).
+    return [...list].sort((a, b) => {
+      const aOut = sellableForLine(a) <= 0 ? 1 : 0;
+      const bOut = sellableForLine(b) <= 0 ? 1 : 0;
+      if (aOut !== bOut) return aOut - bOut;
+      if (!q) return 0;
+      return relevance(a) - relevance(b);
+    });
   }, [products, categories, categoryId, searchQuery]);
 
   if (branchId === "all") {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center bg-[#F8F9FA] px-4 py-20 text-center dark:bg-[#0a0a0a]">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center bg-[#F8F9FA] px-4 py-20 text-center dark:bg-[#0a0a0a]">
         <div className="mb-6 flex size-20 items-center justify-center rounded-full bg-amber-500/10 dark:bg-amber-500/20">
           <Store className="size-10 text-amber-600 dark:text-amber-500" strokeWidth={2} />
         </div>
@@ -759,12 +876,13 @@ function PosSaleViewInner() {
   }
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <PosSaleResumeBridge onLines={hydrateFromHeldSale} />
       {flow === "payment" ? (
-        <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F8F9FA] pb-[max(0.5rem,env(safe-area-inset-bottom))] dark:bg-[#0a0a0a] lg:overflow-y-auto lg:overscroll-contain lg:pb-0">
           <PosPaymentStep
             key={paymentPurpose}
+            fillHeight
             totalGhs={totals.total}
             isProcessing={isCheckingOut}
             onBack={() => {
@@ -781,16 +899,16 @@ function PosSaleViewInner() {
           />
         </div>
       ) : flow === "receipt" && activeReceipt ? (
-        <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
+        <div className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[#F8F9FA] pb-[max(0.5rem,env(safe-area-inset-bottom))] dark:bg-[#0a0a0a]">
           <PosReceiptStep receiptData={activeReceipt} onNewSale={handleNewSale} />
         </div>
       ) : (
-        <div className="min-h-full bg-[#F8F9FA] dark:bg-[#0a0a0a]">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F6F8F7] dark:bg-[#0a0a0a]">
           <PosBarcodeScanPanel
             open={scanOpen}
             onClose={() => setScanOpen(false)}
             products={products}
-            onProductAdded={(p) => addToCart(p.id)}
+            onProductAdded={(p, variationId) => addToCart(p.id, variationId)}
             mobileCart={{
               lines,
               productById,
@@ -803,54 +921,77 @@ function PosSaleViewInner() {
               },
             }}
           />
-          <div className="mx-auto flex max-w-[1600px] flex-col gap-5 px-3 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:gap-6 sm:px-4 sm:py-6 lg:flex-row lg:gap-8 lg:px-8 lg:py-8 lg:pb-8">
-            <div className="min-w-0 flex-1 space-y-5 sm:space-y-6">
+          <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col gap-2 px-3 py-2 pb-[calc(var(--home-cart-dock-height)+0.35rem)] sm:gap-3 sm:px-4 sm:py-4 lg:px-6 lg:pb-4">
+            <div className="hidden shrink-0 lg:block">
               <PosCategoryBar
                 categories={categories}
+                products={products}
                 activeId={categoryId}
                 onSelect={setCategoryId}
-                searchQuery={searchQuery}
-                onSearchQueryChange={setSearchQuery}
-                onOpenScan={() => setScanOpen(true)}
                 showQuickAddProduct={Boolean(canQuickAddProduct)}
                 onQuickAddProduct={() => setQuickAddOpen(true)}
               />
+            </div>
+            <div className="relative flex min-h-0 min-w-0 flex-1">
+              <div
+                className={`flex min-h-0 min-w-0 flex-1 flex-col transition-[margin] duration-200 ${
+                  cartOpen ? "lg:mr-[min(412px,42vw)]" : ""
+                }`}
+              >
               {isProductsLoading ? (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-4 xl:gap-5">
-                  {[...Array(8)].map((_, i) => (
-                    <div key={i} className="h-48 rounded-[1.25rem] bg-muted animate-pulse" />
-                  ))}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:rounded-xl sm:border sm:border-[#e5e7eb] sm:bg-white dark:sm:border-white/[0.08] dark:sm:bg-[#111]">
+                  <div className="hidden h-10 shrink-0 border-b border-[#e5e7eb] bg-[#f7f8f9] sm:block dark:border-white/[0.08] dark:bg-[#141414]" />
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    {[...Array(8)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-[58px] border-b border-[#edf1ef] last:border-b-0 dark:border-white/[0.06]"
+                      >
+                        <div className="flex h-full items-center gap-2.5 px-0 sm:px-4">
+                          <div className="size-11 animate-pulse rounded-xl bg-[#edf1ef] dark:bg-muted" />
+                          <div className="h-4 flex-1 animate-pulse rounded bg-[#edf1ef] dark:bg-muted" />
+                          <div className="h-4 w-14 animate-pulse rounded bg-[#edf1ef] dark:bg-muted" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div className="py-20 text-center text-muted-foreground opacity-50">
+                <div className="flex min-h-0 flex-1 items-center justify-center text-[14px] font-medium text-[#7a8c84] dark:text-muted-foreground sm:rounded-xl sm:border sm:border-[#e5e7eb] sm:bg-white dark:sm:border-white/[0.08] dark:sm:bg-[#111]">
                   No products found.
                 </div>
               ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-4 xl:gap-5">
-                  {filteredProducts.map((p: ProductRow) => {
-                    const inCart = lines
-                      .filter((l) => l.productId === p.id && !l.variationId)
-                      .reduce((s, l) => s + l.qty, 0);
-                    const available = sellableForLine(p) - inCart;
-                    return (
-                      <PosProductCard
-                        key={p.id}
-                        product={p}
-                        availableStock={available}
-                        onAdd={() => addToCart(p.id)}
-                      />
-                    );
-                  })}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:rounded-xl sm:border sm:border-[#e5e7eb] sm:bg-white dark:sm:border-white/[0.08] dark:sm:bg-[#111]">
+                  <PosProductTableHeader />
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                    {filteredProducts.map((p: ProductRow) => {
+                      const inCart = lines
+                        .filter((l) => l.productId === p.id && !l.variationId)
+                        .reduce((s, l) => s + l.qty, 0);
+                      const available = sellableForLine(p) - inCart;
+                      return (
+                        <PosProductCard
+                          key={p.id}
+                          product={p}
+                          availableStock={available}
+                          onAdd={() => addToCart(p.id)}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
             <PosCartPanel
+              open={cartOpen}
+              onOpenChange={setCartOpen}
               lines={lines}
               productById={productById}
               customerId={selectedCustomer?.id ?? null}
-              onCustomerSelect={setSelectedCustomer}
+              onCustomerSelect={handleCustomerSelect}
               onIncrement={increment}
               onDecrement={decrement}
+              onSetQuantity={setQuantity}
               onRemove={remove}
               onReset={resetCart}
               onContinue={goToPayment}
@@ -860,13 +1001,17 @@ function PosSaleViewInner() {
               appliedDiscount={appliedDiscount}
               onSelectDiscount={setManualDiscountId}
             />
+            </div>
             <PosMobileCartDock
+              open={cartOpen}
+              onOpenChange={setCartOpen}
               lines={lines}
               productById={productById}
               customerId={selectedCustomer?.id ?? null}
-              onCustomerSelect={setSelectedCustomer}
+              onCustomerSelect={handleCustomerSelect}
               onIncrement={increment}
               onDecrement={decrement}
+              onSetQuantity={setQuantity}
               onRemove={remove}
               onReset={resetCart}
               onContinue={goToPayment}
@@ -889,7 +1034,7 @@ function PosSaleViewInner() {
         onClose={() => setQuickAddOpen(false)}
         categories={categories}
       />
-    </>
+    </div>
   );
 }
 
@@ -905,33 +1050,32 @@ function PosVariationModal({
   if (!product) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-6">
       <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#111]">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold">{product.name}</h2>
-          <p className="text-sm text-muted-foreground">Select a variation to add to cart</p>
+      <div className="relative max-h-[80vh] w-full max-w-lg overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-3xl sm:p-6 dark:bg-[#111]">
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted sm:hidden" />
+        <div className="p-3.5 pb-4 sm:p-0">
+          <h2 className="text-[15px] font-bold sm:text-xl">{product.name}</h2>
+          <p className="text-[12px] text-muted-foreground sm:text-sm">Select a variation</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="grid max-h-[55vh] grid-cols-1 gap-1.5 overflow-y-auto px-3.5 pb-4 custom-scrollbar sm:gap-3 sm:px-0 sm:pr-2">
           {product.variations?.map((v) => {
-            const sell = v.stockAvailable ?? v.stock;
-            const isOutOfStock = sell <= 0;
+            const sell = onHandForLine(product, v.id);
+            const isLowOrOversold = sell <= 0;
             return (
               <button
                 key={v.id}
-                disabled={isOutOfStock}
+                type="button"
                 onClick={() => onSelect(product.id, v.id!)}
-                className={`flex items-center justify-between p-4 rounded-2xl border border-border text-left transition-all ${
-                  isOutOfStock 
-                    ? "opacity-50 grayscale cursor-not-allowed bg-muted/20" 
-                    : "hover:border-[#006c49] hover:bg-[#006c49]/5 hover:shadow-md active:scale-[0.98]"
-                }`}
+                className="flex items-center justify-between rounded-xl border border-border p-2.5 text-left transition-all hover:border-[#006c49] hover:bg-[#006c49]/5 active:scale-[0.98] sm:rounded-2xl sm:p-4"
               >
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{v.type}</span>
-                  <h3 className="text-[15px] font-semibold">{v.name}</h3>
-                  <p className="text-[12px] text-muted-foreground">{sell} available</p>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{v.type}</span>
+                  <h3 className="text-[13px] font-semibold sm:text-[15px]">{v.name}</h3>
+                  <p className={`text-[11px] ${isLowOrOversold ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+                    {isLowOrOversold ? `${sell} in stock` : `${sell} available`}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-[#006c49] dark:text-[#6ffbbe]">
@@ -944,8 +1088,9 @@ function PosVariationModal({
         </div>
 
         <button
+          type="button"
           onClick={onClose}
-          className="mt-6 w-full py-3 rounded-2xl border border-border font-semibold hover:bg-muted transition-colors"
+          className="mx-3.5 mb-3 h-9 w-[calc(100%-1.75rem)] rounded-xl border border-border text-[13px] font-semibold hover:bg-muted sm:mx-0 sm:mb-0 sm:mt-4 sm:h-11 sm:w-full sm:rounded-2xl"
         >
           Cancel
         </button>
@@ -956,8 +1101,10 @@ function PosVariationModal({
 
 export function PosSaleView() {
   return (
-    <Suspense fallback={<PosSaleSkeleton />}>
-      <PosSaleViewInner />
-    </Suspense>
+    <div className="h-full min-h-0">
+      <Suspense fallback={<PosSaleSkeleton />}>
+        <PosSaleViewInner />
+      </Suspense>
+    </div>
   );
 }

@@ -78,13 +78,14 @@ export function formatQuantity(
     options: { showPieces?: boolean } = {},
 ): string {
     const n = typeof qty === "string" ? Number(qty) : qty;
+    const qtyNum = Number.isFinite(n) ? n : 0;
     const short = unitShort(unit);
     if (!short) {
         return options.showPieces && unit
-            ? `${n} ${getUnit(unit)?.short ?? "pcs"}`
-            : `${n}`;
+            ? `${qtyNum} ${getUnit(unit)?.short ?? "pcs"}`
+            : `${qtyNum}`;
     }
-    return `${n} ${short}`;
+    return `${qtyNum} ${short}`;
 }
 
 /** Convenience: whether this unit expects decimal input in forms. */

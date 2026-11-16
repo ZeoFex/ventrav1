@@ -7,7 +7,12 @@ import {
 import { type ProductRow } from "../../products/types";
 
 export type ResolveScanResult =
-  | { ok: true; product: ProductRow; normalizedBarcode: string }
+  | {
+      ok: true;
+      product: ProductRow;
+      normalizedBarcode: string;
+      variationId?: string;
+    }
   | { ok: false; message: string; normalizedBarcode: string };
 
 function matchesAnyVariant(value: string | null | undefined, variants: Set<string>): boolean {
@@ -66,7 +71,12 @@ export function resolveProductFromScan(
     }
     for (const v of p.variations ?? []) {
       if (matchesAnyVariant(v.sku, variants) || matchesAnyVariant(v.barcode, variants)) {
-        return { ok: true, product: p, normalizedBarcode: normalized };
+        return {
+          ok: true,
+          product: p,
+          normalizedBarcode: normalized,
+          variationId: v.id,
+        };
       }
     }
   }

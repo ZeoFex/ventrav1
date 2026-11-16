@@ -41,15 +41,9 @@ export async function createRelaySession(): Promise<{
   const sessionId = crypto.randomUUID();
   const token = randomHex(24);
   const session: RelaySession = { token, scans: [] };
-  const key = sessionKey(sessionId);
-
-  console.log(`[relay:create] sessionId=${sessionId} key=${key}`);
-
-  await redis.set(key, JSON.stringify(session), {
+  await redis.set(sessionKey(sessionId), JSON.stringify(session), {
     ex: SESSION_TTL_SEC,
   });
-
-  console.log(`[relay:create] ✅ session stored in Redis, TTL=${SESSION_TTL_SEC}s`);
 
   return { sessionId, token };
 }
@@ -60,26 +54,16 @@ export async function pushScan(
   barcode: string,
 ): Promise<boolean> {
   const key = sessionKey(sessionId);
-  console.log(`[relay:push] sessionId=${sessionId} barcode="${barcode}"`);
-
   const raw = await redis.get<string>(key);
-  console.log(`[relay:push] redis.get → ${raw === null ? "NULL (session not found!)" : `found (${typeof raw}, length=${String(raw).length})`}`);
-
   if (!raw) return false;
 
   const session: RelaySession =
     typeof raw === "string" ? JSON.parse(raw) : (raw as unknown as RelaySession);
 
-  if (session.token !== token) {
-    console.log(`[relay:push] ❌ token mismatch: expected=${session.token.slice(0, 6)}… got=${token.slice(0, 6)}…`);
-    return false;
-  }
+  if (session.token !== token) return false;
 
   const trimmed = barcode.trim();
-  if (!trimmed) {
-    console.log(`[relay:push] ❌ barcode is empty after trim`);
-    return false;
-  }
+  if (!trimmed) return false;
 
   const scanId = crypto.randomUUID();
   session.scans.push({
@@ -89,7 +73,6 @@ export async function pushScan(
   });
 
   await redis.set(key, JSON.stringify(session), { ex: SESSION_TTL_SEC });
-  console.log(`[relay:push] ✅ scan added (id=${scanId}), total scans=${session.scans.length}, unconsumed=${session.scans.filter(s => !s.consumed).length}`);
   return true;
 }
 
@@ -100,18 +83,12 @@ export async function pollScans(
   const key = sessionKey(sessionId);
   const raw = await redis.get<string>(key);
 
-  if (!raw) {
-    console.log(`[relay:poll] sessionId=${sessionId} → NULL (session not found)`);
-    return [];
-  }
+  if (!raw) return [];
 
   const session: RelaySession =
     typeof raw === "string" ? JSON.parse(raw) : (raw as unknown as RelaySession);
 
-  if (session.token !== token) {
-    console.log(`[relay:poll] sessionId=${sessionId} → ❌ token mismatch`);
-    return [];
-  }
+  if (session.token !== token) return [];
 
   const out: { id: string; barcode: string }[] = [];
   let changed = false;
@@ -125,10 +102,6 @@ export async function pollScans(
 
   if (changed) {
     await redis.set(key, JSON.stringify(session), { ex: SESSION_TTL_SEC });
-  }
-
-  if (out.length > 0) {
-    console.log(`[relay:poll] sessionId=${sessionId} → delivering ${out.length} scan(s): ${out.map(s => `"${s.barcode}"`).join(", ")}`);
   }
 
   return out;

@@ -12,6 +12,8 @@ import { toast } from "sonner";
 
 import { useUploadThing } from "@/app/lib/uploadthing";
 import { EXPENSE_CATEGORY_OPTIONS } from "@/app/lib/expense-categories";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
 
 export type ExpenseFormInitialValues = {
     id?: string;
@@ -128,7 +130,7 @@ export function ExpenseForm({
 
             const payload = {
                 description,
-                amountGhs: Number(amount),
+                amountGhs: parseAmountInput(amount),
                 category,
                 date,
                 status,
@@ -233,14 +235,11 @@ export function ExpenseForm({
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-muted-foreground font-medium flex items-center">
                                     ₵
                                 </span>
-                                <input
+                                <AmountInput
                                     required
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
                                     placeholder="0.00"
                                     value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
+                                    onChange={setAmount}
                                     className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 pl-8 text-[14px] outline-none focus:border-[#006c49]/40 focus:ring-2 focus:ring-[#006c49]/20 dark:border-white/[0.12] dark:bg-[#141414]"
                                 />
                             </div>

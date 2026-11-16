@@ -1,7 +1,11 @@
+"use client";
+
+import { useState } from "react";
+
 /**
- * Renders product/catalog photos from arbitrary HTTPS URLs (UPC lookup, imports,
- * retailer CDNs, Uploadthing, etc.). Using `next/image` for these would require
- * listing every possible hostname in `next.config.ts`; a native img avoids that.
+ * Product photos come from arbitrary HTTPS URLs (UPC lookup, imports,
+ * retailer CDNs, Uploadthing). A native img avoids listing every host in
+ * `next.config.ts`. The pulse stays up until the file has actually decoded.
  */
 export function CatalogProductImage({
   src,
@@ -12,14 +16,34 @@ export function CatalogProductImage({
   alt: string;
   className?: string;
 }) {
+  const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
+
   return (
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      loading="lazy"
-      decoding="async"
-      referrerPolicy="no-referrer"
-    />
+    <span className="relative block h-full w-full overflow-hidden">
+      {phase !== "ready" ? (
+        <span
+          aria-hidden
+          className="absolute inset-0 animate-pulse bg-[#efeae0] dark:bg-white/10"
+        />
+      ) : null}
+      {phase !== "error" ? (
+        <img
+          src={src}
+          alt={alt}
+          className={`${className ?? ""} transition-opacity duration-300 ${
+            phase === "ready" ? "opacity-100" : "opacity-0"
+          }`}
+          loading="lazy"
+          decoding="async"
+          fetchPriority="low"
+          referrerPolicy="no-referrer"
+          ref={(node) => {
+            if (node?.complete && node.naturalWidth > 0) setPhase("ready");
+          }}
+          onLoad={() => setPhase("ready")}
+          onError={() => setPhase("error")}
+        />
+      ) : null}
+    </span>
   );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
 import { getExpensesList, createExpense } from "@/server/finance/finance-service";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 export async function GET(req: Request) {
     try {
@@ -59,6 +60,16 @@ export async function POST(req: Request) {
             },
             branchId,
         );
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.expense.recorded",
+            resource: "expense",
+            resourceId: expense.id,
+            detail: `${body.description || "Expense"} · GHS ${Number(body.amountGhs).toFixed(2)}`,
+        });
 
         return NextResponse.json({ success: true, expenseId: expense.id });
     } catch (error) {

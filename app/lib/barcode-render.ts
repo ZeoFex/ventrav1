@@ -19,9 +19,9 @@ export function renderCode128Barcode(
   if (!code) return false;
 
   const {
-    width = 1.5,
-    height = 40,
-    fontSize = 10,
+    width = 1,
+    height = 26,
+    fontSize = 9,
     lineColor = "#000000",
   } = options;
 
@@ -32,7 +32,7 @@ export function renderCode128Barcode(
       height,
       displayValue: true,
       fontSize,
-      margin: 6,
+      margin: 2,
       background: "transparent",
       lineColor,
       fontOptions: "bold",

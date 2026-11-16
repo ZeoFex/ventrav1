@@ -40,7 +40,7 @@ export function ReceiptThermalPreview({ data }: { data: OnboardingData }) {
 
   return (
     <section
-      className="mx-auto w-full max-w-[20rem] bg-white p-6 shadow-xl"
+      className="mx-auto w-[min(100%,58mm)] bg-white px-2.5 py-3 shadow-xl sm:w-full sm:max-w-[20rem] sm:p-6"
       aria-label="Thermal receipt preview"
       style={{
         fontFamily: "'Courier New', Courier, monospace",
@@ -81,11 +81,6 @@ export function ReceiptThermalPreview({ data }: { data: OnboardingData }) {
           <div className="flex justify-between gap-4">
             <span className="text-black/60">Customer Name</span>
             <span className="font-bold">Walk-in</span>
-          </div>
-          <DashedDivider />
-          <div className="flex justify-between gap-4">
-            <span className="text-black/60">Order ID</span>
-            <span className="font-bold">MND1Z6QJ</span>
           </div>
           <DashedDivider />
 

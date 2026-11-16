@@ -5,6 +5,8 @@ import {
     updateMasterProduct,
 } from "@/server/catalog/master-catalog-service";
 import { gatePlatform } from "@/server/catalog/platform-route-utils";
+import { logPlatformActivity } from "@/server/platform/platform-activity-log";
+import { PLATFORM_ACTIONS } from "@/server/platform/platform-activity-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,12 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     if (!row) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    await logPlatformActivity(req, {
+        action: PLATFORM_ACTIONS.CATALOG_PRODUCT_UPDATED,
+        resource: "product",
+        resourceId: id,
+        metadata: { productName: row.name, shopType: row.shopType },
+    });
     return NextResponse.json(row);
 }
 
@@ -54,9 +62,16 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     if (!gate.ok) return gate.response;
 
     const { id } = await params;
+    const existing = await getMasterProductById(id);
     const ok = await deleteMasterProduct(id);
     if (!ok) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    await logPlatformActivity(req, {
+        action: PLATFORM_ACTIONS.CATALOG_PRODUCT_DELETED,
+        resource: "product",
+        resourceId: id,
+        metadata: { productName: existing?.name ?? null },
+    });
     return NextResponse.json({ success: true });
 }

@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { gatePlatform } from "@/server/catalog/platform-route-utils";
 import { deleteReview } from "@/server/reviews/review-service";
+import { logPlatformActivity } from "@/server/platform/platform-activity-log";
+import { PLATFORM_ACTIONS } from "@/server/platform/platform-activity-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,12 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     if (!ok) {
         return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }
+
+    await logPlatformActivity(req, {
+        action: PLATFORM_ACTIONS.REVIEW_REMOVED,
+        resource: "review",
+        resourceId: id,
+    });
 
     return NextResponse.json({ success: true, id });
 }

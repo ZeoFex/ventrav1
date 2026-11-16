@@ -124,7 +124,7 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
 
     // 5. Transaction: create everything atomically
     const plan: PlanId = input.plan;
-    const isPremiumTrial = plan === "growth" || plan === "pro";
+    const isPremiumTrial = plan === "growth";
     const trialEnd = isPremiumTrial
         ? new Date(Date.now() + PREMIUM_TRIAL_DAYS * 24 * 60 * 60 * 1000)
         : null;
@@ -236,6 +236,138 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
         businessId: result.businessId,
         email: emailNormalized,
         otpCode: code,
+    };
+}
+
+export interface ProvisionClientInput {
+    businessName: string;
+    fullName: string;
+    email: string;
+    password: string;
+    plan: PlanId;
+    phone?: string;
+    businessType?: string;
+    broughtByName?: string;
+}
+
+export interface ProvisionClientResult {
+    userId: string;
+    businessId: string;
+    email: string;
+    businessName: string;
+    plan: PlanId;
+}
+
+/**
+ * Create a ready-to-use shop account from the platform admin.
+ * The owner is active and email-verified, so no OTP is sent.
+ */
+export async function provisionClientAccount(
+    input: ProvisionClientInput,
+): Promise<ProvisionClientResult> {
+    const emailNormalized = input.email.trim().toLowerCase();
+
+    const existing = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.emailNormalized, emailNormalized))
+        .limit(1);
+
+    if (existing.length > 0) {
+        throw new AuthError(
+            "DUPLICATE_EMAIL",
+            "An account with this email already exists",
+        );
+    }
+
+    const passwordHash = await hashPassword(input.password);
+    const nameParts = input.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || input.fullName.trim();
+    const lastName = nameParts.slice(1).join(" ") || null;
+    const slug = generateSlug(input.businessName);
+    const plan: PlanId = input.plan;
+    const isPremiumTrial = plan === "growth";
+    const trialEnd = isPremiumTrial
+        ? new Date(Date.now() + PREMIUM_TRIAL_DAYS * 24 * 60 * 60 * 1000)
+        : null;
+    const businessName = input.businessName.trim();
+    const broughtByName = input.broughtByName?.trim() || null;
+
+    const result = await db.transaction(async (tx) => {
+        const [business] = await tx
+            .insert(businesses)
+            .values({
+                name: businessName,
+                slug,
+                businessType: input.businessType?.trim() || null,
+                contactEmail: emailNormalized,
+                phone: input.phone?.trim() || null,
+                broughtByName,
+                plan,
+                subscriptionStatus: "active",
+                currentPeriodEnd: trialEnd,
+            })
+            .returning({ id: businesses.id });
+
+        const [user] = await tx
+            .insert(users)
+            .values({
+                businessId: business.id,
+                email: input.email.trim(),
+                emailNormalized,
+                passwordHash,
+                firstName,
+                lastName,
+                phone: input.phone?.trim() || null,
+                emailVerified: true,
+                status: "active",
+            })
+            .returning({ id: users.id });
+
+        const [ownerRole] = await tx
+            .insert(roles)
+            .values({
+                businessId: business.id,
+                name: "owner",
+                isSystem: true,
+            })
+            .returning({ id: roles.id });
+
+        await tx.insert(userRoles).values({
+            userId: user.id,
+            roleId: ownerRole.id,
+        });
+
+        await tx.insert(branches).values({
+            businessId: business.id,
+            name: "Main Branch",
+            code: "MAIN",
+            isMain: true,
+        });
+
+        await tx.insert(auditLogs).values({
+            userId: user.id,
+            businessId: business.id,
+            action: "admin_provisioned",
+            resource: "user",
+            resourceId: user.id,
+        });
+
+        return { userId: user.id, businessId: business.id };
+    });
+
+    await ensureReferralCodeForBusiness(result.businessId).catch((err) =>
+        console.error("[provision] ensureReferralCodeForBusiness:", err),
+    );
+
+    notifyShopCreated(result.businessId, businessName, emailNormalized);
+
+    return {
+        userId: result.userId,
+        businessId: result.businessId,
+        email: emailNormalized,
+        businessName,
+        plan,
     };
 }
 

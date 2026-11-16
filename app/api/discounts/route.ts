@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { discounts } from "@/server/db/schema/discounts";
 import { eq, and, or, isNull } from "drizzle-orm";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 export async function GET() {
     try {
@@ -78,6 +79,16 @@ export async function POST(req: Request) {
                 endDate: endDate ? new Date(endDate) : null,
             })
             .returning();
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.discount.created",
+            resource: "discount",
+            resourceId: inserted?.id,
+            detail: name,
+        });
 
         return NextResponse.json(inserted, { status: 201 });
     } catch (error) {

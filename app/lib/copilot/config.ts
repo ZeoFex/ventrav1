@@ -1,13 +1,12 @@
 /**
- * Gemini model + tunables for Zuri in-dashboard assistant (`app/lib/copilot`).
- * Uses GOOGLE_GENERATIVE_AI_API_KEY (see @ai-sdk/google).
+ * Groq model + tunables for Zuri (`app/lib/copilot` and support chat).
+ * Set GROQ_API_KEY. Optional GROQ_MODEL overrides the default.
+ * Llama 3.3 70B was removed from Groq developer keys on 2026-08-16.
  */
-export const COPILOT_DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+export const COPILOT_DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 
-export function getCopilotGeminiModelId(): string {
-  return (
-    process.env.COPILOT_GEMINI_MODEL?.trim() || COPILOT_DEFAULT_GEMINI_MODEL
-  );
+export function getCopilotGroqModelId(): string {
+  return process.env.GROQ_MODEL?.trim() || COPILOT_DEFAULT_GROQ_MODEL;
 }
 
 export function getCopilotMaxSteps(): number {
@@ -16,8 +15,8 @@ export function getCopilotMaxSteps(): number {
   return 12;
 }
 
-export function assertGoogleApiKeyConfigured(): void {
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim()) {
-    throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is not configured");
+export function assertGroqApiKeyConfigured(): void {
+  if (!process.env.GROQ_API_KEY?.trim()) {
+    throw new Error("GROQ_API_KEY is not configured");
   }
 }

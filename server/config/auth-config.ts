@@ -46,6 +46,8 @@ export const COOKIE_NAMES = {
     ACCESS: "__ventra_at",
     REFRESH: "__ventra_rt",
     BRANCH: "__ventra_branch",
+    /** Public shop customer. Not a shop-owner session. */
+    SHOPPER: "__ventra_shopper",
 } as const;
 
 /** Optional branch for API clients (CORS + Bearer), takes precedence over branch cookie. */

@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { listShopProducts } from "@/server/catalog/master-catalog-service";
 import { addProductToShopAndMasterCatalog } from "@/server/catalog/platform-shop-product-service";
+import { logPlatformActivity } from "@/server/platform/platform-activity-log";
+import { PLATFORM_ACTIONS } from "@/server/platform/platform-activity-labels";
 import {
     badRequest,
     gatePlatform,
@@ -78,6 +80,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
             unit: typeof body.unit === "string" ? body.unit : "piece",
             categoryName:
                 typeof body.categoryName === "string" ? body.categoryName : null,
+        });
+        await logPlatformActivity(req, {
+            action: PLATFORM_ACTIONS.SHOP_PRODUCT_ADDED,
+            resource: "product",
+            resourceId: businessId,
+            metadata: { shopId: businessId, productName: name },
         });
         return NextResponse.json({ success: true, ...result }, { status: 201 });
     } catch (e) {

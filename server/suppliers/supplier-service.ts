@@ -1,6 +1,8 @@
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { suppliers, supplierPhones, supplyOrders } from "../db/schema/suppliers";
+import { products } from "../db/schema/products";
+import { suppliers, supplierPhones, supplyOrders, supplyOrderLines } from "../db/schema/suppliers";
+import { invalidatePosBusinessCaches } from "../pos/pos-service";
 
 export type CreateSupplierInput = {
     businessId: string;
@@ -152,4 +154,59 @@ export async function updateSupplier(
 
         return getSupplier(businessId, supplierId);
     });
+}
+
+/**
+ * Remove a supplier you no longer take goods from. Reverses stock from their
+ * supply records, then deletes the supplier (orders and phones cascade).
+ */
+export async function deleteSupplier(businessId: string, supplierId: string): Promise<boolean> {
+    const result = await db.transaction(async (tx) => {
+        const [existing] = await tx
+            .select({ id: suppliers.id })
+            .from(suppliers)
+            .where(and(eq(suppliers.id, supplierId), eq(suppliers.businessId, businessId)))
+            .limit(1);
+        if (!existing) return null;
+
+        const orders = await tx
+            .select({
+                id: supplyOrders.id,
+                branchId: supplyOrders.branchId,
+            })
+            .from(supplyOrders)
+            .where(and(eq(supplyOrders.businessId, businessId), eq(supplyOrders.supplierId, supplierId)));
+
+        if (orders.length > 0) {
+            const lines = await tx
+                .select({
+                    productId: supplyOrderLines.productId,
+                    quantityTotal: supplyOrderLines.quantityTotal,
+                })
+                .from(supplyOrderLines)
+                .where(inArray(supplyOrderLines.supplyOrderId, orders.map((o) => o.id)));
+
+            for (const l of lines) {
+                if (!l.productId) continue;
+                const qty = Math.floor(l.quantityTotal);
+                if (qty <= 0) continue;
+                await tx
+                    .update(products)
+                    .set({
+                        stock: sql`GREATEST(0, ${products.stock} - ${qty})`,
+                        updatedAt: new Date(),
+                    })
+                    .where(and(eq(products.id, l.productId), eq(products.businessId, businessId)));
+            }
+        }
+
+        await tx.delete(suppliers).where(eq(suppliers.id, supplierId));
+        return { branchIds: [...new Set(orders.map((o) => o.branchId))] };
+    });
+
+    if (!result) return false;
+
+    const uniqueBranches = result.branchIds.length > 0 ? result.branchIds : [null];
+    await Promise.all(uniqueBranches.map((branchId) => invalidatePosBusinessCaches(businessId, branchId)));
+    return true;
 }

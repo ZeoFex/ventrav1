@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Plus, Loader2, BookUser } from "lucide-react";
+import { Plus, Loader2, BookUser, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { ProductsPageShell } from "../products/products-page-shell";
+import { DeleteConfirmModal } from "./delete-confirm-modal";
 
 const fetcher = (u: string) => fetch(u).then((r) => {
     if (!r.ok) throw new Error("Failed");
@@ -11,7 +15,28 @@ const fetcher = (u: string) => fetch(u).then((r) => {
 });
 
 export function SuppliersListView() {
-    const { data, isLoading, error } = useSWR("/api/suppliers", fetcher);
+    const router = useRouter();
+    const { data, isLoading, error, mutate } = useSWR("/api/suppliers", fetcher);
+    const [pendingSupplier, setPendingSupplier] = useState<{ id: string; name: string } | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
+    async function confirmDeleteSupplier() {
+        if (!pendingSupplier || deleting) return;
+        setDeleting(true);
+        try {
+            const res = await fetch(`/api/suppliers/${pendingSupplier.id}`, { method: "DELETE" });
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(j.error || "Failed to delete supplier");
+            toast.success("Supplier deleted");
+            setPendingSupplier(null);
+            await mutate();
+            router.refresh();
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Failed to delete supplier");
+        } finally {
+            setDeleting(false);
+        }
+    }
 
     return (
         <ProductsPageShell
@@ -63,12 +88,22 @@ export function SuppliersListView() {
                                         ₵{Number(s.outstandingGhs ?? 0).toFixed(2)}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <Link
-                                            href={`/dashboard/suppliers/${s.id}`}
-                                            className="text-[#006c49] font-semibold hover:underline dark:text-[#6ffbbe]"
-                                        >
-                                            View
-                                        </Link>
+                                        <div className="flex items-center justify-end gap-3">
+                                            <Link
+                                                href={`/dashboard/suppliers/${s.id}`}
+                                                className="text-[#006c49] font-semibold hover:underline dark:text-[#6ffbbe]"
+                                            >
+                                                View
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPendingSupplier({ id: s.id, name: s.name })}
+                                                className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-red-50 hover:text-destructive dark:hover:bg-red-950/40"
+                                                aria-label={`Delete ${s.name}`}
+                                            >
+                                                <Trash2 className="size-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -76,6 +111,25 @@ export function SuppliersListView() {
                     </table>
                 </div>
             )}
+            {pendingSupplier ? (
+                <DeleteConfirmModal
+                    title="Delete this supplier?"
+                    description={
+                        <>
+                            You will no longer take goods from{" "}
+                            <span className="font-semibold text-foreground">&quot;{pendingSupplier.name}&quot;</span>.
+                            Their supply records will be removed and stock from those deliveries will be reversed.
+                            This cannot be undone.
+                        </>
+                    }
+                    confirmLabel="Delete supplier"
+                    isDeleting={deleting}
+                    onCancel={() => {
+                        if (!deleting) setPendingSupplier(null);
+                    }}
+                    onConfirm={confirmDeleteSupplier}
+                />
+            ) : null}
         </ProductsPageShell>
     );
 }

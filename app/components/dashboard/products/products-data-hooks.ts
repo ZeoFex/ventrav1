@@ -112,6 +112,7 @@ export function useTags() {
     };
 }
 
+
 export function useProduct(id: string) {
     const { data, error, mutate } = useSWR(id ? `/api/products/${id}` : null, productsFetcher);
     return {
@@ -121,3 +122,4 @@ export function useProduct(id: string) {
         mutate,
     };
 }
+

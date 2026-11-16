@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { hasMinRole, requireUserAuth, requireUserAuthFromContext } from "@/server/auth/api-request-auth";
-import { getSupplier, updateSupplier } from "@/server/suppliers/supplier-service";
+import { deleteSupplier, getSupplier, updateSupplier } from "@/server/suppliers/supplier-service";
 import {
     getSupplierOutstandingGhs,
     listSupplyOrdersForSupplier,
@@ -62,6 +62,27 @@ export async function PATCH(
         return NextResponse.json(updated);
     } catch (e) {
         console.error("PATCH /api/suppliers/[id]", e);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}
+
+export async function DELETE(
+    _req: Request,
+    { params }: { params: Promise<{ id: string }> },
+) {
+    try {
+        const auth = await requireUserAuthFromContext();
+        if (auth instanceof NextResponse) return auth;
+        const { payload } = auth;
+        if (!hasMinRole(payload, "manager")) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        const { id } = await params;
+        const ok = await deleteSupplier(payload.bid, id);
+        if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
+        return NextResponse.json({ success: true });
+    } catch (e) {
+        console.error("DELETE /api/suppliers/[id]", e);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

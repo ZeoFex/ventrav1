@@ -37,7 +37,7 @@ function QuickSaleCarousel({
   const pausedRef = useRef(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const enableAutoScroll = products.length >= 3;
+  const enableAutoScroll = variant !== "retail" && products.length >= 3;
   const loopProducts = enableAutoScroll ? [...products, ...products] : products;
 
   useEffect(() => {
@@ -115,13 +115,13 @@ function QuickSaleCarousel({
   return (
     <div
       ref={scrollRef}
-      className={`-mx-4 overflow-x-auto overscroll-x-contain px-4 pb-2 touch-pan-x [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${
+      className={`-mx-3 overflow-x-auto overscroll-x-contain px-3 pb-1 touch-pan-x [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${
         variant === "classic" ? "sm:-mx-6 sm:px-6" : ""
       }`}
       role="region"
       aria-label="Top selling products carousel"
     >
-      <div className="flex w-max gap-2.5 py-1 sm:gap-3">
+      <div className="flex w-max gap-2 py-0.5 sm:gap-3">
         {loopProducts.map((product, index) => {
           const rank = (index % products.length) + 1;
           const isFirst = index === 0;
@@ -191,7 +191,20 @@ function QuickSaleBranchPrompt() {
   );
 }
 
-function QuickSaleLoadingState() {
+function QuickSaleLoadingState({ variant = "classic" }: { variant?: "classic" | "retail" }) {
+  if (variant === "retail") {
+    return (
+      <div className="space-y-1.5">
+        <Skeleton className="h-3 w-20" />
+        <div className="-mx-3 flex gap-2 overflow-hidden px-3">
+          <Skeleton className="size-[108px] shrink-0 rounded-xl" />
+          <Skeleton className="size-[108px] shrink-0 rounded-xl" />
+          <Skeleton className="size-[108px] shrink-0 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Skeleton className="h-4 w-28" />
@@ -224,18 +237,18 @@ export function HomeQuickSaleProducts({
   }
 
   if (isLoading && !data) {
-    return <QuickSaleLoadingState />;
+    return <QuickSaleLoadingState variant={variant} />;
   }
 
   return (
     <>
-      <section className="space-y-3">
+      <section className={isRetail ? "space-y-2" : "space-y-3"}>
         <div className="flex items-end justify-between gap-3">
           <div>
             <h2
               className={
                 isRetail
-                  ? "text-[17px] font-bold text-foreground"
+                  ? "text-[12px] font-bold tracking-tight text-foreground"
                   : "text-[13px] font-semibold uppercase tracking-wide text-muted-foreground"
               }
             >

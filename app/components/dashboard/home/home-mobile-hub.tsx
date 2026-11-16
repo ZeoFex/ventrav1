@@ -85,7 +85,7 @@ export function HomeMobileHub() {
 
       <Link
         href="/dashboard/pos/scan"
-        className="flex items-center justify-center gap-3 rounded-2xl bg-[#006c49] px-5 py-4 text-[15px] font-bold text-white shadow-[0_8px_24px_-8px_rgba(0,108,73,0.55)] transition-transform active:scale-[0.98] dark:bg-[#6ffbbe] dark:text-[#003527]"
+        className="flex min-h-[56px] items-center justify-center gap-3 rounded-2xl bg-[#006c49] px-5 py-4 text-[16px] font-bold text-white shadow-[0_8px_24px_-8px_rgba(0,108,73,0.55)] transition-transform active:scale-[0.98] dark:bg-[#6ffbbe] dark:text-[#003527]"
         data-tour-target="home-scan-cta"
         data-tour-mount="main"
       >
@@ -98,7 +98,7 @@ export function HomeMobileHub() {
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-[#bfc9c3]/20 bg-surface-card px-2 py-3.5 text-center transition-colors active:bg-muted/40 dark:border-white/[0.08] dark:bg-[#111]"
+            className="tap-target flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-[#bfc9c3]/20 bg-surface-card px-2 py-3.5 text-center transition-colors active:bg-muted/40 dark:border-white/[0.08] dark:bg-[#111]"
           >
             <span className="flex size-10 items-center justify-center rounded-xl bg-[#006c49]/10 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]">
               <Icon className="size-5" strokeWidth={2} aria-hidden />

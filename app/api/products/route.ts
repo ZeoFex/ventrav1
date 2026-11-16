@@ -9,6 +9,7 @@ import {
 } from "@/server/products/barcode-duplicate-check";
 import { upsertGlobalBarcodeEntry } from "@/server/products/global-barcode-catalog-service";
 import { resolveBusinessName } from "@/server/platform/platform-notification-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 /**
  * GET /api/products
@@ -60,6 +61,16 @@ export async function POST(req: Request) {
 
         triggerMasterCatalogSync(result.id, payload.bid);
 
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.product.added",
+            resource: "product",
+            resourceId: result.id,
+            detail: [body.name, body.sku].filter(Boolean).join(" · ") || "Product added",
+        });
+
         return NextResponse.json(result, { status: 201 });
     } catch (error) {
         console.error("POST /api/products failed:", error);
@@ -94,6 +105,16 @@ export async function DELETE(req: Request) {
             eq(products.businessId, payload.bid),
             branchId && branchId !== "all" ? eq(products.branchId, branchId) : undefined
         ));
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.product.deleted",
+            resource: "product",
+            resourceId: id,
+            detail: "Product deleted",
+        });
 
         await Promise.all([
             redis.del(`products:biz_${payload.bid}:brn_${branchId || 'all'}:list`),
@@ -196,6 +217,16 @@ export async function PUT(req: Request) {
         });
 
         triggerMasterCatalogSync(id, payload.bid);
+
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.product.updated",
+            resource: "product",
+            resourceId: id,
+            detail: typeof data.name === "string" ? data.name : "Product updated",
+        });
 
         if (normalizedBarcode) {
             void resolveBusinessName(payload.bid).then((shopName) =>

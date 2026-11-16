@@ -14,10 +14,15 @@ import {
     type PosReceiptData,
 } from "./pos-receipt-data";
 import { PosReceiptStep } from "./pos-receipt-step";
+import { PosPaymentStep } from "./pos-payment-step";
 import { useBranches } from "../../branches/branches-data-hooks";
 import { usePosConfig } from "./pos-config-hooks";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
+import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 import { useSession } from "../../../auth/use-session";
 import type { CustomerRow } from "../../customers/customers-mock-data";
+import type { PosPaymentCompletion } from "./pos-payment-completion";
 
 const fetcher = (url: string) =>
     fetch(url).then((r) => {
@@ -88,6 +93,8 @@ export function PosCustomerOrdersView() {
     const [payBusy, setPayBusy] = useState(false);
     const [finalBusy, setFinalBusy] = useState(false);
     const [cancelBusy, setCancelBusy] = useState(false);
+    const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [advanceReceipt, setAdvanceReceipt] = useState<PosReceiptData | null>(null);
 
     const [filterCustomerId, setFilterCustomerId] = useState<string | null>(null);
@@ -128,27 +135,35 @@ export function PosCustomerOrdersView() {
     );
 
     const addPayment = useCallback(
-        async (e: React.FormEvent) => {
-            e.preventDefault();
-            if (!selectedId) return;
-            const n = Number(payAmount);
-            if (!Number.isFinite(n) || n <= 0) {
-                toast.error("Enter a valid amount.");
-                return;
-            }
+        async (completion: PosPaymentCompletion) => {
+            if (!selectedId || completion.kind === "reserve_only") return;
+
             const snapshot = detailData as OrderDetailPayload | undefined;
             if (!snapshot?.order) {
                 toast.error("Load order details first.");
                 return;
             }
+
             setPayBusy(true);
             try {
+                const round2 = (n: number) => Math.round(n * 100) / 100;
+
+                // Build payment lines from completion object
+                let paymentLines: { paymentMethod: string; amountGhs: number }[] = [];
+
+                if (completion.kind === "single") {
+                    paymentLines = [{ paymentMethod: completion.methodId, amountGhs: round2(Number(snapshot.order.balanceDueGhs) > 0 ? Math.min(completion.amountTenderedGhs - completion.changeGhs, Number(snapshot.order.balanceDueGhs)) : completion.amountTenderedGhs - completion.changeGhs) }];
+                } else if (completion.kind === "multi") {
+                    paymentLines = completion.lines.map(l => ({
+                        paymentMethod: l.methodId,
+                        amountGhs: round2(l.amountGhs)
+                    }));
+                }
+
                 const res = await fetch(`/api/customer-orders/${selectedId}/payments`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        paymentLines: [{ paymentMethod: payMethod, amountGhs: n }],
-                    }),
+                    body: JSON.stringify({ paymentLines }),
                 });
                 const body = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Payment failed");
@@ -167,7 +182,7 @@ export function PosCustomerOrdersView() {
                             quantity: l.quantity,
                             lineTotalGhs: Number(l.lineTotalGhs),
                         })),
-                        paymentLines: [{ paymentMethod: payMethod, amountGhs: n }],
+                        paymentLines,
                         balanceDueGhs:
                             typeof body.balanceDueGhs === "number" ? body.balanceDueGhs : 0,
                         customerName: snapshot.customerName ?? null,
@@ -181,8 +196,8 @@ export function PosCustomerOrdersView() {
                     }),
                 );
 
+                setPaymentModalOpen(false);
                 toast.success("Payment recorded");
-                setPayAmount("");
                 await mutateList();
                 await mutateDetail();
             } catch (err: unknown) {
@@ -193,8 +208,6 @@ export function PosCustomerOrdersView() {
         },
         [
             selectedId,
-            payAmount,
-            payMethod,
             mutateList,
             mutateDetail,
             detailData,
@@ -223,13 +236,13 @@ export function PosCustomerOrdersView() {
 
     const cancel = useCallback(async () => {
         if (!selectedId) return;
-        if (!window.confirm("Cancel this order and release reserved stock?")) return;
         setCancelBusy(true);
         try {
             const res = await fetch(`/api/customer-orders/${selectedId}/cancel`, { method: "POST" });
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Cancel failed");
             toast.success("Order cancelled");
+            setCancelConfirmOpen(false);
             setSelectedId(null);
             await mutateList();
         } catch (err: unknown) {
@@ -527,41 +540,13 @@ export function PosCustomerOrdersView() {
                             </div>
 
                             {detailData.order.status === "open" ? (
-                                <form onSubmit={addPayment} className="mt-6 space-y-3 border-t border-[#eef0f2] pt-5 dark:border-white/[0.08]">
-                                    <p className="text-[14px] font-semibold">Add payment</p>
-                                    <div>
-                                        <label className="text-[12px] text-muted-foreground">Amount</label>
-                                        <input
-                                            type="number"
-                                            min={0.01}
-                                            step="0.01"
-                                            value={payAmount}
-                                            onChange={(e) => setPayAmount(e.target.value)}
-                                            className="mt-1 w-full rounded-xl border border-[#e5e7eb] bg-transparent px-3 py-2.5 dark:border-white/12"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[12px] text-muted-foreground">Method</label>
-                                        <select
-                                            value={payMethod}
-                                            onChange={(e) => setPayMethod(e.target.value)}
-                                            className="mt-1 w-full rounded-xl border border-[#e5e7eb] bg-transparent px-3 py-2.5 dark:border-white/12 dark:bg-[#141414]"
-                                        >
-                                            {GHANA_PAYMENT_METHODS.map((m) => (
-                                                <option key={m.id} value={m.id}>
-                                                    {m.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        disabled={payBusy}
-                                        className="w-full rounded-xl bg-[#006c49] py-2.5 text-[14px] font-semibold text-white dark:bg-[#6ffbbe] dark:text-[#003527]"
-                                    >
-                                        {payBusy ? "Saving…" : "Apply payment"}
-                                    </button>
-                                </form>
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentModalOpen(true)}
+                                    className="mt-6 w-full rounded-xl bg-gradient-to-br from-[#003527] to-[#064e3b] py-3 text-[14px] font-semibold text-white hover:brightness-105 transition-all disabled:opacity-50"
+                                >
+                                    Add payment
+                                </button>
                             ) : null}
 
                             {detailData.order.status === "ready_for_pickup" ? (
@@ -580,10 +565,10 @@ export function PosCustomerOrdersView() {
                                 <button
                                     type="button"
                                     disabled={cancelBusy}
-                                    onClick={() => void cancel()}
+                                    onClick={() => setCancelConfirmOpen(true)}
                                     className="mt-3 w-full rounded-xl border border-red-200 py-2.5 text-[13px] font-semibold text-red-700 dark:border-red-900/50 dark:text-red-400"
                                 >
-                                    {cancelBusy ? "Cancelling…" : "Cancel order"}
+                                    Cancel order
                                 </button>
                             ) : null}
 
@@ -597,6 +582,51 @@ export function PosCustomerOrdersView() {
                     )}
                 </div>
             </div>
+
+            {/* Payment Modal */}
+            {paymentModalOpen && selectedId && detailData && (detailData as OrderDetailPayload)?.order ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]">
+                    <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl dark:bg-[#111]">
+                        <PosPaymentStep
+                            totalGhs={Number((detailData as OrderDetailPayload).order.balanceDueGhs)}
+                            onBack={() => setPaymentModalOpen(false)}
+                            onComplete={addPayment}
+                            isProcessing={payBusy}
+                            allowCreditDeposit={true}
+                            layawayMode={true}
+                            className="lg:px-0 lg:py-0"
+                        />
+                    </div>
+                </div>
+            ) : null}
+
+            {cancelConfirmOpen ? (
+                <DeleteConfirmModal
+                    icon="ban"
+                    title="Cancel this order?"
+                    description={
+                        <>
+                            {detailData?.order?.invoiceId ? (
+                                <>
+                                    <span className="font-semibold text-foreground">
+                                        {detailData.order.invoiceId}
+                                    </span>{" "}
+                                    will be cancelled and reserved stock released. This cannot be undone.
+                                </>
+                            ) : (
+                                "Reserved stock will be released. This cannot be undone."
+                            )}
+                        </>
+                    }
+                    dismissLabel="Keep order"
+                    confirmLabel="Cancel order"
+                    isDeleting={cancelBusy}
+                    onCancel={() => {
+                        if (!cancelBusy) setCancelConfirmOpen(false);
+                    }}
+                    onConfirm={() => void cancel()}
+                />
+            ) : null}
         </ProductsPageShell>
     );
 }

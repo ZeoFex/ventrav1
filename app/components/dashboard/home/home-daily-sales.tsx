@@ -25,7 +25,7 @@ function formatGhs(n: number, compact = false): string {
 }
 
 type HomeDailySalesProps = {
-  variant?: "cards" | "banner";
+  variant?: "cards" | "banner" | "inline";
 };
 
 export function HomeDailySales({ variant = "cards" }: HomeDailySalesProps) {
@@ -37,8 +37,11 @@ export function HomeDailySales({ variant = "cards" }: HomeDailySalesProps) {
   }
 
   if (isLoading && !data) {
+    if (variant === "inline") {
+      return <Skeleton className="h-[3.5rem] w-[7.5rem] shrink-0 rounded-2xl" />;
+    }
     return variant === "banner" ? (
-      <Skeleton className="h-[72px] rounded-2xl" />
+      <Skeleton className="h-12 rounded-xl" />
     ) : (
       <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <Skeleton className="h-28 rounded-2xl" />
@@ -59,21 +62,42 @@ export function HomeDailySales({ variant = "cards" }: HomeDailySalesProps) {
         ? "text-red-300"
         : "text-white/70";
 
+  if (variant === "inline") {
+    return (
+      <Link
+        href="/dashboard/sales/revenue"
+        className="flex h-[3.5rem] min-w-[7.5rem] shrink-0 flex-col justify-center rounded-2xl bg-gradient-to-br from-[#003527] to-[#006c49] px-3 py-1.5 text-white shadow-[0_6px_16px_-10px_rgba(0,53,39,0.5)] dark:from-[#06261c] dark:to-[#006c49]/80"
+        data-tour-target="home-kpis"
+        data-tour-mount="main"
+      >
+        <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/55">
+          Today
+        </p>
+        <p className="mt-0.5 font-[family-name:var(--font-display)] text-[1.12rem] font-semibold leading-none tabular-nums tracking-tight">
+          {formatGhs(todaySalesGhs, true)}
+        </p>
+        <p className="mt-1 text-[10px] font-medium tabular-nums text-white/70">
+          {transactionCount} {transactionCount === 1 ? "sale" : "sales"}
+        </p>
+      </Link>
+    );
+  }
+
   if (variant === "banner") {
     const TrendIcon = vsYesterdayDiffGhs >= 0 ? TrendingUp : TrendingDown;
 
     return (
       <Link
         href="/dashboard/sales/revenue"
-        className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-br from-[#003527] to-[#006c49] px-4 py-3.5 text-white shadow-lg transition-transform active:scale-[0.99] dark:from-[#0a1f18] dark:to-[#006c49]/90"
+        className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-br from-[#003527] via-[#004d38] to-[#006c49] px-3.5 py-2.5 text-white shadow-[0_8px_24px_-12px_rgba(0,53,39,0.55)] dark:from-[#06261c] dark:to-[#006c49]/80"
         data-tour-target="home-kpis"
         data-tour-mount="main"
       >
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">
             Today&apos;s sales
           </p>
-          <p className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums">
+          <p className="mt-0.5 font-[family-name:var(--font-display)] text-[1.45rem] font-semibold tabular-nums leading-none tracking-tight">
             {formatGhs(todaySalesGhs, true)}
           </p>
         </div>
@@ -81,7 +105,7 @@ export function HomeDailySales({ variant = "cards" }: HomeDailySalesProps) {
           <p className="text-[12px] font-semibold tabular-nums text-white/90">
             {transactionCount} {transactionCount === 1 ? "sale" : "sales"}
           </p>
-          <p className={`mt-0.5 inline-flex items-center justify-end gap-1 text-[11px] font-medium ${vsYesterdayDiffClass}`}>
+          <p className={`mt-1 inline-flex items-center justify-end gap-1 text-[11px] font-medium ${vsYesterdayDiffClass}`}>
             <TrendIcon className="size-3" aria-hidden />
             {vsYesterdayDiffGhs > 0 ? "+" : ""}
             {formatGhs(vsYesterdayDiffGhs, true)} vs yesterday

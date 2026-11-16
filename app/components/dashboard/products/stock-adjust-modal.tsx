@@ -53,9 +53,9 @@ export function StockAdjustModal({ product, onClose, onSaved }: StockAdjustModal
       ? ((price - cost) / price) * 100
       : null;
 
-  const newStock = product ? Math.max(0, product.stock + delta) : 0;
+  const newStock = product ? product.stock + delta : 0;
 
-  const canSave = product && delta !== 0 && newStock >= 0;
+  const canSave = product && delta !== 0;
 
   const handleSave = async () => {
     if (!product || !canSave || saving) return;
@@ -103,7 +103,7 @@ export function StockAdjustModal({ product, onClose, onSaved }: StockAdjustModal
               <button
                 type="button"
                 onClick={() => setDelta((d) => d - 1)}
-                disabled={newStock <= 0 && delta <= 0}
+                disabled={product.stock + delta <= 0 && delta <= 0}
                 className="flex size-11 items-center justify-center rounded-xl border border-border hover:bg-muted disabled:opacity-40"
                 aria-label="Decrease adjustment"
               >

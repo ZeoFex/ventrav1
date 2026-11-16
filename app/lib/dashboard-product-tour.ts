@@ -181,9 +181,9 @@ export function buildDashboardTourSteps(opts: BuildTourStepsOpts): DriveStep[] {
     {
       element: `[data-tour-target="home-quick-sale"][data-tour-mount="main"]`,
       popover: {
-        title: "Quick sale",
+        title: "What people are buying",
         description:
-          "Tap a best-selling product to add it to your cart instantly—checkout from the floating cart button.",
+          "These are products customers have already bought. Tap one to add it to the cart and check out.",
         side: "top",
         align: "start",
       },
@@ -258,19 +258,20 @@ export function buildDashboardTourSteps(opts: BuildTourStepsOpts): DriveStep[] {
       popover: {
         title: "Zuri assistant",
         description:
-          "Open Zuri for Pro workspaces—insights, summaries, and in-panel help grounded in your plan.",
+          "Open Zuri on Growth and Pro—insights, summaries, and in-panel help grounded in your shop.",
         side: "right",
         align: "center",
       },
     });
   } else if (isMobileViewport && dashboardTourShowsCopilotEntry(user)) {
     steps.push({
+      element: `[data-tour-target="copilot-mobile"][data-tour-mount="main"]`,
       popover: {
         title: "Zuri on mobile",
         description:
-          "Use the floating Zuri button lower on the screen to open the same assistant when your plan includes it.",
-        side: "over",
-        align: "center",
+          "Drag the Zuri icon anywhere on the screen, then tap it to open the chat. Growth and Pro only.",
+        side: "top",
+        align: "end",
       },
     });
   }

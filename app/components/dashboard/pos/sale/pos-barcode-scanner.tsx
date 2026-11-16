@@ -25,7 +25,7 @@ export type PosBarcodeScannerState =
 type PosBarcodeScannerProps = {
   active: boolean;
   products: ProductRow[];
-  onProductFound: (product: ProductRow, barcode: string) => void;
+  onProductFound: (product: ProductRow, barcode: string, variationId?: string) => void;
   /** User chose to create a new product from an unknown barcode. */
   onCreateProduct?: (barcode: string, globalPrefill: GlobalBarcodePrefill | null) => void;
   className?: string;
@@ -35,7 +35,6 @@ type PosBarcodeScannerProps = {
 
 const LOOKUP_TIMEOUT_MS = 6000;
 const SUCCESS_DISPLAY_MS = 1400;
-const ERROR_AUTO_DISMISS_MS = 0; // stay until user acts
 
 async function fetchGlobalBarcodePrefill(
   barcode: string,
@@ -147,7 +146,7 @@ export function PosBarcodeScanner({
           clearTimeout(lookupTimeoutRef.current!);
           lookupTimeoutRef.current = null;
           setMatchedProduct(local.product);
-          onProductFound(local.product, local.normalizedBarcode);
+          onProductFound(local.product, local.normalizedBarcode, local.variationId);
           playPosScanSuccessFeedback();
           setState("success");
           resetTimeoutRef.current = setTimeout(() => {
@@ -233,7 +232,7 @@ export function PosBarcodeScanner({
           <div className="flex items-start gap-3 px-4 py-3.5">
             <Keyboard className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
             <p className="text-[13px] leading-snug text-muted-foreground">
-              Scan barcodes at any angle — EAN-13, UPC, Code 128, Code 39, QR, and more.
+              Hold the barcode in the frame — EAN-13, EAN-8, UPC, and Code 128.
             </p>
           </div>
         ) : null}

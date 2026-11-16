@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PauseCircle, Play, Trash2, Loader2 } from "lucide-react";
+import { PauseCircle, Play, Loader2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { computePosTotals } from "./pos-cart-totals";
 import {
@@ -13,6 +13,7 @@ import {
 import { useProducts } from "../../products/products-data-hooks";
 import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
+import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 
 function formatRelative(iso: string): string {
   const d = new Date(iso);
@@ -37,6 +38,7 @@ function lineItemCount(lines: HeldSale["lines"]): number {
 export function PosHeldSalesView() {
   const router = useRouter();
   const [items, setItems] = useState<HeldSale[]>(() => getHeldSales());
+  const [pendingHeld, setPendingHeld] = useState<{ id: string; label: string } | null>(null);
   const { products = [], isLoading: isProductsLoading } = useProducts();
 
   const productById = useMemo(() => {
@@ -56,20 +58,12 @@ export function PosHeldSalesView() {
     [router],
   );
 
-  const handleDelete = useCallback(
-    (id: string, label: string) => {
-      if (
-        !window.confirm(
-          `Discard "${label}"? This removes the held cart from this device.`,
-        )
-      ) {
-        return;
-      }
-      removeHeldSale(id);
-      refresh();
-    },
-    [refresh],
-  );
+  const confirmDiscard = useCallback(() => {
+    if (!pendingHeld) return;
+    removeHeldSale(pendingHeld.id);
+    setPendingHeld(null);
+    refresh();
+  }, [pendingHeld, refresh]);
 
   if (isProductsLoading) {
     return (
@@ -126,7 +120,7 @@ export function PosHeldSalesView() {
                         <button onClick={() => handleResume(h.id)} className="flex-1 sm:flex-initial bg-muted px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2">
                           <Play className="size-3.5" /> Resume
                         </button>
-                        <button onClick={() => handleDelete(h.id, h.label)} className="text-destructive font-semibold text-sm px-4">
+                        <button onClick={() => setPendingHeld({ id: h.id, label: h.label })} className="text-destructive font-semibold text-sm px-4">
                           Discard
                         </button>
                       </div>
@@ -138,6 +132,22 @@ export function PosHeldSalesView() {
           </div>
         )}
       </div>
+      {pendingHeld ? (
+        <DeleteConfirmModal
+          title="Discard this held sale?"
+          description={
+            <>
+              <span className="font-semibold text-foreground">&quot;{pendingHeld.label}&quot;</span> will
+              be removed from this device. You will not be able to resume it.
+            </>
+          }
+          dismissLabel="Keep it"
+          confirmLabel="Discard"
+          isDeleting={false}
+          onCancel={() => setPendingHeld(null)}
+          onConfirm={confirmDiscard}
+        />
+      ) : null}
     </div>
   );
 }

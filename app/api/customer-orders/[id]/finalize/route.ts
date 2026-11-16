@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUserAuth } from "@/server/auth/api-request-auth";
 import { getActiveBranchIdFromContext } from "@/server/auth/get-branch-id";
 import { finalizeCustomerOrder } from "@/server/customer-orders/customer-order-service";
+import { logShopActivity } from "@/server/platform/shop-activity-log";
 
 export async function POST(
     req: Request,
@@ -20,6 +21,16 @@ export async function POST(
             payload.sub ?? null,
             orderId,
         );
+        void logShopActivity({
+            req,
+            userId: payload.sub,
+            businessId: payload.bid,
+            action: "shop.customer_order.finalized",
+            resource: "customer_order",
+            resourceId: orderId,
+            detail: "Order collected as a sale",
+            metadata: { saleId: result.saleId },
+        });
         return NextResponse.json({ success: true, saleId: result.saleId });
     } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : "Finalize failed";

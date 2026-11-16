@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { TABS, type TabId } from "./catalog-admin-types";
+import { BrandMark } from "@/app/components/brand-mark";
 
 const VENTRA_ACCENT = "text-[#006c49] dark:text-[#6ffbbe]";
 const VENTRA_ACTIVE_BG = "bg-[#003527]/10 dark:bg-[#6ffbbe]/10";
@@ -24,9 +25,7 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             className="flex w-full min-w-0 items-center gap-3 px-1 py-1 text-left transition-opacity hover:opacity-90"
         >
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#006c49] text-white shadow-sm dark:bg-[#6ffbbe] dark:text-[#003527]">
-                <span className="text-[17px] font-black italic tracking-tighter">V</span>
-            </div>
+            <BrandMark size={36} />
             <div className="min-w-0">
                 <p className="truncate font-[family-name:var(--font-display)] text-[17px] font-bold tracking-tight text-foreground">
                     VentraPOS
@@ -220,6 +219,10 @@ export const TAB_META: Record<TabId, { title: string; description: string }> = {
         title: "All Shops",
         description: "Browse tenants, products, subscriptions, and shop insights.",
     },
+    referrers: {
+        title: "Referrers",
+        description: "People who bring shop owners onto VentraPOS, and the shops they brought.",
+    },
     subscriptions: {
         title: "Subscriptions",
         description: "Monitor plans, renewal dates, and past-due accounts.",
@@ -227,6 +230,14 @@ export const TAB_META: Record<TabId, { title: string; description: string }> = {
     reviews: {
         title: "Reviews",
         description: "View and remove customer reviews shown on the public site.",
+    },
+    activity: {
+        title: "Activity logs",
+        description: "Named audit trail of every admin action on the platform.",
+    },
+    ecommerce: {
+        title: "Ecommerce",
+        description: "Open the private admin storefront preview.",
     },
     catalog: {
         title: "Product Catalog",
@@ -245,7 +256,7 @@ export const TAB_META: Record<TabId, { title: string; description: string }> = {
         description: "Master catalog categories per shop type.",
     },
     "sync-logs": {
-        title: "Sync Logs",
-        description: "Recent master catalog sync and backfill activity.",
+        title: "Catalog sync",
+        description: "Named history of catalog create, update, and shop sync events.",
     },
 };

@@ -227,7 +227,7 @@ export function CustomersListView() {
                         href={`/dashboard/customers/${c.id}`} 
                         className="flex-1 flex items-center justify-center py-2.5 rounded-xl bg-[#006c49]/5 text-[#006c49] text-[14px] font-bold hover:bg-[#006c49]/10 transition-colors"
                       >
-                        Account
+                        View
                       </Link>
                       <Link 
                         href={`/dashboard/customers/${c.id}/edit`} 
@@ -291,7 +291,7 @@ export function CustomersListView() {
                           href={`/dashboard/customers/${c.id}`}
                           className="text-[13px] font-semibold text-[#006c49] hover:underline dark:text-[#6ffbbe]"
                         >
-                          Account
+                          View
                         </Link>
                         <span className="mx-2 text-muted-foreground">·</span>
                         <Link

@@ -21,7 +21,7 @@ export function DashboardSidebarPanel({
 
   return (
     <>
-      <div className="shrink-0 border-b border-[#bfc9c3]/15 px-4 py-5 dark:border-white/[0.06]">
+      <div className="shrink-0 border-b border-border px-4 py-5 dark:border-white/[0.06]">
         <div className="flex items-center justify-between gap-2">
           <SidebarBrand onNavigate={mobileClose} isCollapsed={isCollapsed} />
           {mobileClose ? (
@@ -45,9 +45,9 @@ export function DashboardSidebarPanel({
         />
       </div>
 
-      <div className="shrink-0 space-y-4 border-t border-[#bfc9c3]/15 px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:border-white/[0.06]">
+      <div className="shrink-0 space-y-4 border-t border-border px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:border-white/[0.06]">
         <div
-          className="hidden w-full lg:block"
+          className="w-full"
           data-tour-target="copilot-sidebar"
           data-tour-mount="main"
         >
@@ -82,7 +82,7 @@ export function DashboardSidebar() {
 
   return (
     <aside 
-      className={`dashboard-sidebar hidden h-full min-h-0 shrink-0 flex-col border-r border-[#bfc9c3]/20 bg-surface-card dark:border-white/[0.08] dark:bg-[#0a0a0a] lg:flex transition-all duration-300 ease-in-out ${
+      className={`dashboard-sidebar hidden h-full min-h-0 shrink-0 flex-col border-r border-border bg-surface-card dark:border-white/[0.08] dark:bg-[#0a0a0a] lg:flex transition-all duration-300 ease-in-out ${
         isCollapsed ? "w-[5.5rem]" : "w-[17.5rem]"
       }`}
     >
@@ -98,7 +98,7 @@ export function DashboardSidebarMobileDrawer() {
     <aside
       id="dashboard-mobile-nav"
       aria-hidden={!mobileNavOpen}
-      className={`dashboard-sidebar fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-[min(100%-2.5rem,19rem)] flex-col border-r border-[#bfc9c3]/20 bg-surface-card shadow-[4px_0_24px_-8px_rgba(0,0,0,0.15)] dark:border-white/[0.08] dark:bg-[#0a0a0a] dark:shadow-[4px_0_24_8px_rgba(0,0,0,0.5)] motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:hidden ${mobileNavOpen ? "translate-x-0" : "pointer-events-none -translate-x-full"}`}
+      className={`dashboard-sidebar fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-[min(100%-2.5rem,19rem)] flex-col border-r border-border bg-surface-card shadow-[4px_0_24px_-8px_rgba(0,0,0,0.15)] dark:border-white/[0.08] dark:bg-[#0a0a0a] dark:shadow-[4px_0_24_8px_rgba(0,0,0,0.5)] motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:hidden ${mobileNavOpen ? "translate-x-0" : "pointer-events-none -translate-x-full"}`}
       style={{
         paddingLeft: "max(0px, env(safe-area-inset-left))",
         paddingTop: "max(0px, env(safe-area-inset-top))",

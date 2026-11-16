@@ -8,7 +8,7 @@ import { db } from "@/server/db";
 import { businesses } from "@/server/db/schema/businesses";
 
 /**
- * Whether this business may use Zuri in-dashboard assistant (Pro-only; feature id `copilot`).
+ * Whether this business may use Zuri in-dashboard assistant (Growth and Pro; feature id `copilot`).
  */
 export async function businessHasCopilotAccess(
   businessId: string,
@@ -37,13 +37,13 @@ export function copilotProRequiredResponse(): Response {
   return new Response(
     JSON.stringify({
       error:
-        "Zuri (in-dashboard assistant) is included with the Pro plan. Upgrade in Settings → Billing.",
+        "Zuri (in-dashboard assistant) is included with the Growth and Pro plans. Upgrade in Settings → Billing.",
     }),
     { status: 403, headers: { "Content-Type": "application/json" } },
   );
 }
 
-/** Returns a 403 Response when the business is not on Pro, otherwise null. */
+/** Returns a 403 Response when the business is not on Growth or Pro, otherwise null. */
 export async function copilotAccessDeniedResponse(
   businessId: string,
 ): Promise<Response | null> {

@@ -654,7 +654,7 @@ export function OnboardingStepContent({
               Weekly schedule
             </h2>
             <p className="mt-2 text-[15px] text-muted-foreground">
-              Define your regular operating hours. Set days to closed if you don't operate.
+              Define your regular operating hours. Set days to closed if you don&apos;t operate.
             </p>
           </div>
           <div className="space-y-3">

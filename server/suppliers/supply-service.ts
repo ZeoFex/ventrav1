@@ -163,3 +163,50 @@ export async function getSupplyOrderDetail(businessId: string, orderId: string) 
 
     return { order, lines };
 }
+
+/**
+ * Delete a recorded supply (GRN): reverse catalog stock that was added, then remove the order and lines.
+ */
+export async function deleteSupplyOrder(businessId: string, orderId: string): Promise<boolean> {
+    const result = await db.transaction(async (tx) => {
+        const [order] = await tx
+            .select({
+                id: supplyOrders.id,
+                branchId: supplyOrders.branchId,
+            })
+            .from(supplyOrders)
+            .where(and(eq(supplyOrders.id, orderId), eq(supplyOrders.businessId, businessId)))
+            .limit(1);
+
+        if (!order) return null;
+
+        const lines = await tx
+            .select({
+                productId: supplyOrderLines.productId,
+                quantityTotal: supplyOrderLines.quantityTotal,
+            })
+            .from(supplyOrderLines)
+            .where(eq(supplyOrderLines.supplyOrderId, orderId));
+
+        for (const l of lines) {
+            if (!l.productId) continue;
+            const qty = Math.floor(l.quantityTotal);
+            if (qty <= 0) continue;
+            await tx
+                .update(products)
+                .set({
+                    stock: sql`GREATEST(0, ${products.stock} - ${qty})`,
+                    updatedAt: new Date(),
+                })
+                .where(and(eq(products.id, l.productId), eq(products.businessId, businessId)));
+        }
+
+        await tx.delete(supplyOrders).where(eq(supplyOrders.id, orderId));
+
+        return { branchId: order.branchId };
+    });
+
+    if (!result) return false;
+    await invalidatePosBusinessCaches(businessId, result.branchId);
+    return true;
+}

@@ -1,10 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Store, Receipt, Bell, Gift } from "lucide-react";
+import { Store, Receipt, Bell, Gift, KeyRound } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
 
 const SETTINGS_CATEGORIES = [
+    {
+        title: "Account & login",
+        description: "Change the email and password you use to sign in.",
+        icon: KeyRound,
+        href: "/dashboard/settings/account",
+        colorClass: "bg-[#006c49]/08 text-[#006c49] dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]",
+    },
     {
         title: "Business Profile",
         description: "Manage your company details, address, and operating hours.",

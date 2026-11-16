@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Bell, Check, Loader2, Trash2, Plus } from "lucide-react";
 import { ProductsPageShell } from "../products/products-page-shell";
 import { toast } from "sonner";
+import { DeleteConfirmModal } from "@/app/components/dashboard/ui/delete-confirm-modal";
 
 const fetcher = (u: string) =>
     fetch(u).then((r) => {
@@ -23,6 +24,8 @@ export function RemindersView() {
         return d.toISOString().slice(0, 16);
     });
     const [saving, setSaving] = useState(false);
+    const [pendingReminder, setPendingReminder] = useState<{ id: string; title: string } | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     async function addReminder(e: React.FormEvent) {
         e.preventDefault();
@@ -66,19 +69,26 @@ export function RemindersView() {
         await mutate();
     }
 
-    async function remove(id: string) {
-        if (!window.confirm("Delete this reminder?")) return;
-        const res = await fetch(`/api/reminders/${id}`, { method: "DELETE" });
-        if (!res.ok) {
-            toast.error("Delete failed");
-            return;
+    async function remove() {
+        if (!pendingReminder || deleting) return;
+        setDeleting(true);
+        try {
+            const res = await fetch(`/api/reminders/${pendingReminder.id}`, { method: "DELETE" });
+            if (!res.ok) {
+                toast.error("Delete failed");
+                return;
+            }
+            setPendingReminder(null);
+            await mutate();
+        } finally {
+            setDeleting(false);
         }
-        await mutate();
     }
 
     const list = Array.isArray(data) ? data : [];
 
     return (
+        <>
         <ProductsPageShell
             title="Reminders"
             description="Delivery dates, supplier follow-ups, payroll, or any task you want to track."
@@ -168,7 +178,7 @@ export function RemindersView() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => remove(r.id)}
+                                                    onClick={() => setPendingReminder({ id: r.id, title: r.title })}
                                                     className="rounded-lg border p-2 hover:bg-destructive/10"
                                                     title="Delete"
                                                 >
@@ -184,5 +194,23 @@ export function RemindersView() {
                 </div>
             </div>
         </ProductsPageShell>
+            {pendingReminder ? (
+            <DeleteConfirmModal
+                title="Delete this reminder?"
+                description={
+                    <>
+                        <span className="font-semibold text-foreground">{pendingReminder.title}</span> will
+                        be removed. This cannot be undone.
+                    </>
+                }
+                confirmLabel="Delete reminder"
+                isDeleting={deleting}
+                onCancel={() => {
+                    if (!deleting) setPendingReminder(null);
+                }}
+                onConfirm={() => void remove()}
+            />
+        ) : null}
+        </>
     );
 }

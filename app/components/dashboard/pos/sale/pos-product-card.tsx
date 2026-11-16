@@ -6,6 +6,9 @@ import { type ProductRow } from "../../products/types";
 import { formatGhs } from "@/app/lib/catalog-utils";
 import { formatQuantity, unitShort } from "@/app/lib/product-units";
 
+const rowGrid =
+  "grid w-full grid-cols-[2.75rem_minmax(0,1fr)_auto_2rem] items-center gap-2.5 min-h-[58px] sm:min-h-0 sm:grid-cols-[2.75rem_minmax(0,1fr)_5.5rem_6.5rem_2.75rem] sm:gap-4";
+
 export function PosProductCard({
   product,
   onAdd,
@@ -15,67 +18,103 @@ export function PosProductCard({
   onAdd: () => void;
   availableStock?: number;
 }) {
-  const stockToDisplay = availableStock ?? product.stock;
-  const isOutOfStock = stockToDisplay <= 0;
+  const stockToDisplay = Number.isFinite(availableStock as number)
+    ? (availableStock as number)
+    : Number(product.stock) || 0;
+  const isLowOrOversold = stockToDisplay <= 0;
+  const unitLabel = unitShort(product.unit);
+  const stockLabel = formatQuantity(stockToDisplay, product.unit);
 
   return (
-    <article className={`group flex flex-col overflow-hidden rounded-[1.25rem] border border-[#eef0f2] bg-white transition-all hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-[#111] dark:hover:border-white/[0.15] ${isOutOfStock ? "opacity-60 grayscale-[0.5]" : ""}`}>
-      <div className="relative aspect-[4/3] bg-[#f8f9fa] dark:bg-[#1a1a1a] overflow-hidden flex items-center justify-center">
-        <span className={`absolute left-3 top-3 z-[1] rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white backdrop-blur-md ${isOutOfStock ? "bg-red-500/80" : "bg-black/70"}`}>
-          {isOutOfStock ? "Out of Stock" : `${formatQuantity(stockToDisplay, product.unit)} in stock`}
-        </span>
+    <button
+      type="button"
+      onClick={onAdd}
+      className={`${rowGrid} border-b border-[#edf1ef] px-0 py-2.5 text-left transition-colors last:border-b-0 sm:px-4 sm:py-3 dark:border-white/[0.06] hover:bg-[#f6f8f7] active:bg-[#eef3f0] dark:hover:bg-white/[0.04] dark:active:bg-white/[0.06]`}
+      aria-label={`Add ${product.name}`}
+    >
+      <div className="size-11 shrink-0 overflow-hidden rounded-xl bg-[#f3f6f4] ring-1 ring-[#e4ebe6] dark:bg-[#1a1a1a] dark:ring-white/[0.08] sm:size-11 sm:rounded-lg">
         {product.imageSrc ? (
           <CatalogProductImage
             src={product.imageSrc}
-            alt={product.name}
-            className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            alt=""
+            className="size-full object-cover"
           />
         ) : (
-          <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground/40 text-center p-4">
-            <span className="text-4xl font-bold uppercase opacity-20">
+          <div className="flex size-full items-center justify-center">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-semibold uppercase text-[#006c49]/35 dark:text-[#6ffbbe]/35">
               {product.name.charAt(0)}
             </span>
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col p-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-[14px] font-semibold text-foreground sm:text-[15px]">
-              {product.name}
-            </h3>
-            <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground sm:text-[12px]">
-              {product.sku}
-            </p>
-            {product.description && (
-              <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/80 sm:text-[12px]">
-                {product.description}
-              </p>
-            )}
-          </div>
-          <p className="shrink-0 text-[14px] font-bold tabular-nums text-foreground sm:text-[15px]">
-            {formatGhs(Number(product.priceGhs))}
-            {unitShort(product.unit) && (
-              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground">/{unitShort(product.unit)}</span>
-            )}
-          </p>
-        </div>
 
-        <div className="mt-auto pt-3">
-          <button
-            type="button"
-            onClick={onAdd}
-            disabled={isOutOfStock}
-            className={`tap-target flex min-h-[40px] w-full items-center justify-center gap-2 rounded-xl text-[13px] font-semibold transition-colors ${isOutOfStock
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-[#f4f4f5] text-foreground hover:bg-[#e4e4e7] active:bg-[#d4d4d8] dark:bg-[#1a1a1a] dark:text-white/90 dark:hover:bg-[#262626]"
-              }`}
+      <span className="min-w-0">
+        <span className="block truncate font-[family-name:var(--font-display)] text-[15px] font-semibold leading-snug tracking-tight text-[#14261e] dark:text-white sm:text-[15px]">
+          {product.name}
+        </span>
+        <span className="mt-0.5 flex items-center gap-1.5 sm:hidden">
+          <span
+            className={`inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums ${
+              isLowOrOversold
+                ? "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                : "bg-[#e7f4ee] text-[#0f6a4a] dark:bg-[#6ffbbe]/12 dark:text-[#6ffbbe]"
+            }`}
           >
-            <Plus className="size-[15px]" strokeWidth={2.5} aria-hidden />
-            {isOutOfStock ? "Sold Out" : "Add to Cart"}
-          </button>
-        </div>
-      </div>
-    </article>
+            {isLowOrOversold ? `Out of stock · ${stockLabel}` : stockLabel}
+          </span>
+        </span>
+      </span>
+
+      <span className="shrink-0 whitespace-nowrap text-right sm:hidden">
+        <span className="block font-[family-name:var(--font-display)] text-[16px] font-bold leading-none tabular-nums tracking-tight text-[#006c49] dark:text-[#6ffbbe]">
+          {formatGhs(Number(product.priceGhs))}
+        </span>
+        {unitLabel ? (
+          <span className="mt-0.5 block text-[10px] font-medium text-[#7a8c84] dark:text-muted-foreground">
+            /{unitLabel}
+          </span>
+        ) : null}
+      </span>
+
+      <span
+        className={`hidden truncate text-right text-[13px] tabular-nums sm:block sm:text-[14px] ${
+          isLowOrOversold
+            ? "font-medium text-red-600 dark:text-red-400"
+            : "font-medium text-[#006c49] dark:text-[#6ffbbe]"
+        }`}
+      >
+        {stockLabel}
+      </span>
+
+      <span className="hidden truncate text-right font-[family-name:var(--font-display)] text-[15px] font-bold tabular-nums tracking-tight text-[#006c49] sm:block dark:text-[#6ffbbe]">
+        {formatGhs(Number(product.priceGhs))}
+        {unitLabel ? (
+          <span className="ml-0.5 hidden text-[11px] font-medium text-muted-foreground sm:inline">
+            /{unitLabel}
+          </span>
+        ) : null}
+      </span>
+
+      <span
+        className="inline-flex size-8 items-center justify-center justify-self-end rounded-full bg-[#006c49] text-white shadow-[0_1px_2px_rgba(0,53,39,0.18)] dark:bg-[#6ffbbe] dark:text-[#003527] dark:shadow-none sm:size-9 sm:rounded-md sm:bg-[#006c49]/10 sm:text-[#006c49] sm:shadow-none sm:ring-1 sm:ring-[#006c49]/15 dark:sm:bg-[#6ffbbe]/15 dark:sm:text-[#6ffbbe] dark:sm:ring-[#6ffbbe]/25"
+        aria-hidden
+      >
+        <Plus className="size-3.5 sm:size-4" strokeWidth={2.5} />
+      </span>
+    </button>
+  );
+}
+
+export function PosProductTableHeader() {
+  return (
+    <div
+      className={`${rowGrid} hidden shrink-0 border-b border-[#e5e7eb] bg-[#f7f8f9] px-2.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:px-4 sm:py-2.5 sm:text-[12px] dark:border-white/[0.08] dark:bg-[#141414]`}
+    >
+      <span aria-hidden />
+      <span>Item</span>
+      <span className="hidden text-right sm:block">In stock</span>
+      <span className="hidden text-right sm:block">Price</span>
+      <span className="sr-only">Add</span>
+    </div>
   );
 }

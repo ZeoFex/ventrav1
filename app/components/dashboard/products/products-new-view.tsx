@@ -34,6 +34,8 @@ export function ProductsNewView() {
   const [initial, setInitial] = useState<ProductFormInitialValues>(() => buildInitial());
   const [loadingPrefill, setLoadingPrefill] = useState(true);
   const [prefillNote, setPrefillNote] = useState<string | null>(null);
+  const [promptItemPhoto, setPromptItemPhoto] = useState(false);
+  const [suggestedCategoryName, setSuggestedCategoryName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,26 +71,70 @@ export function ProductsNewView() {
         }
       }
 
+      let web: {
+        found?: boolean;
+        data?: {
+          name?: string;
+          description?: string;
+          brand?: string;
+          category?: string;
+          imageUrl?: string | null;
+          unit?: string | null;
+        };
+      } | null = null;
+
+      if (!pending?.productName && !global?.productName) {
+        try {
+          const res = await fetch(
+            `/api/products/lookup?barcode=${encodeURIComponent(barcode)}`,
+          );
+          if (res.ok) web = await res.json();
+        } catch {
+          /* optional */
+        }
+      }
+
       if (cancelled) return;
+
+      const webData = web?.data;
+      const brand = webData?.brand?.trim() ?? "";
+      const notes = (pending?.description ?? global?.description ?? webData?.description ?? "").trim();
+      const description =
+        notes && brand && !notes.toLowerCase().includes(brand.toLowerCase())
+          ? `${brand} · ${notes}`
+          : notes || (brand ? `Brand: ${brand}` : "");
+      const catalogName = pending?.productName || global?.productName || webData?.name || "";
+      const catalogImage = pending?.imageSrc || global?.imageSrc || webData?.imageUrl || null;
 
       setInitial(
         buildInitial({
           barcode,
-          name: pending?.productName ?? global?.productName ?? "",
-          description: pending?.description ?? global?.description ?? "",
-          imageSrc: pending?.imageSrc ?? global?.imageSrc ?? null,
-          unit: pending?.unit ?? global?.unit ?? DEFAULT_PRODUCT_UNIT,
+          name: catalogName,
+          description,
+          imageSrc: catalogImage,
+          unit: pending?.unit ?? global?.unit ?? webData?.unit ?? DEFAULT_PRODUCT_UNIT,
         }),
       );
-
+      setSuggestedCategoryName(webData?.category?.trim() || null);
       if (pending?.fromGlobalCatalog || global?.productName) {
         const source =
           pending?.sourceBusinessName ?? global?.sourceBusinessName ?? "another shop";
         setPrefillNote(
           `Barcode ${barcode} loaded from Ventra's shared catalog (contributed by ${source}). Set your prices and save.`,
         );
+        setPromptItemPhoto(false);
+      } else if (web?.found && catalogName) {
+        setPrefillNote(
+          `Barcode ${barcode} loaded from public product databases. Set your prices and save.`,
+        );
+        setPromptItemPhoto(!catalogImage);
       } else if (barcode) {
-        setPrefillNote(`Barcode ${barcode} captured from scan. Complete the details and save.`);
+        setPrefillNote(
+          catalogName
+            ? `Barcode ${barcode} captured from scan. Complete the details and save.`
+            : `Barcode ${barcode} was not found in the catalog. Photograph the item, fill in the details, and save.`,
+        );
+        setPromptItemPhoto(!catalogName && !catalogImage);
       }
 
       clearPendingProductFromScan();
@@ -117,6 +163,8 @@ export function ProductsNewView() {
       initial={initial}
       title="Add product"
       shellDescription={prefillNote ?? "Create a new catalog item."}
+      promptItemPhoto={promptItemPhoto}
+      suggestedCategoryName={suggestedCategoryName}
     />
   );
 }

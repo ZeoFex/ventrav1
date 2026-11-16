@@ -6,7 +6,7 @@ export function PrivacyPolicyContent() {
       <p><strong>Effective Date:</strong> January 1, 2026</p>
 
       <p>
-        At VentraPOS, your privacy is our priority. This Privacy Policy outlines the types of information we collect, how we use it, and the safeguards we have in place to protect your business data and your customers' data. By using the VentraPOS application, you consent to the data practices described in this statement.
+        At VentraPOS, your privacy is our priority. This Privacy Policy outlines the types of information we collect, how we use it, and the safeguards we have in place to protect your business data and your customers&apos; data. By using the VentraPOS application, you consent to the data practices described in this statement.
       </p>
 
       <div className="space-y-4">
@@ -61,7 +61,7 @@ export function TermsOfServiceContent() {
       <p><strong>Effective Date:</strong> January 1, 2026</p>
 
       <p>
-        Welcome to VentraPOS. These Terms of Service ("Terms") dictate your access to and use of our point-of-sale software, mobile applications, API, and associated web services. Please read them carefully.
+        Welcome to VentraPOS. These Terms of Service (&quot;Terms&quot;) dictate your access to and use of our point-of-sale software, mobile applications, API, and associated web services. Please read them carefully.
       </p>
 
       <div className="space-y-4">
@@ -72,7 +72,7 @@ export function TermsOfServiceContent() {
 
         <h3 className="text-xl font-bold text-foreground">2. Description of Service</h3>
         <p>
-          VentraPOS provides cloud-based inventory management, sales tracking, staff scheduling, and point-of-sale terminal software ("Service"). Our Service is continuously evolving; features may be added, removed, or modified at our discretion to better serve the broader ecosystem.
+          VentraPOS provides cloud-based inventory management, sales tracking, staff scheduling, and point-of-sale terminal software (&quot;Service&quot;). Our Service is continuously evolving; features may be added, removed, or modified at our discretion to better serve the broader ecosystem.
         </p>
 
         <h3 className="text-xl font-bold text-foreground">3. Account Obligations</h3>
@@ -90,7 +90,7 @@ export function TermsOfServiceContent() {
 
         <h3 className="text-xl font-bold text-foreground">5. Service Availability</h3>
         <p>
-          We strive to maintain 99.9% uptime. However, the Service is provided on an "AS IS" and "AS AVAILABLE" basis. VentraPOS does not guarantee uninterrupted access and is not liable for revenue losses resulting from temporary system downtimes, local internet outages, or hardware failures.
+          We strive to maintain 99.9% uptime. However, the Service is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. VentraPOS does not guarantee uninterrupted access and is not liable for revenue losses resulting from temporary system downtimes, local internet outages, or hardware failures.
         </p>
 
         <h3 className="text-xl font-bold text-foreground">6. Limitation of Liability</h3>

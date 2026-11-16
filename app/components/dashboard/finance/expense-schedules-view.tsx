@@ -8,6 +8,8 @@ import { ProductsPageShell } from "../products/products-page-shell";
 import { toast } from "sonner";
 import { useSession } from "@/app/components/auth/use-session";
 import { EXPENSE_CATEGORY_OPTIONS } from "@/app/lib/expense-categories";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
     if (!r.ok) throw new Error("Failed to load");
@@ -52,7 +54,7 @@ export function ExpenseSchedulesView() {
     async function handleCreate(e: React.FormEvent) {
         e.preventDefault();
         if (!canManage) return;
-        const amt = Number(amount);
+        const amt = parseAmountInput(amount);
         const dom = Math.min(28, Math.max(1, parseInt(dayOfMonth, 10) || 1));
         if (!category || !description.trim() || !Number.isFinite(amt) || amt <= 0) {
             toast.error("Fill category, description, and a valid amount.");
@@ -156,13 +158,11 @@ export function ExpenseSchedulesView() {
                         </div>
                         <div>
                             <label className="mb-1 block text-[13px] font-medium">Amount (GHS)</label>
-                            <input
+                            <AmountInput
                                 required
-                                type="number"
-                                min={0}
-                                step="0.01"
+                                placeholder="0.00"
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
+                                onChange={setAmount}
                                 className="w-full rounded-xl border px-3 py-2.5 text-[14px] dark:border-white/[0.12] dark:bg-[#141414]"
                             />
                         </div>

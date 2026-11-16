@@ -74,7 +74,7 @@ function RemoteScanContent() {
   }
 
   return (
-    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-black">
+    <div className="flex min-h-0 flex-1 flex-col bg-black pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="min-w-0">
           <h1
@@ -99,7 +99,7 @@ function RemoteScanContent() {
 
       <div className="relative min-h-0 flex-1">
         <PosBarcodeCamera active onScan={sendBarcode} className="h-full min-h-[50dvh] w-full" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-16">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pb-4 pt-16">
           <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-center">
             {status === "sending" ? (
               <p className="flex items-center gap-2 text-[13px] text-white/90">

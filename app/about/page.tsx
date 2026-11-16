@@ -14,19 +14,15 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import Image from "next/image";
 import type { Metadata } from "next";
 import { ReviewsSection } from "@/app/components/landing/reviews-section";
+import { ThemedSectionImage, type SectionImage } from "./system-shot";
 
 export const metadata: Metadata = {
   title: "About VentraPOS",
   description:
     "VentraPOS is an all-in-one business management platform that helps businesses manage sales, inventory, expenses, customers, suppliers, and operations from a single, easy-to-use system.",
 };
-
-type ThemeImage = { type: "theme"; light: string; dark: string; alt: string };
-type SingleImage = { type: "single"; src: string; alt: string };
-type SectionImage = ThemeImage | SingleImage;
 
 const featureItems: {
   title: string;
@@ -41,7 +37,7 @@ const featureItems: {
     icon: Receipt,
     image: {
       type: "single",
-      src: "/aboutventrapos/mobileScanner.png",
+      src: "/aboutventrapos/mobileScanner.webp",
       alt: "VentraPOS mobile barcode scanner for fast sales and checkout",
     },
   },
@@ -52,8 +48,8 @@ const featureItems: {
     icon: Package,
     image: {
       type: "theme",
-      light: "/aboutventrapos/productlistwhitebg.png",
-      dark: "/aboutventrapos/productList.png",
+      light: "/aboutventrapos/productlistwhitebg.webp",
+      dark: "/aboutventrapos/productList.webp",
       alt: "VentraPOS product catalog and inventory management",
     },
   },
@@ -64,8 +60,8 @@ const featureItems: {
     icon: Truck,
     image: {
       type: "theme",
-      light: "/aboutventrapos/suplieritemsrecordsonwhitescreen.png",
-      dark: "/aboutventrapos/suplieritemsrecords.png",
+      light: "/aboutventrapos/suplieritemsrecordsonwhitescreen.webp",
+      dark: "/aboutventrapos/suplieritemsrecords.webp",
       alt: "VentraPOS supplier records and purchase history",
     },
   },
@@ -76,7 +72,7 @@ const featureItems: {
     icon: Wallet,
     image: {
       type: "single",
-      src: "/aboutventrapos/expensistracker.png",
+      src: "/aboutventrapos/expensistracker.webp",
       alt: "VentraPOS expense reports and cost tracking",
     },
   },
@@ -87,7 +83,7 @@ const featureItems: {
     icon: Users,
     image: {
       type: "single",
-      src: "/aboutventrapos/searchengineontablet.png",
+      src: "/aboutventrapos/searchengineontablet.webp",
       alt: "VentraPOS customer search and relationship management on tablet",
     },
   },
@@ -98,7 +94,7 @@ const featureItems: {
     icon: BarChart3,
     image: {
       type: "single",
-      src: "/aboutventrapos/summaryReport.png",
+      src: "/aboutventrapos/summaryReport.webp",
       alt: "VentraPOS sales summary reports and analytics dashboard",
     },
   },
@@ -132,8 +128,8 @@ const whyChooseItems: {
     icon: Layers,
     image: {
       type: "theme",
-      light: "/aboutventrapos/branchesdesktopwhitebg.png",
-      dark: "/aboutventrapos/branchesDesktop.png",
+      light: "/aboutventrapos/branchesdesktopwhitebg.webp",
+      dark: "/aboutventrapos/branchesDesktop.webp",
       alt: "VentraPOS multi-branch management across locations",
     },
   },
@@ -143,54 +139,11 @@ const whyChooseItems: {
     icon: Headphones,
     image: {
       type: "single",
-      src: "/aboutventrapos/dedicated-support.png",
+      src: "/aboutventrapos/dedicated-support.webp",
       alt: "ZeoFex contact page showing office, email, phone, and studio support options",
     },
   },
 ];
-
-function ThemedSectionImage({
-  image,
-  priority = false,
-  className = "object-contain p-3 sm:p-5 lg:p-6",
-}: {
-  image: SectionImage;
-  priority?: boolean;
-  className?: string;
-}) {
-  if (image.type === "single") {
-    return (
-      <Image
-        src={image.src}
-        alt={image.alt}
-        fill
-        className={className}
-        sizes="(max-width: 1024px) 100vw, 50vw"
-        priority={priority}
-      />
-    );
-  }
-
-  return (
-    <>
-      <Image
-        src={image.light}
-        alt={image.alt}
-        fill
-        className={`${className} block dark:hidden`}
-        sizes="(max-width: 1024px) 100vw, 50vw"
-        priority={priority}
-      />
-      <Image
-        src={image.dark}
-        alt={image.alt}
-        fill
-        className={`${className} hidden dark:block`}
-        sizes="(max-width: 1024px) 100vw, 50vw"
-      />
-    </>
-  );
-}
 
 function FeatureCard({
   title,
@@ -276,7 +229,7 @@ export default function AboutPage() {
               <ThemedSectionImage
                 image={{
                   type: "single",
-                  src: "/aboutventrapos/dashboardhomepage.png",
+                  src: "/aboutventrapos/dashboardhomepage.webp",
                   alt: "VentraPOS dashboard homepage on MacBook showing sales and activity",
                 }}
                 priority
@@ -296,7 +249,7 @@ export default function AboutPage() {
                 <ThemedSectionImage
                   image={{
                     type: "single",
-                    src: "/aboutventrapos/featureSummary.png",
+                    src: "/aboutventrapos/featureSummary.webp",
                     alt: "VentraPOS platform features overview on laptop",
                   }}
                   priority

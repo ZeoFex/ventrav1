@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ImageIcon, Loader2, X } from "lucide-react";
+import { Camera, ImageIcon, Loader2, X } from "lucide-react";
+import { ProductItemPhotoCapture } from "../../products/product-item-photo-capture";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import { generateProductSku } from "../../products/product-catalog-codes";
@@ -13,6 +14,8 @@ import {
   getUnit,
 } from "@/app/lib/product-units";
 import type { GlobalBarcodePrefill } from "@/app/lib/pos/pending-product-barcode";
+import { parseAmountInput } from "@/app/lib/parse-amount";
+import { AmountInput } from "@/app/components/dashboard/ui/amount-input";
 
 type PosCreateProductFromScanModalProps = {
   open: boolean;
@@ -63,6 +66,7 @@ export function PosCreateProductFromScanModal({
   const [unitSelect, setUnitSelect] = useState(DEFAULT_PRODUCT_UNIT);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,12 +77,16 @@ export function PosCreateProductFromScanModal({
     setDescription(globalPrefill?.description ?? "");
     setImagePreview(globalPrefill?.imageSrc ?? null);
     setSelectedFile(null);
+    setPhotoOpen(false);
     setPrice("");
     setCostPrice("");
     setStock("");
     setCategoryId("");
     setUnitSelect(globalPrefill?.unit?.toLowerCase() || DEFAULT_PRODUCT_UNIT);
     setSaveState("idle");
+    if (globalPrefill?.imageSrc) return;
+    const timer = window.setTimeout(() => setPhotoOpen(true), 400);
+    return () => window.clearTimeout(timer);
   }, [open, barcode, globalPrefill]);
 
   if (!open) return null;
@@ -86,9 +94,9 @@ export function PosCreateProductFromScanModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmedName = name.trim();
-    const priceNum = Number(price);
+    const priceNum = parseAmountInput(price);
     const costTrim = costPrice.trim();
-    const costNum = costTrim === "" ? null : Number(costTrim);
+    const costNum = costTrim === "" ? null : parseAmountInput(costTrim);
     const stockNum = Math.max(0, Math.floor(Number(stock) || 0));
 
     if (!trimmedName) {
@@ -200,15 +208,6 @@ export function PosCreateProductFromScanModal({
 
         <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <div className="space-y-2">
-            <label className="text-[13px] font-semibold">Barcode</label>
-            <input
-              readOnly
-              value={barcode}
-              className="w-full rounded-xl border border-[#e5e7eb] bg-muted/40 px-3 py-2.5 font-mono text-[14px] dark:border-white/[0.12]"
-            />
-          </div>
-
-          <div className="space-y-2">
             <label className="text-[13px] font-semibold">Product name *</label>
             <input
               required
@@ -219,38 +218,21 @@ export function PosCreateProductFromScanModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[13px] font-semibold">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full rounded-xl border border-[#e5e7eb] px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49] dark:border-white/[0.12] dark:bg-[#0a0a0a]"
-              placeholder="Size, pack, brand notes…"
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <label className="text-[13px] font-semibold">Selling price (GHS) *</label>
-              <input
+              <AmountInput
                 required
-                type="number"
-                min={0}
-                step="0.01"
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={setPrice}
                 className="w-full rounded-xl border border-[#e5e7eb] px-3 py-2.5 text-[14px] dark:border-white/[0.12] dark:bg-[#0a0a0a]"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[13px] font-semibold">Cost price (GHS)</label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
+              <AmountInput
                 value={costPrice}
-                onChange={(e) => setCostPrice(e.target.value)}
+                onChange={setCostPrice}
                 className="w-full rounded-xl border border-[#e5e7eb] px-3 py-2.5 text-[14px] dark:border-white/[0.12] dark:bg-[#0a0a0a]"
               />
             </div>
@@ -288,22 +270,6 @@ export function PosCreateProductFromScanModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-[13px] font-semibold">Category</label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-xl border border-[#e5e7eb] px-3 py-2.5 text-[14px] dark:border-white/[0.12] dark:bg-[#0a0a0a]"
-            >
-              <option value="">Uncategorized</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
             <label className="text-[13px] font-semibold">Product image (optional)</label>
             <input
               ref={fileInputRef}
@@ -326,14 +292,60 @@ export function PosCreateProductFromScanModal({
                   <ImageIcon className="size-6 opacity-40" />
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-xl border px-3 py-2 text-[13px] font-medium hover:bg-muted dark:border-white/[0.12]"
-              >
-                Upload photo
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPhotoOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#006c49]/10 px-3 py-2 text-[13px] font-medium text-[#006c49] hover:bg-[#006c49]/20 dark:bg-[#6ffbbe]/10 dark:text-[#6ffbbe]"
+                >
+                  <Camera className="size-4" />
+                  Take photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-xl border px-3 py-2 text-[13px] font-medium hover:bg-muted dark:border-white/[0.12]"
+                >
+                  Upload photo
+                </button>
+              </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[13px] font-semibold">Barcode</label>
+            <input
+              readOnly
+              value={barcode}
+              className="w-full rounded-xl border border-[#e5e7eb] bg-muted/40 px-3 py-2.5 font-mono text-[14px] dark:border-white/[0.12]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[13px] font-semibold">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-[#e5e7eb] px-3 py-2.5 text-[14px] outline-none focus:border-[#006c49] dark:border-white/[0.12] dark:bg-[#0a0a0a]"
+              placeholder="Size, pack, brand notes…"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[13px] font-semibold">Category</label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full rounded-xl border border-[#e5e7eb] bg-background px-3 py-2.5 text-[14px] text-foreground dark:border-white/[0.12] dark:bg-[#141414]"
+            >
+              <option value="">Uncategorized</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <button
@@ -346,6 +358,18 @@ export function PosCreateProductFromScanModal({
           </button>
         </form>
       </div>
+      <ProductItemPhotoCapture
+        open={photoOpen}
+        onClose={() => setPhotoOpen(false)}
+        onCapture={(file) => {
+          setSelectedFile(file);
+          setImagePreview((current) => {
+            if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+            return URL.createObjectURL(file);
+          });
+          setPhotoOpen(false);
+        }}
+      />
     </div>
   );
 }

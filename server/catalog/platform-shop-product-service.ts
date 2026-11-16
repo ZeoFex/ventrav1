@@ -97,7 +97,7 @@ export async function addProductToShopAndMasterCatalog(
         throw new Error("Product name is required");
     }
 
-    const priceNum = parseFloat(String(input.priceGhs ?? "").replace(",", "."));
+    const priceNum = Number(String(input.priceGhs ?? "").trim().replace(/,/g, ""));
     if (!Number.isFinite(priceNum) || priceNum <= 0) {
         throw new Error("Shop selling price (GHS) is required and must be greater than zero");
     }

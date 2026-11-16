@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { groq } from "@ai-sdk/groq";
 import {
   convertToModelMessages,
   safeValidateUIMessages,
@@ -6,8 +6,8 @@ import {
   stepCountIs,
 } from "ai";
 import {
-  assertGoogleApiKeyConfigured,
-  getCopilotGeminiModelId,
+  assertGroqApiKeyConfigured,
+  getCopilotGroqModelId,
   getCopilotMaxSteps,
 } from "../config";
 import { logCopilotAudit } from "../audit";
@@ -25,7 +25,7 @@ export async function orchestrateCopilotChat(options: {
   preferredLanguage?: CopilotPreferredLanguage;
   onEvent: (e: CopilotStreamEvent) => void;
 }): Promise<void> {
-  assertGoogleApiKeyConfigured();
+  assertGroqApiKeyConfigured();
   const validated = await safeValidateUIMessages({
     messages: options.messages,
   });
@@ -37,7 +37,7 @@ export async function orchestrateCopilotChat(options: {
   const modelMessages = await convertToModelMessages(validated.data, {
     tools,
   });
-  const model = google(getCopilotGeminiModelId());
+  const model = groq(getCopilotGroqModelId());
 
   const result = streamText({
     model,
@@ -63,8 +63,14 @@ export async function orchestrateCopilotChat(options: {
   let sawFinish = false;
   for await (const part of result.fullStream) {
     switch (part.type) {
-      case "text-delta":
-        options.onEvent({ type: "text-delta", delta: part.text });
+      case "text-delta": {
+        const chunk = textChunk(part);
+        if (chunk) options.onEvent({ type: "text-delta", delta: chunk });
+        break;
+      }
+      case "reasoning-delta":
+      case "reasoning-start":
+      case "reasoning-end":
         break;
       case "tool-call":
         options.onEvent({
@@ -119,6 +125,17 @@ export async function orchestrateCopilotChat(options: {
       options.onEvent({ type: "done" });
     }
   }
+}
+
+function textChunk(part: {
+  text?: string;
+  textDelta?: string;
+  delta?: string;
+}): string {
+  if (typeof part.text === "string") return part.text;
+  if (typeof part.textDelta === "string") return part.textDelta;
+  if (typeof part.delta === "string") return part.delta;
+  return "";
 }
 
 function truncate(s: string, n: number): string {
